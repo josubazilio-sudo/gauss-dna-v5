@@ -68,7 +68,8 @@ def check_filters(config, trend_data, flow_data, momentum_data, market_data, smc
         if not smc_data.get("LIQUIDITY_SWEEP") and not smc_data.get("BOS"):
             result["FILTROS_REPROVADOS"].append("FILTRO_LIQUIDEZ")
             result["MOTIVO_RECUSA"] = "sem_liquidez"
-            result["FILTROS_APROVADOS"].append("FILTRO_LIQUIDEZ")
+            return False, result
+        result["FILTROS_APROVADOS"].append("FILTRO_LIQUIDEZ")
 
     # FILTRO_VOLATILIDADE
     if config.get("FILTRO_VOLATILIDADE", FILTRO_VOLATILIDADE):

@@ -15,6 +15,7 @@ from diagnostics import Diagnostics
 from notify import send_signal, send_diagnostic
 from schema.variables import empty_schema
 from adaptive import AdaptiveWeights
+from config import MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +31,18 @@ async def main_cycle():
                 logger.info("--- GAUSS DNA V5 INFINITY — Iniciando ciclo ---")
                 cycle_signals = []
 
-                market_data = await scan_market()
+                market_data = await scan_market(
+                    session=session,
+                    top_n=MAX_CRYPTOS,
+                    timeframe=TIMEFRAME_CONFIRMACAO,
+                )
 
                 for symbol, candles in market_data.items():
                     v = empty_schema()
                     v["SYMBOL"] = symbol
-                    v["TIMEFRAME_OPERACAO"] = "15m"
-                    v["TIMEFRAME_CONFIRMACAO"] = "1h"
-                    v["TIMEFRAME_MACRO"] = "4h"
+                    v["TIMEFRAME_OPERACAO"] = TIMEFRAME_OPERACAO
+                    v["TIMEFRAME_CONFIRMACAO"] = TIMEFRAME_CONFIRMACAO
+                    v["TIMEFRAME_MACRO"] = TIMEFRAME_MACRO
 
                     # Módulo 1: Mercado / Volatilidade
                     market_state = classify_market(candles)
@@ -62,7 +67,7 @@ async def main_cycle():
 
                     # Filtros e bloqueios
                     blockers = check_blockers(
-                        vars(v), market_state, flow_data, momentum_data, trend_data
+                        v, market_state, flow_data, momentum_data, trend_data
                     )
                     v.update(blockers)
 
@@ -74,7 +79,7 @@ async def main_cycle():
                         continue
 
                     passed, filter_result = check_filters(
-                        vars(v), trend_data, flow_data, momentum_data, market_state, smc_data
+                        v, trend_data, flow_data, momentum_data, market_state, smc_data
                     )
                     v.update(filter_result)
 

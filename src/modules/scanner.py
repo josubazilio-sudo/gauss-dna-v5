@@ -32,20 +32,23 @@ async def buscar_top_pares_usdt(session, top_n=300):
     return [p["symbol"] for p in pares[:top_n]]
 
 
-async def scan_market(**kwargs):
-    top_n = kwargs.get("top_n", 300)
-    timeframe = kwargs.get("timeframe", "1h")
-    pairs = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+async def scan_market(session=None, top_n=300, timeframe="1h"):
+    if session is None:
+        async with aiohttp.ClientSession() as _session:
+            return await _scan(_session, top_n, timeframe)
+    return await _scan(session, top_n, timeframe)
 
-    async with aiohttp.ClientSession() as session:
-        top_pairs = await buscar_top_pares_usdt(session, top_n)
-        pairs = top_pairs[:top_n]
 
-        market_data = {}
-        for pair in pairs:
-            candles = await buscar_candles(session, pair, timeframe)
-            if len(candles) >= 50:
-                market_data[pair] = candles
+async def _scan(session, top_n, timeframe):
+    top_pairs = await buscar_top_pares_usdt(session, top_n)
+    pairs = top_pairs[:top_n]
 
-        logger.info("Scan concluído: %d pares carregados", len(market_data))
-        return market_data
+    market_data = {}
+    for pair in pairs:
+        candles = await buscar_candles(session, pair, timeframe)
+        if len(candles) >= 50:
+            # Remove o candle atual (incompleto) — usa apenas velas fechadas
+            market_data[pair] = candles[:-1]
+
+    logger.info("Scan concluído: %d pares carregados", len(market_data))
+    return market_data

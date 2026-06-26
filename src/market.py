@@ -1,6 +1,6 @@
 """Módulo 1: Classificação do Mercado — preenche variáveis de VOLATILIDADE."""
 
-from config import VOL_ALTA_THRESHOLD, VOL_BAIXA_THRESHOLD
+from config import VOL_ALTA_THRESHOLD, VOL_BAIXA_THRESHOLD, ATR_EXPANSAO_THRESHOLD, ATR_COMPRESSAO_THRESHOLD
 
 
 def classify_market(candles):
