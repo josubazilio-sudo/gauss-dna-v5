@@ -38,3 +38,18 @@ class Diagnostics:
             "Diagnóstico (últimos %d): %d aprovados, %d bloqueados, %d recusados",
             len(latest), len(aprovados), len(bloqueados), len(recusados),
         )
+
+    def summary(self):
+        if not self.entries:
+            return None
+        latest = self.entries[-20:]
+        aprovados = [e for e in latest if e["decision"] in ("OURO", "PRATA", "BRONZE")]
+        bloqueados = [e for e in latest if e["decision"] == "bloqueado"]
+        recusados = [e for e in latest if e["decision"] == "recusado"]
+        return (
+            f"GAUSS DNA V5 - Diagnóstico do ciclo\n"
+            f"Analisados: {len(latest)}\n"
+            f"✅ Aprovados: {len(aprovados)}\n"
+            f"🔒 Bloqueados: {len(bloqueados)}\n"
+            f"❌ Recusados: {len(recusados)}"
+        )
