@@ -8,32 +8,58 @@ Sistema institucional de trading automático para MEXC (300+ criptomoedas).
 src/
 ├── main.py              # Entry point
 ├── config.py            # Constantes e variáveis de ambiente
-├── cycles.py            # Orquestrador principal (scan -> análise -> decisão)
-├── state.py             # Persistência de estado e journal
-├── market.py            # Módulo 1: Classificação do mercado
-├── trend.py             # Módulo 2: Detecção de tendência (MM10/21/50/200)
-├── smart_money.py       # Módulo 3: SMC (sweep, BOS, CHOCH, FVG, OB)
-├── flow.py              # Módulo 4: Fluxo (volume, RVOL, delta)
+├── cycles.py            # Orquestrador principal
+├── market.py            # Módulo 1: Classificação do mercado + VOLATILIDADE
+├── trend.py             # Módulo 2: Tendência (EMA_10/21/50/200)
+├── smart_money.py       # Módulo 3: SMC (BOS, CHOCH, FVG, OB, sweep)
+├── flow.py              # Módulo 4: Fluxo (VOLUME, RVOL, DELTA)
 ├── momentum.py          # Módulo 5: Momentum (RSI, ADX, ATR, HA)
-├── score.py             # Módulo 8: Score institucional e classificação
-├── filters.py           # Módulos 6, 7, 9: Filtros e bloqueios
+├── score.py             # Score institucional e classificação
+├── filters.py           # Filtros e bloqueios
 ├── risk.py              # Gestão de risco
 ├── diagnostics.py       # Diagnóstico e logging
+├── adaptive.py          # IA adaptativa (pesos dinâmicos por ativo)
+├── notify.py            # Notificações Telegram
+├── schema/
+│   ├── __init__.py
+│   └── variables.py     # Schema oficial de variáveis padronizadas
 └── modules/
+    ├── __init__.py
     ├── indicators.py    # Cálculos técnicos
     └── scanner.py       # Scanner MEXC
 ```
 
+## Schema Oficial de Variáveis
+
+Todas as variáveis seguem o padrão definido em `schema/variables.py`.
+Cada módulo preenche seu subset e o dict final contém todas as chaves.
+
+### Grupos de variáveis:
+- **CONFIGURAÇÃO GERAL**: TIMEFRAME_OPERACAO, MAX_CRYPTOS, RISCO_POR_OPERACAO, MODO_*
+- **TENDÊNCIA**: EMA_10/21/50/200, EMA_ALINHADA, TENDENCIA, DIRECAO
+- **SMART MONEY**: BOS, CHOCH, LIQUIDITY_SWEEP, FVG, ORDER_BLOCK, ESTRUTURA_OK
+- **VOLUME**: VOLUME, RVOL, DELTA, VOLUME_CRESCENTE, ABSORCAO, EXAUSTAO
+- **MOMENTUM**: RSI, ADX, ATR, HEIKIN_ASHI, HA_BULL/BEAR
+- **VOLATILIDADE**: VOL_ALTA, VOL_BAIXA, ATR_EXPANSAO, ATR_COMPRESSAO
+- **FILTROS**: FILTRO_LATERAL, FILTRO_VOLUME, FILTRO_FLUXO, FILTRO_TENDENCIA, etc.
+- **ENTRADA**: LONG_*/SHORT_* (PERMITIDO, CONFIRMADO, SCORE, STOP, TAKE)
+- **GESTÃO**: CAPITAL, SALDO, WINRATE, PROFIT_FACTOR, EXPECTANCIA
+- **SCORE**: SCORE_TENDENCIA, SCORE_VOLUME, SCORE_TOTAL
+- **CLASSIFICAÇÃO**: SINAL_OURO/PRATA/BRONZE, NIVEL_CONFIANCA
+- **DIAGNÓSTICO**: MOTIVO_RECUSA, FILTROS_APROVADOS/REPROVADOS
+- **IA ADAPTATIVA**: PESO_TENDENCIA, PESO_FLUXO, PESO_VOLUME, PESO_ATIVO
+- **ESTATÍSTICAS**: SYMBOL, WINRATE_SYMBOL, RVOL_SYMBOL, SCORE_SYMBOL
+- **SEGURANÇA**: PARAR_OPERACOES, CIRCUIT_BREAKER, MERCADO_PERIGOSO
+- **DECISÃO FINAL**: OPERAR, IGNORAR, MOTIVO, CLASSIFICACAO_FINAL, EXECUTAR_ORDEM
+
 ## Comportamento
 
-- **Não prevê mercado** — reage apenas a consenso multi-fator
-- **Sem consenso = sem operação**
-- **Score ≥ 95 = OURO**, 85-94 = PRATA, 75-84 = BRONZE
-- **Nunca operar abaixo de 75**
-- **Mercado lateral bloqueia entradas**
-- **Saída**: manter enquanto MM10/MM21 alinhadas + fluxo favorável + estrutura intacta
+- Score ≥ 95 = OURO | 85-94 = PRATA | 75-84 = BRONZE
+- Mercado lateral + ATR comprimido bloqueiam entradas
+- IA adaptativa ajusta pesos por ativo baseado em winrate histórico
+- Sinais enviados para o mesmo Telegram do bot V3/V4
 
-## Referências
+## Repositórios
 
-- Repositório anterior (V3/V4): `https://github.com/josubazilio-sudo/gauss-dna.git`
-- Local: `C:\Users\josue\Usersjosuegauss-dna`
+- V5: `https://github.com/josubazilio-sudo/gauss-dna-v5`
+- V3/V4: `https://github.com/josubazilio-sudo/gauss-dna`

@@ -1,49 +1,72 @@
-"""Módulo 1: Classificação do Mercado."""
+"""Módulo 1: Classificação do Mercado — preenche variáveis de VOLATILIDADE."""
+
+from config import VOL_ALTA_THRESHOLD, VOL_BAIXA_THRESHOLD
 
 
 def classify_market(candles):
     """
-    Determina o estado atual do mercado.
+    Preenche VOLATILIDADE, VOL_ALTA, VOL_BAIXA, ATR_EXPANSAO, ATR_COMPRESSAO.
 
-    Returns:
-        "tendencia_forte" | "tendencia_moderada" | "consolidacao"
-        | "lateral" | "alta_volatilidade" | "baixa_volatilidade"
+    Returns dict com chaves: ESTADO_MERCADO, VOLATILIDADE, VOL_ALTA, VOL_BAIXA,
+    ATR_EXPANSAO, ATR_COMPRESSAO
     """
+    result = {
+        "ESTADO_MERCADO": "lateral",
+        "VOLATILIDADE": "normal",
+        "VOL_ALTA": False,
+        "VOL_BAIXA": False,
+        "ATR_EXPANSAO": False,
+        "ATR_COMPRESSAO": False,
+    }
+
     if not candles or len(candles) < 50:
-        return "lateral"
+        return result
 
     closes = [c[4] for c in candles]
     highs = [c[2] for c in candles]
     lows = [c[3] for c in candles]
 
-    atr = _calc_atr(highs, lows, closes, 14)
-    atr_mean = sum(atr) / len(atr) if atr else 0
-    atr_pct = atr[-1] / atr_mean if atr_mean else 0
+    atr_arr = _calc_atr(highs, lows, closes, 14)
+    if not atr_arr:
+        return result
 
-    if atr_pct > 1.8:
-        return "alta_volatilidade"
-    if atr_pct < 0.5:
-        return "baixa_volatilidade"
+    atr_mean = sum(atr_arr) / len(atr_arr)
+    atr_current = atr_arr[-1]
+    atr_ratio = atr_current / atr_mean if atr_mean else 1.0
 
-    returns = [abs(closes[i] - closes[i - 1]) / closes[i - 1]
-               for i in range(1, len(closes[-30:]))]
+    result["ATR_EXPANSAO"] = atr_ratio >= ATR_EXPANSAO_THRESHOLD
+    result["ATR_COMPRESSAO"] = atr_ratio <= ATR_COMPRESSAO_THRESHOLD
+
+    if atr_ratio >= VOL_ALTA_THRESHOLD:
+        result["VOL_ALTA"] = True
+        result["VOLATILIDADE"] = "alta"
+    elif atr_ratio <= VOL_BAIXA_THRESHOLD:
+        result["VOL_BAIXA"] = True
+        result["VOLATILIDADE"] = "baixa"
+
+    returns = [
+        abs(closes[i] - closes[i - 1]) / closes[i - 1]
+        for i in range(1, len(closes[-30:]))
+    ]
     avg_move = sum(returns) / len(returns) if returns else 0
 
     if avg_move < 0.002:
-        return "lateral"
+        result["ESTADO_MERCADO"] = "lateral"
+        return result
 
     recent = closes[-20:]
     sideways = max(recent) / min(recent) - 1
     if sideways < 0.03:
-        return "consolidacao"
+        result["ESTADO_MERCADO"] = "consolidacao"
+        return result
 
     trend_strength = abs(closes[-1] - closes[-50]) / closes[-50]
     if trend_strength > 0.08:
-        return "tendencia_forte"
-    if trend_strength > 0.03:
-        return "tendencia_moderada"
+        result["ESTADO_MERCADO"] = "tendencia_forte"
+    elif trend_strength > 0.03:
+        result["ESTADO_MERCADO"] = "tendencia_moderada"
 
-    return "lateral"
+    return result
 
 
 def _calc_atr(highs, lows, closes, period):
@@ -59,5 +82,4 @@ def _calc_atr(highs, lows, closes, period):
         if i < period - 1:
             continue
         atr.append(sum(tr[i - period + 1:i + 1]) / period)
-
     return atr

@@ -1,16 +1,25 @@
-"""Módulo 4: Análise de Fluxo (Volume, RVOL, Delta)."""
+"""Módulo 4: Análise de Fluxo — preenche variáveis VOLUME."""
+
+from config import RVOL_MINIMO
 
 
 def analyze_flow(candles):
     """
-    Avalia fluxo comprador/vendedor.
+    Preenche VOLUME, VOLUME_MEDIO, RVOL, DELTA,
+    DELTA_POSITIVO, DELTA_NEGATIVO, VOLUME_CRESCENTE,
+    ABSORCAO, EXAUSTAO.
     """
     result = {
-        "rvol": 1.0,
-        "volume_crescente": False,
-        "absorcao": False,
-        "exaustao": False,
-        "fluxo_direcao": "neutro",
+        "VOLUME": 0.0,
+        "VOLUME_MEDIO": 0.0,
+        "RVOL": 1.0,
+        "RVOL_MINIMO": RVOL_MINIMO,
+        "DELTA": 0.0,
+        "DELTA_POSITIVO": False,
+        "DELTA_NEGATIVO": False,
+        "VOLUME_CRESCENTE": False,
+        "ABSORCAO": False,
+        "EXAUSTAO": False,
     }
 
     if not candles or len(candles) < 20:
@@ -18,25 +27,29 @@ def analyze_flow(candles):
 
     volumes = [c[5] for c in candles]
     closes = [c[4] for c in candles]
-    vol_mean = sum(volumes[-20:]) / len(volumes[-20:])
-    vol_current = volumes[-1]
+    opens = [c[1] for c in candles]
 
-    result["rvol"] = vol_current / vol_mean if vol_mean else 1.0
+    result["VOLUME"] = volumes[-1]
+    result["VOLUME_MEDIO"] = sum(volumes[-20:]) / 20
+
+    result["RVOL"] = result["VOLUME"] / result["VOLUME_MEDIO"] if result["VOLUME_MEDIO"] else 1.0
 
     recent = volumes[-5:]
-    result["volume_crescente"] = all(recent[i] >= recent[i - 1] for i in range(1, len(recent)))
+    result["VOLUME_CRESCENTE"] = all(recent[i] >= recent[i - 1] for i in range(1, len(recent)))
 
-    delta = sum((c[4] - c[1]) * c[5] for c in candles[-5:])
-    if abs(delta) > vol_mean * 2:
-        result["absorcao"] = True
+    # Delta: diferença entre compra e venda
+    delta = sum((closes[i] - opens[i]) * volumes[i] for i in range(-5, 0))
+    result["DELTA"] = delta
+    result["DELTA_POSITIVO"] = delta > 0
+    result["DELTA_NEGATIVO"] = delta < 0
 
-    vol_decreasing = all(recent[i] <= recent[i - 1] for i in range(1, len(recent)))
-    if vol_decreasing and vol_current < vol_mean * 0.5:
-        result["exaustao"] = True
+    # Absorção: delta pequeno com volume alto = batalha
+    if result["VOLUME"] > result["VOLUME_MEDIO"] * 2 and abs(delta) < volumes[-1] * 0.01:
+        result["ABSORCAO"] = True
 
-    if delta > 0:
-        result["fluxo_direcao"] = "comprador"
-    elif delta < 0:
-        result["fluxo_direcao"] = "vendedor"
+    # Exaustão: volume caindo consistentemente
+    if all(volumes[-i] <= volumes[-i - 1] for i in range(1, min(4, len(volumes)))):
+        if volumes[-1] < result["VOLUME_MEDIO"] * 0.5:
+            result["EXAUSTAO"] = True
 
     return result

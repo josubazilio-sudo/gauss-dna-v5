@@ -13,6 +13,8 @@ from filters import check_filters, check_blockers
 from risk import RiskManager
 from diagnostics import Diagnostics
 from notify import send_signal, send_diagnostic
+from schema.variables import empty_schema
+from adaptive import AdaptiveWeights
 
 logger = logging.getLogger(__name__)
 
@@ -20,69 +22,138 @@ logger = logging.getLogger(__name__)
 async def main_cycle():
     risk = RiskManager()
     diagnostics = Diagnostics()
+    adaptive = AdaptiveWeights()
 
     async with aiohttp.ClientSession() as session:
         while True:
             try:
-                logger.info("--- Iniciando ciclo de scan ---")
+                logger.info("--- GAUSS DNA V5 INFINITY — Iniciando ciclo ---")
                 cycle_signals = []
 
                 market_data = await scan_market()
 
                 for symbol, candles in market_data.items():
+                    v = empty_schema()
+                    v["SYMBOL"] = symbol
+                    v["TIMEFRAME_OPERACAO"] = "15m"
+                    v["TIMEFRAME_CONFIRMACAO"] = "1h"
+                    v["TIMEFRAME_MACRO"] = "4h"
+
+                    # Módulo 1: Mercado / Volatilidade
                     market_state = classify_market(candles)
-                    if market_state == "lateral":
-                        diagnostics.record(symbol, "bloqueado", "mercado_lateral")
+                    v.update(market_state)
+                    v["VOLATILIDADE"] = market_state.get("VOLATILIDADE", "normal")
+
+                    # Módulo 2: Tendência
+                    trend_data = analyze_trend(candles)
+                    v.update(trend_data)
+
+                    # Módulo 3: Smart Money
+                    smc_data = detect_smc(candles)
+                    v.update(smc_data)
+
+                    # Módulo 4: Fluxo / Volume
+                    flow_data = analyze_flow(candles)
+                    v.update(flow_data)
+
+                    # Módulo 5: Momentum
+                    momentum_data = analyze_momentum(candles)
+                    v.update(momentum_data)
+
+                    # Filtros e bloqueios
+                    blockers = check_blockers(
+                        vars(v), market_state, flow_data, momentum_data, trend_data
+                    )
+                    v.update(blockers)
+
+                    if blockers.get("PARAR_OPERACOES"):
+                        diagnostics.record(symbol, "bloqueado", "parar_operacoes")
+                        v["IGNORAR"] = True
+                        v["MOTIVO"] = "parar_operacoes"
+                        v["EXECUTAR_ORDEM"] = False
                         continue
 
-                    trend_dir, trend_mas = analyze_trend(candles)
-                    smc = detect_smc(candles)
-                    flow = analyze_flow(candles)
-                    momentum = analyze_momentum(candles)
+                    passed, filter_result = check_filters(
+                        vars(v), trend_data, flow_data, momentum_data, market_state, smc_data
+                    )
+                    v.update(filter_result)
 
-                    score = calculate_score((trend_dir, trend_mas), flow, smc, momentum)
-                    classification = classify_signal(score)
-
-                    blockers = check_blockers(trend_dir, flow, smc, momentum, flow)
-                    if blockers:
-                        diagnostics.record(symbol, "bloqueado", blockers)
-                        continue
-
-                    passed = check_filters((trend_dir, trend_mas), flow, momentum)
                     if not passed:
-                        diagnostics.record(symbol, "recusado", "filtros")
+                        diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"))
+                        v["IGNORAR"] = True
+                        v["MOTIVO"] = v.get("MOTIVO_RECUSA", "filtro")
+                        v["EXECUTAR_ORDEM"] = False
+                        continue
+
+                    # Score institucional (com pesos adaptativos)
+                    score_data = calculate_score(
+                        adaptive.get_weights(symbol),
+                        trend_data, flow_data, smc_data, momentum_data, market_state
+                    )
+                    v.update(score_data)
+
+                    # Classificação
+                    confianca = adaptive.get_confianca(symbol, score_data["SCORE_TOTAL"])
+                    classification = classify_signal(score_data["SCORE_TOTAL"], confianca)
+                    v.update(classification)
+
+                    if not classification.get("CLASSIFICACAO_FINAL"):
+                        diagnostics.record(symbol, "recusado", "score_insuficiente")
+                        v["IGNORAR"] = True
+                        v["MOTIVO"] = f"score_{score_data['SCORE_TOTAL']}"
+                        v["EXECUTAR_ORDEM"] = False
                         continue
 
                     if not risk.can_enter(symbol):
                         diagnostics.record(symbol, "recusado", "limite_risco")
+                        v["IGNORAR"] = True
+                        v["MOTIVO"] = "limite_risco"
+                        v["EXECUTAR_ORDEM"] = False
                         continue
 
+                    # Decisão final
+                    direcao = trend_data.get("DIRECAO", "lateral")
+                    if direcao == "long":
+                        v["LONG_PERMITIDO"] = True
+                        v["LONG_CONFIRMADO"] = True
+                        v["LONG_SCORE"] = score_data["SCORE_TOTAL"]
+                        v["LONG_ENTRADA"] = candles[-1][4]
+                    elif direcao == "short":
+                        v["SHORT_PERMITIDO"] = True
+                        v["SHORT_CONFIRMADO"] = True
+                        v["SHORT_SCORE"] = score_data["SCORE_TOTAL"]
+                        v["SHORT_ENTRADA"] = candles[-1][4]
+
+                    v["OPERAR"] = True
+                    v["IGNORAR"] = False
+                    v["CONFIANCA"] = confianca
+                    v["CLASSIFICACAO_FINAL"] = classification.get("CLASSIFICACAO_FINAL", "")
+                    v["EXECUTAR_ORDEM"] = True
+                    v["MOTIVO_ENTRADA"] = classification.get("CLASSIFICACAO_FINAL", "")
+                    v["MOTIVO"] = v["MOTIVO_ENTRADA"]
+
                     risk.enter(symbol)
-                    diagnostics.record(symbol, classification, score)
-                    cycle_signals.append((symbol, trend_dir, trend_mas, smc, flow, momentum, classification, score))
+                    diagnostics.record(symbol, v["CLASSIFICACAO_FINAL"], score_data["SCORE_TOTAL"])
+                    cycle_signals.append((symbol, direcao, v))
 
                 # Enviar sinais via Telegram
-                for item in cycle_signals:
-                    symbol, trend_dir, _, _, flow, momentum, classification, score = item
-                    close = market_data[symbol][-1][4]
-                    direction = "LONG" if flow["fluxo_direcao"] == "comprador" else "SHORT"
-
+                for symbol, direcao, v in cycle_signals:
+                    close = v.get("LONG_ENTRADA") or v.get("SHORT_ENTRADA") or 0
                     enviado = await send_signal(
                         session=session,
                         symbol=symbol,
-                        direction=direction,
+                        direction=direcao.upper(),
                         preco=close,
-                        score=score,
-                        classificacao=classification,
-                        rsi=momentum["rsi"],
-                        adx=momentum["adx"],
-                        rvol=flow["rvol"],
-                        tendencia=trend_dir,
+                        score=v.get("SCORE_TOTAL", 0),
+                        classificacao=v.get("CLASSIFICACAO_FINAL", ""),
+                        rsi=v.get("RSI", 50),
+                        adx=v.get("ADX", 0),
+                        rvol=v.get("RVOL", 1.0),
+                        tendencia=v.get("TENDENCIA", ""),
                     )
                     if enviado:
-                        logger.info("Sinal %s %s enviado ao Telegram", classification, symbol)
+                        logger.info("Sinal %s %s enviado", v.get("CLASSIFICACAO_FINAL"), symbol)
 
-                # Enviar diagnóstico se não houve sinais
                 if not cycle_signals:
                     resumo = diagnostics.summary()
                     if resumo:

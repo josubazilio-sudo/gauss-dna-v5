@@ -1,39 +1,48 @@
-"""Módulo 5: Momentum (RSI, ADX, ATR, Heikin Ashi)."""
+"""Módulo 5: Momentum — preenche variáveis MOMENTUM."""
 
-
-def ema(data, period):
-    if len(data) < period:
-        return None
-    k = 2 / (period + 1)
-    result = [sum(data[:period]) / period]
-    for val in data[period:]:
-        result.append(val * k + result[-1] * (1 - k))
-    return result
+from config import RSI_PERIOD, RSI_LONG_MIN, RSI_LONG_MAX, RSI_SHORT_MIN, RSI_SHORT_MAX, ADX_PERIOD, ATR_PERIOD
 
 
 def analyze_momentum(candles):
     """
-    Analisa RSI, ADX, ATR e Heikin Ashi.
+    Preenche RSI, RSI_LONG, RSI_SHORT, ADX, ATR,
+    ATR_MEDIO, MOMENTUM, HEIKIN_ASHI, HA_BULL, HA_BEAR.
     """
     result = {
-        "rsi": 50,
-        "adx": 15,
-        "atr": 0,
-        "ha_tendencia": "neutra",
-        "momentum_crescente": False,
-        "momentum_decrescente": False,
+        "RSI": 50.0,
+        "RSI_LONG": False,
+        "RSI_SHORT": False,
+        "ADX": 0.0,
+        "ADX_MINIMO": 20,
+        "ATR": 0.0,
+        "ATR_MEDIO": 0.0,
+        "MOMENTUM": "neutro",
+        "HEIKIN_ASHI": "neutra",
+        "HA_BULL": False,
+        "HA_BEAR": False,
     }
 
     closes = [c[4] for c in candles]
     highs = [c[2] for c in candles]
     lows = [c[3] for c in candles]
 
-    result["rsi"] = _calc_rsi(closes, 14)
-    result["adx"] = _calc_adx(highs, lows, closes, 14)
-    result["atr"] = _calc_atr_single(highs, lows, closes)
-    result["ha_tendencia"] = _calc_heikin_ashi(candles)
-    result["momentum_crescente"] = closes[-1] > closes[-10] if len(closes) > 10 else False
-    result["momentum_decrescente"] = closes[-1] < closes[-10] if len(closes) > 10 else False
+    if len(closes) < 20:
+        return result
+
+    result["RSI"] = _calc_rsi(closes, RSI_PERIOD)
+    result["RSI_LONG"] = RSI_LONG_MIN <= result["RSI"] <= RSI_LONG_MAX
+    result["RSI_SHORT"] = RSI_SHORT_MIN <= result["RSI"] <= RSI_SHORT_MAX
+
+    result["ADX"] = _calc_adx(highs, lows, closes, ADX_PERIOD)
+    result["ATR"] = _calc_atr(highs, lows, closes, ATR_PERIOD)
+    result["ATR_MEDIO"] = result["ATR"]
+
+    result["MOMENTUM"] = "crescente" if closes[-1] > closes[-10] else "decrescente"
+
+    ha = _calc_heikin_ashi(candles)
+    result["HEIKIN_ASHI"] = ha
+    result["HA_BULL"] = ha == "alta"
+    result["HA_BEAR"] = ha == "baixa"
 
     return result
 
@@ -41,16 +50,11 @@ def analyze_momentum(candles):
 def _calc_rsi(closes, period=14):
     if len(closes) < period + 1:
         return 50
-    gains = []
-    losses = []
+    gains, losses = [], []
     for i in range(1, period + 1):
         diff = closes[-i] - closes[-i - 1]
-        if diff >= 0:
-            gains.append(diff)
-            losses.append(0)
-        else:
-            gains.append(0)
-            losses.append(abs(diff))
+        gains.append(max(diff, 0))
+        losses.append(max(-diff, 0))
     avg_gain = sum(gains) / period
     avg_loss = sum(losses) / period
     if avg_loss == 0:
@@ -62,22 +66,14 @@ def _calc_rsi(closes, period=14):
 def _calc_adx(highs, lows, closes, period=14):
     if len(highs) < period * 2:
         return 15
-    tr_list = []
-    plus_dm = []
-    minus_dm = []
+    tr_list, plus_dm, minus_dm = [], [], []
     for i in range(1, len(closes)):
         tr = max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1]))
         tr_list.append(tr)
         up_move = highs[i] - highs[i - 1]
         down_move = lows[i - 1] - lows[i]
-        if up_move > down_move and up_move > 0:
-            plus_dm.append(up_move)
-        else:
-            plus_dm.append(0)
-        if down_move > up_move and down_move > 0:
-            minus_dm.append(down_move)
-        else:
-            minus_dm.append(0)
+        plus_dm.append(up_move if up_move > down_move and up_move > 0 else 0)
+        minus_dm.append(down_move if down_move > up_move and down_move > 0 else 0)
     atr = sum(tr_list[-period:]) / period
     apd = sum(plus_dm[-period:]) / period
     amd = sum(minus_dm[-period:]) / period
@@ -87,7 +83,7 @@ def _calc_adx(highs, lows, closes, period=14):
     return dx
 
 
-def _calc_atr_single(highs, lows, closes, period=14):
+def _calc_atr(highs, lows, closes, period=14):
     if len(highs) < period + 1:
         return 0
     tr = []
