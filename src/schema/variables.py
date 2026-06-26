@@ -49,7 +49,7 @@ def empty_schema():
         "VOLUME": 0.0,
         "VOLUME_MEDIO": 0.0,
         "RVOL": 1.0,
-        "RVOL_MINIMO": 1.2,
+        "RVOL_MINIMO": 1.0,
         "DELTA": 0.0,
         "DELTA_POSITIVO": False,
         "DELTA_NEGATIVO": False,
@@ -127,6 +127,19 @@ def empty_schema():
         "SCORE_ESTRUTURA": 0,
         "SCORE_VOLATILIDADE": 0,
         "SCORE_TOTAL": 0,
+
+        # ── MULTI-TIMEFRAME ────────────────────────────────────────
+        "MTF_15M_TENDENCIA": "",
+        "MTF_1H_TENDENCIA": "",
+        "MTF_4H_TENDENCIA": "",
+        "MTF_15M_DIRECAO": "",
+        "MTF_1H_DIRECAO": "",
+        "MTF_4H_DIRECAO": "",
+        "MTF_15M_SCORE": 0,
+        "MTF_1H_SCORE": 0,
+        "MTF_4H_SCORE": 0,
+        "MTF_CONVERGENCIA": False,
+        "MTF_BONUS": 0,
 
         # ── CLASSIFICAÇÃO ──────────────────────────────────────────
         "SINAL_OURO": False,

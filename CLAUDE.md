@@ -54,7 +54,7 @@ Cada módulo preenche seu subset e o dict final contém todas as chaves.
 
 ## Comportamento
 
-- Score ≥ 95 = OURO | 85-94 = PRATA | 75-84 = BRONZE
+- Score ≥ 90 = OURO | 75-89 = PRATA | 50-74 = BRONZE
 - Mercado lateral + ATR comprimido bloqueiam entradas
 - IA adaptativa ajusta pesos por ativo baseado em winrate histórico
 - Sinais enviados para o mesmo Telegram do bot V3/V4

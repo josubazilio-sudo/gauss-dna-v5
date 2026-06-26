@@ -19,6 +19,169 @@ from config import MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEF
 
 logger = logging.getLogger(__name__)
 
+# Timeframes para analise multi-timeframe
+TIMEFRAMES = [TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO]
+
+
+def analisar_tf(candles, tf):
+    """Analisa um par em um timeframe especifico."""
+    market_state = classify_market(candles)
+    trend_data = analyze_trend(candles)
+    smc_data = detect_smc(candles)
+    flow_data = analyze_flow(candles)
+    momentum_data = analyze_momentum(candles)
+    return {
+        "MARKET": market_state,
+        "TREND": trend_data,
+        "SMC": smc_data,
+        "FLOW": flow_data,
+        "MOMENTUM": momentum_data,
+    }
+
+
+def calcular_mtf_bonus(analises):
+    """
+    Calcula bonus multi-timeframe baseado na convergencia entre TFs.
+    Retorna (bonus, dados_mtf).
+    """
+    mtf_data = {}
+    bonus = 0
+
+    for tf, dados in analises.items():
+        tend = dados["TREND"].get("TENDENCIA", "")
+        direcao = dados["TREND"].get("DIRECAO", "")
+        sc = 0
+        if tend in ("alta", "alta_moderada"):
+            sc = 1
+        elif tend in ("baixa", "baixa_moderada"):
+            sc = -1
+        mtf_data[f"MTF_{tf}_TENDENCIA"] = tend
+        mtf_data[f"MTF_{tf}_DIRECAO"] = direcao
+        mtf_data[f"MTF_{tf}_SCORE"] = sc
+
+    # Verificar convergencia
+    direcoes = [d["TREND"].get("DIRECAO") for d in analises.values()]
+    nao_neutras = [d for d in direcoes if d != "lateral"]
+    if len(nao_neutras) >= 2:
+        if all(d == nao_neutras[0] for d in nao_neutras):
+            bonus = 15  # Convergencia forte
+            mtf_data["MTF_CONVERGENCIA"] = True
+        else:
+            bonus = 5
+            mtf_data["MTF_CONVERGENCIA"] = False
+    else:
+        mtf_data["MTF_CONVERGENCIA"] = False
+
+    mtf_data["MTF_BONUS"] = bonus
+    return bonus, mtf_data
+
+
+async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
+    """Processa um par com multi-timeframe e retorna o schema ou None."""
+    # Analisar cada timeframe
+    analises = {}
+    for tf in TIMEFRAMES:
+        candles = tf_data.get(tf, [])
+        if len(candles) < 50:
+            return None
+        analises[tf] = analisar_tf(candles, tf)
+
+    # Usar o timeframe de operacao (15m) para dados principais
+    op_data = analises[TIMEFRAME_OPERACAO]
+    conf_data = analises[TIMEFRAME_CONFIRMACAO]
+
+    v = empty_schema()
+    v["SYMBOL"] = symbol
+    v["TIMEFRAME_OPERACAO"] = TIMEFRAME_OPERACAO
+    v["TIMEFRAME_CONFIRMACAO"] = TIMEFRAME_CONFIRMACAO
+    v["TIMEFRAME_MACRO"] = TIMEFRAME_MACRO
+
+    # Preencher dados principais (timeframe de operacao)
+    v.update(op_data["MARKET"])
+    v.update(op_data["TREND"])
+    v.update(op_data["SMC"])
+    v.update(op_data["FLOW"])
+    v.update(op_data["MOMENTUM"])
+
+    # Multi-timeframe bonus
+    mtf_bonus, mtf_data = calcular_mtf_bonus(analises)
+    v.update(mtf_data)
+
+    # Filtros e bloqueios
+    blockers = check_blockers(v, op_data["MARKET"], op_data["FLOW"], op_data["MOMENTUM"], op_data["TREND"])
+    v.update(blockers)
+
+    if blockers.get("PARAR_OPERACOES"):
+        diagnostics.record(symbol, "bloqueado", "parar_operacoes")
+        v["IGNORAR"] = True
+        v["MOTIVO"] = "parar_operacoes"
+        v["EXECUTAR_ORDEM"] = False
+        return v
+
+    passed, filter_result = check_filters(
+        v, op_data["TREND"], op_data["FLOW"], op_data["MOMENTUM"], op_data["MARKET"], op_data["SMC"]
+    )
+    v.update(filter_result)
+
+    if not passed:
+        diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"))
+        v["IGNORAR"] = True
+        v["MOTIVO"] = v.get("MOTIVO_RECUSA", "filtro")
+        v["EXECUTAR_ORDEM"] = False
+        return v
+
+    # Score com bonus MTF
+    score_data = calculate_score(
+        adaptive.get_weights(symbol),
+        op_data["TREND"], op_data["FLOW"], op_data["SMC"],
+        op_data["MOMENTUM"], op_data["MARKET"],
+        mtf_bonus=mtf_bonus,
+    )
+    v.update(score_data)
+
+    # Classificacao
+    confianca = adaptive.get_confianca(symbol, score_data["SCORE_TOTAL"])
+    classification = classify_signal(score_data["SCORE_TOTAL"], confianca)
+    v.update(classification)
+
+    if not classification.get("CLASSIFICACAO_FINAL"):
+        v["IGNORAR"] = True
+        v["MOTIVO"] = f"score_{score_data['SCORE_TOTAL']}"
+        v["EXECUTAR_ORDEM"] = False
+        return v
+
+    if not risk.can_enter(symbol):
+        diagnostics.record(symbol, "recusado", "limite_risco")
+        v["IGNORAR"] = True
+        v["MOTIVO"] = "limite_risco"
+        v["EXECUTAR_ORDEM"] = False
+        return v
+
+    # Decisao final
+    direcao = op_data["TREND"].get("DIRECAO", "lateral")
+    if direcao == "long":
+        v["LONG_PERMITIDO"] = True
+        v["LONG_CONFIRMADO"] = True
+        v["LONG_SCORE"] = score_data["SCORE_TOTAL"]
+        v["LONG_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0)
+    elif direcao == "short":
+        v["SHORT_PERMITIDO"] = True
+        v["SHORT_CONFIRMADO"] = True
+        v["SHORT_SCORE"] = score_data["SCORE_TOTAL"]
+        v["SHORT_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0)
+
+    v["OPERAR"] = True
+    v["IGNORAR"] = False
+    v["CONFIANCA"] = confianca
+    v["CLASSIFICACAO_FINAL"] = classification.get("CLASSIFICACAO_FINAL", "")
+    v["EXECUTAR_ORDEM"] = True
+    v["MOTIVO_ENTRADA"] = classification.get("CLASSIFICACAO_FINAL", "")
+    v["MOTIVO"] = v["MOTIVO_ENTRADA"]
+
+    risk.enter(symbol)
+    diagnostics.record(symbol, v["CLASSIFICACAO_FINAL"], score_data["SCORE_TOTAL"])
+    return (symbol, direcao, v)
+
 
 async def main_cycle():
     risk = RiskManager()
@@ -34,112 +197,18 @@ async def main_cycle():
                 market_data = await scan_market(
                     session=session,
                     top_n=MAX_CRYPTOS,
-                    timeframe=TIMEFRAME_CONFIRMACAO,
+                    timeframes=TIMEFRAMES,
                 )
 
-                for symbol, candles in market_data.items():
-                    v = empty_schema()
-                    v["SYMBOL"] = symbol
-                    v["TIMEFRAME_OPERACAO"] = TIMEFRAME_OPERACAO
-                    v["TIMEFRAME_CONFIRMACAO"] = TIMEFRAME_CONFIRMACAO
-                    v["TIMEFRAME_MACRO"] = TIMEFRAME_MACRO
+                tasks = [
+                    processar_par(symbol, tf_data, risk, diagnostics, adaptive, session)
+                    for symbol, tf_data in market_data.items()
+                ]
+                results = await asyncio.gather(*tasks)
 
-                    # Módulo 1: Mercado / Volatilidade
-                    market_state = classify_market(candles)
-                    v.update(market_state)
-                    v["VOLATILIDADE"] = market_state.get("VOLATILIDADE", "normal")
-
-                    # Módulo 2: Tendência
-                    trend_data = analyze_trend(candles)
-                    v.update(trend_data)
-
-                    # Módulo 3: Smart Money
-                    smc_data = detect_smc(candles)
-                    v.update(smc_data)
-
-                    # Módulo 4: Fluxo / Volume
-                    flow_data = analyze_flow(candles)
-                    v.update(flow_data)
-
-                    # Módulo 5: Momentum
-                    momentum_data = analyze_momentum(candles)
-                    v.update(momentum_data)
-
-                    # Filtros e bloqueios
-                    blockers = check_blockers(
-                        v, market_state, flow_data, momentum_data, trend_data
-                    )
-                    v.update(blockers)
-
-                    if blockers.get("PARAR_OPERACOES"):
-                        diagnostics.record(symbol, "bloqueado", "parar_operacoes")
-                        v["IGNORAR"] = True
-                        v["MOTIVO"] = "parar_operacoes"
-                        v["EXECUTAR_ORDEM"] = False
-                        continue
-
-                    passed, filter_result = check_filters(
-                        v, trend_data, flow_data, momentum_data, market_state, smc_data
-                    )
-                    v.update(filter_result)
-
-                    if not passed:
-                        diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"))
-                        v["IGNORAR"] = True
-                        v["MOTIVO"] = v.get("MOTIVO_RECUSA", "filtro")
-                        v["EXECUTAR_ORDEM"] = False
-                        continue
-
-                    # Score institucional (com pesos adaptativos)
-                    score_data = calculate_score(
-                        adaptive.get_weights(symbol),
-                        trend_data, flow_data, smc_data, momentum_data, market_state
-                    )
-                    v.update(score_data)
-
-                    # Classificação
-                    confianca = adaptive.get_confianca(symbol, score_data["SCORE_TOTAL"])
-                    classification = classify_signal(score_data["SCORE_TOTAL"], confianca)
-                    v.update(classification)
-
-                    if not classification.get("CLASSIFICACAO_FINAL"):
-                        diagnostics.record(symbol, "recusado", "score_insuficiente")
-                        v["IGNORAR"] = True
-                        v["MOTIVO"] = f"score_{score_data['SCORE_TOTAL']}"
-                        v["EXECUTAR_ORDEM"] = False
-                        continue
-
-                    if not risk.can_enter(symbol):
-                        diagnostics.record(symbol, "recusado", "limite_risco")
-                        v["IGNORAR"] = True
-                        v["MOTIVO"] = "limite_risco"
-                        v["EXECUTAR_ORDEM"] = False
-                        continue
-
-                    # Decisão final
-                    direcao = trend_data.get("DIRECAO", "lateral")
-                    if direcao == "long":
-                        v["LONG_PERMITIDO"] = True
-                        v["LONG_CONFIRMADO"] = True
-                        v["LONG_SCORE"] = score_data["SCORE_TOTAL"]
-                        v["LONG_ENTRADA"] = candles[-1][4]
-                    elif direcao == "short":
-                        v["SHORT_PERMITIDO"] = True
-                        v["SHORT_CONFIRMADO"] = True
-                        v["SHORT_SCORE"] = score_data["SCORE_TOTAL"]
-                        v["SHORT_ENTRADA"] = candles[-1][4]
-
-                    v["OPERAR"] = True
-                    v["IGNORAR"] = False
-                    v["CONFIANCA"] = confianca
-                    v["CLASSIFICACAO_FINAL"] = classification.get("CLASSIFICACAO_FINAL", "")
-                    v["EXECUTAR_ORDEM"] = True
-                    v["MOTIVO_ENTRADA"] = classification.get("CLASSIFICACAO_FINAL", "")
-                    v["MOTIVO"] = v["MOTIVO_ENTRADA"]
-
-                    risk.enter(symbol)
-                    diagnostics.record(symbol, v["CLASSIFICACAO_FINAL"], score_data["SCORE_TOTAL"])
-                    cycle_signals.append((symbol, direcao, v))
+                for r in results:
+                    if r and len(r) == 3:
+                        cycle_signals.append(r)
 
                 # Enviar sinais via Telegram
                 for symbol, direcao, v in cycle_signals:
@@ -155,6 +224,11 @@ async def main_cycle():
                         adx=v.get("ADX", 0),
                         rvol=v.get("RVOL", 1.0),
                         tendencia=v.get("TENDENCIA", ""),
+                        detalhes={
+                            "MTF": v.get("MTF_CONVERGENCIA", False),
+                            "Mercado": v.get("ESTADO_MERCADO", ""),
+                            "Score": f"{v.get('SCORE_TOTAL', 0)}/100",
+                        },
                     )
                     if enviado:
                         logger.info("Sinal %s %s enviado", v.get("CLASSIFICACAO_FINAL"), symbol)

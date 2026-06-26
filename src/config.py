@@ -38,7 +38,7 @@ SMC_BOS_CONFIRMACAO = 1.001
 # VOLUME
 # ═══════════════════════════════════════════════════════════════
 
-RVOL_MINIMO = float(os.getenv("RVOL_MINIMO", "1.2"))
+RVOL_MINIMO = float(os.getenv("RVOL_MINIMO", "1.0"))
 
 # ═══════════════════════════════════════════════════════════════
 # MOMENTUM
@@ -104,7 +104,7 @@ PESO_LIQUIDEZ     = 15
 PESO_ESTRUTURA    = 20
 PESO_MOMENTUM     = 10
 PESO_VOLATILIDADE = 5
-PESO_MULTI_TIMEFRAME = 5
+PESO_MULTI_TIMEFRAME = 10
 PESO_CONFIANCA    = 10
 PESO_ATIVO        = 5
 
@@ -118,9 +118,9 @@ TOTAL_PESOS = sum([
 # SCORE
 # ═══════════════════════════════════════════════════════════════
 
-SCORE_OURO_MIN  = 95
-SCORE_PRATA_MIN = 85
-SCORE_BRONZE_MIN = 75
+SCORE_OURO_MIN  = 90
+SCORE_PRATA_MIN = 75
+SCORE_BRONZE_MIN = 50
 
 # ═══════════════════════════════════════════════════════════════
 # MEXC API
