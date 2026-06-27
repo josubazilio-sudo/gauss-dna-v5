@@ -1,5 +1,6 @@
 """Scanner MEXC — suporta multi-timeframe."""
 
+import asyncio
 import aiohttp
 import logging
 
@@ -59,20 +60,24 @@ async def _scan_mtf(session, top_n, timeframes):
     pairs = top_pairs[:top_n]
     logger.info("Scan multi-timeframe: %d pares, timeframes=%s", len(pairs), timeframes)
 
-    market_data = {}
+    # Fetch all pairs × TFs in parallel
+    todas = []
     for pair in pairs:
-        tf_data = {}
-        ok = True
         for tf in timeframes:
-            candles = await buscar_candles(session, pair, tf)
-            if len(candles) >= 50:
-                # Remove o candle atual (incompleto)
-                tf_data[tf] = candles[:-1]
-            else:
-                ok = False
-                break
-        if ok:
-            market_data[pair] = tf_data
+            todas.append((pair, tf))
+    
+    tasks = [buscar_candles(session, pair, tf) for pair, tf in todas]
+    resultados = await asyncio.gather(*tasks)
+    
+    market_data = {}
+    for (pair, tf), candles in zip(todas, resultados):
+        if pair not in market_data:
+            market_data[pair] = {}
+        if len(candles) >= 50:
+            market_data[pair][tf] = candles[:-1]
+    
+    # Remove pares que nao tem todos os TFs
+    market_data = {p: d for p, d in market_data.items() if len(d) == len(timeframes)}
 
     logger.info("Scan concluido: %d pares com dados completos", len(market_data))
     return market_data
