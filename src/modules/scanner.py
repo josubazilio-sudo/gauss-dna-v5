@@ -11,23 +11,29 @@ logger = logging.getLogger(__name__)
 _TF_MEXC = {"5m": "5m", "15m": "15m", "30m": "30m", "1h": "60m", "4h": "4h"}
 
 
-async def fetch(session, url):
-    async with session.get(url) as resp:
-        return await resp.json()
+async def fetch(session, url, timeout=10):
+    try:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
+            return await resp.json()
+    except Exception:
+        return None
 
 
 async def buscar_candles(session, symbol, timeframe="1h", limit=200):
     tf = _TF_MEXC.get(timeframe, "60m")
     url = f"{MEXC_BASE}/klines?symbol={symbol}&interval={tf}&limit={limit}"
-    data = await fetch(session, url)
-    if isinstance(data, dict) and "code" in data:
+    data = await fetch(session, url, timeout=8)
+    if not isinstance(data, list):
         return []
-    return [[float(x) for x in row[:6]] for row in data]
+    try:
+        return [[float(x) for x in row[:6]] for row in data]
+    except Exception:
+        return []
 
 
 async def buscar_top_pares_usdt(session, top_n=300):
     url = f"{MEXC_BASE}/ticker/24hr"
-    data = await fetch(session, url)
+    data = await fetch(session, url, timeout=15)
     if not isinstance(data, list):
         return []
     pares = [p for p in data if isinstance(p, dict) and p.get("symbol", "").endswith("USDT")]
@@ -60,26 +66,32 @@ async def _scan_mtf(session, top_n, timeframes):
     pairs = top_pairs[:top_n]
     logger.info("Scan multi-timeframe: %d pares, timeframes=%s", len(pairs), timeframes)
 
-    # Rate limit: max 10 concurrent requests to avoid MEXC throttling
-    sem = asyncio.Semaphore(10)
-
-    async def _fetch_com_limite(pair, tf):
-        async with sem:
-            candles = await buscar_candles(session, pair, tf)
-            return pair, tf, candles
-
-    tasks = [_fetch_com_limite(pair, tf) for pair in pairs for tf in timeframes]
-    resultados = await asyncio.gather(*tasks)
-    
     market_data = {}
-    for pair, tf, candles in resultados:
-        if pair not in market_data:
-            market_data[pair] = {}
-        if len(candles) >= 50:
-            market_data[pair][tf] = candles[:-1]
-    
-    # Remove pares que nao tem todos os TFs
-    market_data = {p: d for p, d in market_data.items() if len(d) == len(timeframes)}
+    batch_size = 5
+    total_batches = (len(pairs) + batch_size - 1) // batch_size
+
+    for batch_idx in range(0, len(pairs), batch_size):
+        batch = pairs[batch_idx:batch_idx + batch_size]
+        tasks = [
+            asyncio.create_task(buscar_candles(session, pair, tf))
+            for pair in batch for tf in timeframes
+        ]
+        resultados = await asyncio.gather(*tasks)
+
+        i = 0
+        for pair in batch:
+            for tf in timeframes:
+                candles = resultados[i]
+                i += 1
+                if pair not in market_data:
+                    market_data[pair] = {}
+                if len(candles) >= 50:
+                    market_data[pair][tf] = candles[:-1]
+            if len(market_data.get(pair, {})) != len(timeframes):
+                market_data.pop(pair, None)
+
+        if batch_idx + batch_size < len(pairs):
+            await asyncio.sleep(0.3)
 
     logger.info("Scan concluido: %d pares com dados completos", len(market_data))
     return market_data
