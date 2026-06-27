@@ -160,25 +160,22 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         v["EXECUTAR_ORDEM"] = False
         return v
 
-    if not risk.can_enter(symbol):
-        diagnostics.record(symbol, "recusado", "limite_risco", score=score_total)
+    # Decisao final — sinal valido independente do risco
+    direcao = op_data["TREND"].get("DIRECAO", "lateral")
+    if direcao not in ("long", "short"):
         v["IGNORAR"] = True
-        v["MOTIVO"] = "limite_risco"
+        v["MOTIVO"] = "sem_direcao"
         v["EXECUTAR_ORDEM"] = False
         return v
 
-    # Decisao final
-    direcao = op_data["TREND"].get("DIRECAO", "lateral")
-    if direcao == "long":
-        v["LONG_PERMITIDO"] = True
-        v["LONG_CONFIRMADO"] = True
-        v["LONG_SCORE"] = score_data["SCORE_TOTAL"]
-        v["LONG_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0)
-    elif direcao == "short":
-        v["SHORT_PERMITIDO"] = True
-        v["SHORT_CONFIRMADO"] = True
-        v["SHORT_SCORE"] = score_data["SCORE_TOTAL"]
-        v["SHORT_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0)
+    v["LONG_PERMITIDO"] = direcao == "long"
+    v["LONG_CONFIRMADO"] = direcao == "long"
+    v["LONG_SCORE"] = score_data["SCORE_TOTAL"]
+    v["LONG_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0) if direcao == "long" else 0
+    v["SHORT_PERMITIDO"] = direcao == "short"
+    v["SHORT_CONFIRMADO"] = direcao == "short"
+    v["SHORT_SCORE"] = score_data["SCORE_TOTAL"]
+    v["SHORT_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0) if direcao == "short" else 0
 
     v["OPERAR"] = True
     v["IGNORAR"] = False
@@ -201,12 +198,20 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
             "tp1_quote_size": 0.5,
         })
 
-    risk.enter(symbol)
+    # Risco: sinal sempre enviado, mas entrada real limitada
+    pode_entrar = risk.can_enter(symbol)
+    if pode_entrar:
+        risk.enter(symbol)
+        v["MOTIVO"] = f"{v['CLASSIFICACAO_FINAL']}_ENTRADA"
+    else:
+        v["MOTIVO"] = f"{v['CLASSIFICACAO_FINAL']}_LIMITE_RISCO"
+        v["EXECUTAR_ORDEM"] = False
+
     diagnostics.record(symbol, v["CLASSIFICACAO_FINAL"], score_data["SCORE_TOTAL"])
     diagnostics.add_candidate(
         symbol, direcao.upper(), score_total,
         op_data["MOMENTUM"].get("RSI", 50),
-        v.get("CLASSIFICACAO_FINAL", "")
+        v.get("MOTIVO", "")
     )
     return (symbol, direcao, v)
 
