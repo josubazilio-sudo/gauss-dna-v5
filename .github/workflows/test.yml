@@ -1,0 +1,22 @@
+name: Test Scan
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install aiohttp
+      - run: python -c "import asyncio; import aiohttp; print('OK imports')"
+      - run: python -c "import asyncio; from modules.scanner import scan_market; print('OK scan import')"
+        working-directory: src
+      - run: |
+          python -c "
+import asyncio, aiohttp
+from modules.scanner import scan_market
+r = asyncio.run(scan_market(top_n=2, timeframes=['15m', '1h']))
+print('OK scan:', len(r), 'pares')
+"
+        working-directory: src
