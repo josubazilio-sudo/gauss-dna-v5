@@ -133,7 +133,8 @@ class Diagnostics:
 
         return (
             f"DIAGNOSTICO GAUSS+DNA — {tempo_sem_sinal}\n"
-            f"Mercado neutro — Analisados: {len(self.entries)} | Aprovados: {len(aprovados)}\n\n"
+            f"Mercado neutro — Analisados: {len(self.entries)}\n"
+            f"✅ Aprovados: {len(aprovados)} | 🔒 Bloqueados: {len(bloqueados)} | ❌ Recusados: {len(recusados)}\n\n"
             f"Bloqueadores mais frequentes:\n{bloqueadores_str}"
             f"{filtros_str}\n\n"
             f"Candidatos (por que nao disparou):\n{top_str}\n"
