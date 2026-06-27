@@ -242,57 +242,57 @@ async def main_cycle():
         try:
             diagnostics.cycle_count = 1
             logger.info("--- GAUSS DNA V5 — Ciclo %d ---", diagnostics.cycle_count)
-                cycle_signals = []
 
-                market_data = await scan_market(
+            market_data = await scan_market(
+                session=session,
+                top_n=MAX_CRYPTOS,
+                timeframes=TIMEFRAMES,
+            )
+
+            diagnostics.total_analises = 0
+            tasks = [
+                processar_par(symbol, tf_data, risk, diagnostics, adaptive, session)
+                for symbol, tf_data in market_data.items()
+            ]
+            results = await asyncio.gather(*tasks)
+
+            cycle_signals = []
+            for r in results:
+                if r is None:
+                    continue
+                diagnostics.total_analises += 1
+                if len(r) == 3:
+                    cycle_signals.append(r)
+
+            # Enviar sinais via Telegram (formato DNA FLEX)
+            for symbol, direcao, v in cycle_signals:
+                close = v.get("LONG_ENTRADA") or v.get("SHORT_ENTRADA") or 0
+                enviado = await send_signal(
                     session=session,
-                    top_n=MAX_CRYPTOS,
-                    timeframes=TIMEFRAMES,
+                    symbol=symbol,
+                    direction=direcao.upper(),
+                    preco=close,
+                    score=v.get("SCORE_TOTAL", 0),
+                    classificacao=v.get("CLASSIFICACAO_FINAL", ""),
+                    rsi=v.get("RSI", 50),
+                    adx=v.get("ADX", 0),
+                    rvol=v.get("RVOL", 1.0),
+                    tendencia=v.get("TENDENCIA", ""),
+                    v=v,
+                    timeframe=TIMEFRAME_OPERACAO,
                 )
+                if enviado:
+                    logger.info("Sinal %s %s enviado", v.get("CLASSIFICACAO_FINAL"), symbol)
 
-                diagnostics.total_analises = 0
-                tasks = [
-                    processar_par(symbol, tf_data, risk, diagnostics, adaptive, session)
-                    for symbol, tf_data in market_data.items()
-                ]
-                results = await asyncio.gather(*tasks)
+            # Sempre enviar resumo com recomendacao
+            resumo = diagnostics.summary()
+            if resumo:
+                await send_diagnostic(session, resumo)
 
-                for r in results:
-                    if r is None:
-                        continue
-                    diagnostics.total_analises += 1
-                    if len(r) == 3:
-                        cycle_signals.append(r)
+            await risk.refresh()
 
-                # Enviar sinais via Telegram (formato DNA FLEX)
-                for symbol, direcao, v in cycle_signals:
-                    close = v.get("LONG_ENTRADA") or v.get("SHORT_ENTRADA") or 0
-                    enviado = await send_signal(
-                        session=session,
-                        symbol=symbol,
-                        direction=direcao.upper(),
-                        preco=close,
-                        score=v.get("SCORE_TOTAL", 0),
-                        classificacao=v.get("CLASSIFICACAO_FINAL", ""),
-                        rsi=v.get("RSI", 50),
-                        adx=v.get("ADX", 0),
-                        rvol=v.get("RVOL", 1.0),
-                        tendencia=v.get("TENDENCIA", ""),
-                        v=v,
-                        timeframe=TIMEFRAME_OPERACAO,
-                    )
-                    if enviado:
-                        logger.info("Sinal %s %s enviado", v.get("CLASSIFICACAO_FINAL"), symbol)
+        except Exception as e:
+            logger.exception("Erro no ciclo: %s", e)
+            raise
 
-                # Sempre enviar resumo com recomendacao
-                resumo = diagnostics.summary()
-                if resumo:
-                    await send_diagnostic(session, resumo)
-
-                await risk.refresh()
-
-            except Exception as e:
-                logger.exception("Erro no ciclo: %s", e)
-                raise
-
-            logger.info("--- CICLO COMPLETO ---")
+        logger.info("--- CICLO COMPLETO ---")
