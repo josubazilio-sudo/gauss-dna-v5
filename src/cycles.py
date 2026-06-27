@@ -123,6 +123,9 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     )
     v.update(filter_result)
 
+    for f in v.get("FILTROS_REPROVADOS", []):
+        diagnostics.record_filter_block(f)
+
     # Score com bonus MTF (calcula mesmo se filtro falhar, para diagnostico)
     score_data = calculate_score(
         adaptive.get_weights(symbol),
@@ -133,8 +136,12 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     v.update(score_data)
     score_total = score_data.get("SCORE_TOTAL", 0)
 
+    rsi_val = op_data["MOMENTUM"].get("RSI", 50)
+    direction_hint = "LONG" if op_data["TREND"].get("DIRECAO") == "long" else "SHORT"
+
     if not passed:
         diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"), score=score_total)
+        diagnostics.add_candidate(symbol, direction_hint, score_total, rsi_val, v.get("MOTIVO_RECUSA", "filtro"))
         v["IGNORAR"] = True
         v["MOTIVO"] = v.get("MOTIVO_RECUSA", "filtro")
         v["EXECUTAR_ORDEM"] = False
@@ -147,6 +154,7 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
 
     if not classification.get("CLASSIFICACAO_FINAL"):
         diagnostics.record(symbol, "recusado", f"score_{score_total}", score=score_total)
+        diagnostics.add_candidate(symbol, direction_hint, score_total, rsi_val, f"score_{score_total}")
         v["IGNORAR"] = True
         v["MOTIVO"] = f"score_{score_total}"
         v["EXECUTAR_ORDEM"] = False
@@ -195,6 +203,11 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
 
     risk.enter(symbol)
     diagnostics.record(symbol, v["CLASSIFICACAO_FINAL"], score_data["SCORE_TOTAL"])
+    diagnostics.add_candidate(
+        symbol, direcao.upper(), score_total,
+        op_data["MOMENTUM"].get("RSI", 50),
+        v.get("CLASSIFICACAO_FINAL", "")
+    )
     return (symbol, direcao, v)
 
 
@@ -206,7 +219,8 @@ async def main_cycle():
     async with aiohttp.ClientSession() as session:
         while True:
             try:
-                logger.info("--- GAUSS DNA V5 INFINITY — Iniciando ciclo ---")
+                diagnostics.cycle_count += 1
+                logger.info("--- GAUSS DNA V5 INFINITY — Ciclo %d ---", diagnostics.cycle_count)
                 cycle_signals = []
 
                 market_data = await scan_market(
@@ -215,6 +229,7 @@ async def main_cycle():
                     timeframes=TIMEFRAMES,
                 )
 
+                diagnostics.total_analises = 0
                 tasks = [
                     processar_par(symbol, tf_data, risk, diagnostics, adaptive, session)
                     for symbol, tf_data in market_data.items()
@@ -222,7 +237,10 @@ async def main_cycle():
                 results = await asyncio.gather(*tasks)
 
                 for r in results:
-                    if r and len(r) == 3:
+                    if r is None:
+                        continue
+                    diagnostics.total_analises += 1
+                    if len(r) == 3:
                         cycle_signals.append(r)
 
                 # Enviar sinais via Telegram (formato DNA FLEX)

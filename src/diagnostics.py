@@ -1,8 +1,6 @@
-"""Diagnóstico e Logging de Decisões."""
-
-import json
 import logging
 from datetime import datetime
+from collections import Counter
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +8,11 @@ logger = logging.getLogger(__name__)
 class Diagnostics:
     def __init__(self):
         self.entries = []
+        self.blockers = Counter()
+        self.filter_blocks = Counter()
+        self.candidates = []
+        self.cycle_count = 0
+        self.total_analises = 0
 
     def record(self, symbol, decision, detail=None, score=None):
         entry = {
@@ -22,43 +25,102 @@ class Diagnostics:
         self.entries.append(entry)
 
         if decision in ("OURO", "PRATA", "BRONZE"):
-            logger.info("[%s] %s | Score: %s% | Detalhe: %s", symbol, decision, score, detail)
-        else:
-            logger.debug("[%s] %s | Motivo: %s", symbol, decision, detail)
+            logger.info("[%s] %s | Score: %s | Detalhe: %s", symbol, decision, score, detail)
+        elif decision == "recusado":
+            motivo = str(detail)
+            if "score" in motivo:
+                self.blockers["score baixo"] += 1
+            elif "mercado lateral" in motivo.lower():
+                self.blockers["mercado lateral"] += 1
+            elif "rvol" in motivo.lower():
+                self.blockers["RVOL baixo"] += 1
+            elif "adx" in motivo.lower():
+                self.blockers["ADX baixo"] += 1
+            elif "tendencia" in motivo.lower():
+                self.blockers["tendencia desfavoravel"] += 1
+            elif "volatilidade" in motivo.lower():
+                self.blockers["volatilidade alta"] += 1
+            elif "liquidez" in motivo.lower():
+                self.blockers["liquidez baixa"] += 1
+            elif "spread" in motivo.lower():
+                self.blockers["spread alto"] += 1
+            else:
+                self.blockers[motivo] += 1
+            logger.debug("[%s] recusado: %s score=%s", symbol, detail, score)
 
-    def report(self):
-        if not self.entries:
-            return
-        latest = self.entries[-20:]
-        aprovados = [e for e in latest if e["decision"] in ("OURO", "PRATA", "BRONZE")]
-        bloqueados = [e for e in latest if e["decision"] == "bloqueado"]
-        recusados = [e for e in latest if e["decision"] == "recusado"]
+    def record_filter_block(self, motivo):
+        self.filter_blocks[motivo] += 1
 
-        logger.info(
-            "Diagnóstico (últimos %d): %d aprovados, %d bloqueados, %d recusados",
-            len(latest), len(aprovados), len(bloqueados), len(recusados),
-        )
+    def add_candidate(self, symbol, direction, score, rsi, detalhes=""):
+        self.candidates.append({
+            "symbol": symbol,
+            "direction": direction,
+            "score": score,
+            "rsi": rsi,
+            "detalhes": detalhes,
+        })
 
-    def summary(self, top_n=5):
+    def summary(self, top_n=8):
         if not self.entries:
             return None
+
         aprovados = [e for e in self.entries if e["decision"] in ("OURO", "PRATA", "BRONZE")]
-        bloqueados = [e for e in self.entries if e["decision"] == "bloqueado"]
         recusados = [e for e in self.entries if e["decision"] == "recusado"]
+        bloqueados = [e for e in self.entries if e["decision"] == "bloqueado"]
+
+        now = datetime.utcnow()
+        ultimo_sinal = None
+        for e in reversed(self.entries):
+            if e["decision"] in ("OURO", "PRATA", "BRONZE"):
+                ultimo_sinal = e["timestamp"]
+                break
+        tempo_sem_sinal = ""
+        if ultimo_sinal:
+            t = datetime.fromisoformat(ultimo_sinal)
+            diff = (now - t).total_seconds()
+            mins = int(diff // 60)
+            tempo_sem_sinal = f"sem sinais ha {mins}min"
+        else:
+            tempo_sem_sinal = "sem historico de sinais"
+
         ordenados = sorted(
-            [e for e in self.entries if e.get("score")],
+            [e for e in self.entries if e.get("score") is not None],
             key=lambda x: x["score"] or 0, reverse=True,
         )
-        top = ordenados[:top_n]
-        top_linhas = "\n".join(
-            f"  {i+1}. {e['symbol']} - {e['decision']} ({e['score']}/100)"
-            for i, e in enumerate(top)
-        ) if top else "  Nenhum sinal gerado"
+
+        top_candidates = ordenados[:top_n]
+        top_linhas = []
+        for e in top_candidates:
+            score = e.get("score", 0)
+            direction = "LONG" if score >= 0 else "SHORT"
+            rsi = ""
+            detalhes = e.get("detail", "")
+            top_linhas.append(f"  {direction:6s} {e['symbol']:10s} +{score:3d} RSI{rsi} → {detalhes}")
+
+        top_str = "\n".join(top_linhas) if top_linhas else "  Nenhum candidato"
+
+        bloqueadores = self.blockers.most_common(6)
+        bloqueadores_str = "\n".join(
+            f"  {i+1}. {motivo} — {count}x"
+            for i, (motivo, count) in enumerate(bloqueadores)
+        ) if bloqueadores else "  Nenhum"
+
+        filtros_str = ""
+        if self.filter_blocks:
+            filtros_ordenados = self.filter_blocks.most_common(6)
+            filtros_str = "\nSinais detectados mas bloqueados depois:\n" + "\n".join(
+                f"  {i+1}. {motivo} — {count}x"
+                for i, (motivo, count) in enumerate(filtros_ordenados)
+            )
+
         return (
-            f"GAUSS DNA V5 - Diagnóstico do ciclo\n"
-            f"Total analisados: {len(self.entries)}\n"
-            f"✅ Aprovados: {len(aprovados)}\n"
-            f"🔒 Bloqueados: {len(bloqueados)}\n"
-            f"❌ Recusados: {len(recusados)}\n\n"
-            f"Top {top_n}:\n{top_linhas}"
+            f"DIAGNOSTICO GAUSS+DNA — {tempo_sem_sinal}\n"
+            f"Mercado neutro — Analisados: {len(self.entries)} | Aprovados: {len(aprovados)}\n\n"
+            f"Bloqueadores mais frequentes:\n{bloqueadores_str}"
+            f"{filtros_str}\n\n"
+            f"Candidatos (por que nao disparou):\n{top_str}\n\n"
+            f"Ciclos: {self.cycle_count} | Analises: {self.total_analises}"
         )
+
+    def reset_candidates(self):
+        self.candidates = []
