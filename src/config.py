@@ -10,7 +10,7 @@ TIMEFRAME_MACRO       = os.getenv("TIMEFRAME_MACRO", "4h")
 
 MAX_CRYPTOS = int(os.getenv("MAX_CRYPTOS", "300"))
 
-RISCO_POR_OPERACAO = float(os.getenv("RISCO_POR_OPERACAO", "0.02"))
+RISCO_POR_OPERACAO = float(os.getenv("RISCO_POR_OPERACAO", "0.03"))
 RISCO_DIARIO       = float(os.getenv("RISCO_DIARIO", "0.06"))
 
 MAX_OPERACOES              = int(os.getenv("MAX_OPERACOES", "5"))
@@ -82,7 +82,10 @@ FILTRO_SPREAD       = os.getenv("FILTRO_SPREAD", "true").lower() == "true"
 # GESTÃO
 # ═══════════════════════════════════════════════════════════════
 
-CAPITAL = float(os.getenv("CAPITAL", "100"))
+CAPITAL = float(os.getenv("CAPITAL", "90"))
+
+ALAVANCAGEM_MIN = int(os.getenv("ALAVANCAGEM_MIN", "5"))
+ALAVANCAGEM_MAX = int(os.getenv("ALAVANCAGEM_MAX", "20"))
 
 # ═══════════════════════════════════════════════════════════════
 # SEGURANÇA
