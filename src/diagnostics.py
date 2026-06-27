@@ -39,17 +39,26 @@ class Diagnostics:
             len(latest), len(aprovados), len(bloqueados), len(recusados),
         )
 
-    def summary(self):
+    def summary(self, top_n=5):
         if not self.entries:
             return None
-        latest = self.entries[-20:]
-        aprovados = [e for e in latest if e["decision"] in ("OURO", "PRATA", "BRONZE")]
-        bloqueados = [e for e in latest if e["decision"] == "bloqueado"]
-        recusados = [e for e in latest if e["decision"] == "recusado"]
+        aprovados = [e for e in self.entries if e["decision"] in ("OURO", "PRATA", "BRONZE")]
+        bloqueados = [e for e in self.entries if e["decision"] == "bloqueado"]
+        recusados = [e for e in self.entries if e["decision"] == "recusado"]
+        ordenados = sorted(
+            [e for e in self.entries if e.get("score")],
+            key=lambda x: x["score"] or 0, reverse=True,
+        )
+        top = ordenados[:top_n]
+        top_linhas = "\n".join(
+            f"  {i+1}. {e['symbol']} - {e['decision']} ({e['score']}/100)"
+            for i, e in enumerate(top)
+        ) if top else "  Nenhum sinal gerado"
         return (
             f"GAUSS DNA V5 - Diagnóstico do ciclo\n"
-            f"Analisados: {len(latest)}\n"
+            f"Total analisados: {len(self.entries)}\n"
             f"✅ Aprovados: {len(aprovados)}\n"
             f"🔒 Bloqueados: {len(bloqueados)}\n"
-            f"❌ Recusados: {len(recusados)}"
+            f"❌ Recusados: {len(recusados)}\n\n"
+            f"Top {top_n}:\n{top_linhas}"
         )

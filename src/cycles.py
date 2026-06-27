@@ -112,9 +112,9 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     v.update(blockers)
 
     if blockers.get("PARAR_OPERACOES"):
-        diagnostics.record(symbol, "bloqueado", "parar_operacoes")
+        diagnostics.record(symbol, "bloqueado", "circuit_breaker")
         v["IGNORAR"] = True
-        v["MOTIVO"] = "parar_operacoes"
+        v["MOTIVO"] = "circuit_breaker"
         v["EXECUTAR_ORDEM"] = False
         return v
 
@@ -123,14 +123,7 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     )
     v.update(filter_result)
 
-    if not passed:
-        diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"))
-        v["IGNORAR"] = True
-        v["MOTIVO"] = v.get("MOTIVO_RECUSA", "filtro")
-        v["EXECUTAR_ORDEM"] = False
-        return v
-
-    # Score com bonus MTF
+    # Score com bonus MTF (calcula mesmo se filtro falhar, para diagnostico)
     score_data = calculate_score(
         adaptive.get_weights(symbol),
         op_data["TREND"], op_data["FLOW"], op_data["SMC"],
@@ -138,20 +131,29 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         mtf_bonus=mtf_bonus,
     )
     v.update(score_data)
+    score_total = score_data.get("SCORE_TOTAL", 0)
+
+    if not passed:
+        diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"), score=score_total)
+        v["IGNORAR"] = True
+        v["MOTIVO"] = v.get("MOTIVO_RECUSA", "filtro")
+        v["EXECUTAR_ORDEM"] = False
+        return v
 
     # Classificacao
-    confianca = adaptive.get_confianca(symbol, score_data["SCORE_TOTAL"])
-    classification = classify_signal(score_data["SCORE_TOTAL"], confianca)
+    confianca = adaptive.get_confianca(symbol, score_total)
+    classification = classify_signal(score_total, confianca)
     v.update(classification)
 
     if not classification.get("CLASSIFICACAO_FINAL"):
+        diagnostics.record(symbol, "recusado", f"score_{score_total}", score=score_total)
         v["IGNORAR"] = True
-        v["MOTIVO"] = f"score_{score_data['SCORE_TOTAL']}"
+        v["MOTIVO"] = f"score_{score_total}"
         v["EXECUTAR_ORDEM"] = False
         return v
 
     if not risk.can_enter(symbol):
-        diagnostics.record(symbol, "recusado", "limite_risco")
+        diagnostics.record(symbol, "recusado", "limite_risco", score=score_total)
         v["IGNORAR"] = True
         v["MOTIVO"] = "limite_risco"
         v["EXECUTAR_ORDEM"] = False
@@ -177,6 +179,19 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     v["EXECUTAR_ORDEM"] = True
     v["MOTIVO_ENTRADA"] = classification.get("CLASSIFICACAO_FINAL", "")
     v["MOTIVO"] = v["MOTIVO_ENTRADA"]
+
+    # Calcular TP/SL baseado em ATR
+    atr = op_data["MOMENTUM"].get("ATR", 0)
+    preco = op_data["FLOW"].get("VOLUME", 0)
+    if atr > 0 and preco > 0:
+        levels = risk.calc_atr_levels(atr, preco, direcao)
+        v.update(levels)
+    else:
+        v.update({
+            "stop_loss": 0, "tp1": 0, "tp2": 0,
+            "stop_pct": 0, "tp1_pct": 0, "tp2_pct": 0,
+            "tp1_quote_size": 0.5,
+        })
 
     risk.enter(symbol)
     diagnostics.record(symbol, v["CLASSIFICACAO_FINAL"], score_data["SCORE_TOTAL"])
@@ -224,19 +239,24 @@ async def main_cycle():
                         adx=v.get("ADX", 0),
                         rvol=v.get("RVOL", 1.0),
                         tendencia=v.get("TENDENCIA", ""),
+                        stop_loss=v.get("stop_loss"),
+                        tp1=v.get("tp1"),
+                        tp2=v.get("tp2"),
+                        stop_pct=v.get("stop_pct"),
+                        tp1_pct=v.get("tp1_pct"),
+                        tp2_pct=v.get("tp2_pct"),
                         detalhes={
                             "MTF": v.get("MTF_CONVERGENCIA", False),
                             "Mercado": v.get("ESTADO_MERCADO", ""),
-                            "Score": f"{v.get('SCORE_TOTAL', 0)}/100",
                         },
                     )
                     if enviado:
                         logger.info("Sinal %s %s enviado", v.get("CLASSIFICACAO_FINAL"), symbol)
 
-                if not cycle_signals:
-                    resumo = diagnostics.summary()
-                    if resumo:
-                        await send_diagnostic(session, resumo)
+                # Sempre enviar resumo com recomendacao
+                resumo = diagnostics.summary()
+                if resumo:
+                    await send_diagnostic(session, resumo)
 
                 await risk.refresh()
 

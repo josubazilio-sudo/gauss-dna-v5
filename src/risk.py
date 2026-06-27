@@ -4,6 +4,7 @@ from config import (
     MAX_OPERACOES_SIMULTANEAS, STOP_CONSECUTIVO_LIMITE,
     CAPITAL, RISCO_POR_OPERACAO,
     ALAVANCAGEM_MIN, ALAVANCAGEM_MAX,
+    SL_ATR_MULT, TP1_ATR_MULT, TP2_ATR_MULT, TP1_PERCENT,
 )
 
 
@@ -15,6 +16,29 @@ class RiskManager:
         self.positions = {}
         self.stop_streak = 0
         self.paused = False
+
+    def calc_atr_levels(self, atr, preco, direction="long"):
+        sl_dist = atr * SL_ATR_MULT
+        tp1 = atr * TP1_ATR_MULT
+        tp2 = atr * TP2_ATR_MULT
+        if direction == "long":
+            sl = preco - sl_dist
+            tp1_preco = preco + tp1
+            tp2_preco = preco + tp2
+        else:
+            sl = preco + sl_dist
+            tp1_preco = preco - tp1
+            tp2_preco = preco - tp2
+        stop_pct = sl_dist / preco
+        return {
+            "stop_loss": round(sl, 8),
+            "tp1": round(tp1_preco, 8),
+            "tp2": round(tp2_preco, 8),
+            "stop_pct": round(stop_pct * 100, 2),
+            "tp1_pct": round(tp1 / preco * 100, 2),
+            "tp2_pct": round(tp2 / preco * 100, 2),
+            "tp1_quote_size": TP1_PERCENT,
+        }
 
     def calc_position_size(self, stop_pct=0.01, leverage=5):
         risco_capital = self.capital * RISCO_POR_OPERACAO

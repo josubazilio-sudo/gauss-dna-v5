@@ -19,7 +19,9 @@ def _grade_emoji(classificacao):
     return {"OURO": "🥇", "PRATA": "🥈", "BRONZE": "🥉"}.get(classificacao, "📊")
 
 async def send_signal(session, symbol, direction, preco, score, classificacao,
-                      rsi, adx, rvol, tendencia, timeframe="1h", detalhes=None):
+                      rsi, adx, rvol, tendencia, timeframe="1h", detalhes=None,
+                      stop_loss=None, tp1=None, tp2=None, alavancagem=None,
+                      stop_pct=None, tp1_pct=None, tp2_pct=None):
     if not TG_TOKEN or not TG_CHATID:
         logger.warning("TG_TOKEN ou TG_CHATID nao configurados")
         return False
@@ -33,6 +35,18 @@ async def send_signal(session, symbol, direction, preco, score, classificacao,
         for k, v in detalhes.items():
             linha_detalhes += f"📌 {_escape(k)}: `{_escape(str(v))}`\n"
 
+    linha_tp_sl = ""
+    if stop_loss:
+        sl_label = f"{_escape(f'SL {stop_pct}%')}" if stop_pct else "SL"
+        tp1_label = f"{_escape(f'TP1 {tp1_pct}%')}" if tp1_pct else "TP1"
+        tp2_label = f"{_escape(f'TP2 {tp2_pct}%')}" if tp2_pct else "TP2"
+        alav_label = f" \\| {alavancagem}x" if alavancagem else ""
+        linha_tp_sl = (
+            f"\n🛑 {sl_label}: `${_escape(str(stop_loss))}`\n"
+            f"✅ {tp1_label}: `${_escape(str(tp1))}`\n"
+            f"🏆 {tp2_label}: `${_escape(str(tp2))}`{alav_label}\n"
+        )
+
     texto = (
         f"🚨 *GAUSS DNA V5 — {direction}*\n\n"
         f"{direcao_emoji} *{_escape(symbol)}* \\| 🕐 *{_escape(timeframe)}*\n"
@@ -41,6 +55,7 @@ async def send_signal(session, symbol, direction, preco, score, classificacao,
         f"📊 RSI: {_escape(f'{rsi:.0f}')} \\| ADX: {_escape(f'{adx:.0f}')}\n"
         f"📈 RVOL: `{_escape(f'{rvol:.2f}')}x`\n"
         f"📍 Tendência: {_escape(tendencia)}\n"
+        f"{linha_tp_sl}"
         f"{linha_detalhes}\n"
         f"⏰ {_escape(agora)}"
     )

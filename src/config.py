@@ -87,6 +87,11 @@ CAPITAL = float(os.getenv("CAPITAL", "90"))
 ALAVANCAGEM_MIN = int(os.getenv("ALAVANCAGEM_MIN", "5"))
 ALAVANCAGEM_MAX = int(os.getenv("ALAVANCAGEM_MAX", "20"))
 
+SL_ATR_MULT = float(os.getenv("SL_ATR_MULT", "1.5"))
+TP1_ATR_MULT = float(os.getenv("TP1_ATR_MULT", "2.0"))
+TP2_ATR_MULT = float(os.getenv("TP2_ATR_MULT", "3.0"))
+TP1_PERCENT = float(os.getenv("TP1_PERCENT", "0.5"))
+
 # ═══════════════════════════════════════════════════════════════
 # SEGURANÇA
 # ═══════════════════════════════════════════════════════════════
