@@ -60,17 +60,19 @@ async def _scan_mtf(session, top_n, timeframes):
     pairs = top_pairs[:top_n]
     logger.info("Scan multi-timeframe: %d pares, timeframes=%s", len(pairs), timeframes)
 
-    # Fetch all pairs × TFs in parallel
-    todas = []
-    for pair in pairs:
-        for tf in timeframes:
-            todas.append((pair, tf))
-    
-    tasks = [buscar_candles(session, pair, tf) for pair, tf in todas]
+    # Rate limit: max 10 concurrent requests to avoid MEXC throttling
+    sem = asyncio.Semaphore(10)
+
+    async def _fetch_com_limite(pair, tf):
+        async with sem:
+            candles = await buscar_candles(session, pair, tf)
+            return pair, tf, candles
+
+    tasks = [_fetch_com_limite(pair, tf) for pair in pairs for tf in timeframes]
     resultados = await asyncio.gather(*tasks)
     
     market_data = {}
-    for (pair, tf), candles in zip(todas, resultados):
+    for pair, tf, candles in resultados:
         if pair not in market_data:
             market_data[pair] = {}
         if len(candles) >= 50:
