@@ -2,7 +2,7 @@ import logging
 import aiohttp
 from datetime import datetime
 
-from config import TG_TOKEN, TG_CHATID, CAPITAL, ALAVANCAGEM_MIN, ALAVANCAGEM_MAX
+from config import TG_TOKEN, TG_CHATID, CAPITAL, ALAVANCAGEM_MIN, ALAVANCAGEM_MAX, TP1_ATR_MULT, SL_ATR_MULT
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,13 @@ def _calc_gestao(v, preco):
         alav = 5
     alav = max(ALAVANCAGEM_MIN, min(alav, ALAVANCAGEM_MAX))
     risco_dol = capital * risco_pct
-    pos = (risco_dol / 0.01) if preco > 0 else 0
-    margem = pos * preco / alav if alav > 0 else 0
+    stop_pct = v.get("stop_pct", 0) or 0
+    if stop_pct > 0 and preco > 0:
+        pos = risco_dol / (stop_pct / 100)
+        margem = pos / alav
+    else:
+        pos = 0
+        margem = 0
     return lote, risco_dol, pos, alav, margem
 
 async def send_signal(session, symbol, direction, preco, score, classificacao,
@@ -83,7 +88,7 @@ async def send_signal(session, symbol, direction, preco, score, classificacao,
     sl_pct = v.get("stop_pct")
 
     lote, risco_dol, pos, alav, margem = _calc_gestao(v, preco)
-    tp1_ganho = risco_dol * 1.0 if risco_dol > 0 else 0
+    tp1_ganho = risco_dol * (TP1_ATR_MULT / SL_ATR_MULT) if risco_dol > 0 else 0
 
     lines = [
         f"🚨 ⚡ DNA FLEX — {direction}",
