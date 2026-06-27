@@ -13,6 +13,7 @@ class Diagnostics:
         self.candidates = []
         self.cycle_count = 0
         self.total_analises = 0
+        self.trade_results = []
 
     def record(self, symbol, decision, detail=None, score=None):
         entry = {
@@ -50,6 +51,14 @@ class Diagnostics:
 
     def record_filter_block(self, motivo):
         self.filter_blocks[motivo] += 1
+
+    def record_result(self, symbol, result, r_multiple=0):
+        self.trade_results.append({
+            "symbol": symbol,
+            "result": result,
+            "r": r_multiple,
+            "timestamp": datetime.utcnow().isoformat(),
+        })
 
     def add_candidate(self, symbol, direction, score, rsi, detalhes=""):
         self.candidates.append({
@@ -113,12 +122,22 @@ class Diagnostics:
                 for i, (motivo, count) in enumerate(filtros_ordenados)
             )
 
+        winrate_str = ""
+        if self.trade_results:
+            total = len(self.trade_results)
+            wins = sum(1 for r in self.trade_results if r["result"] == "tp")
+            losses = sum(1 for r in self.trade_results if r["result"] == "stop")
+            winrate = wins / total * 100 if total > 0 else 0
+            avg_r = sum(r["r"] for r in self.trade_results) / total if total > 0 else 0
+            winrate_str = f"\n\nResultados ({total} fechados) — STOP:{losses} TP:{wins} — winrate: {winrate:.0f}% — R medio: {avg_r:.2f}R"
+
         return (
             f"DIAGNOSTICO GAUSS+DNA — {tempo_sem_sinal}\n"
             f"Mercado neutro — Analisados: {len(self.entries)} | Aprovados: {len(aprovados)}\n\n"
             f"Bloqueadores mais frequentes:\n{bloqueadores_str}"
             f"{filtros_str}\n\n"
-            f"Candidatos (por que nao disparou):\n{top_str}\n\n"
+            f"Candidatos (por que nao disparou):\n{top_str}\n"
+            f"{winrate_str}\n\n"
             f"Ciclos: {self.cycle_count} | Analises: {self.total_analises}"
         )
 
