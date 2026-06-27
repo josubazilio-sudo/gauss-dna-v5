@@ -193,6 +193,11 @@ def empty_schema():
         "CIRCUIT_BREAKER": False,
         "MERCADO_PERIGOSO": False,
 
+        # ── FLUXO / KALMAN ──────────────────────────────────────────
+        "FLUXO_TIPO": "",
+        "KALMAN_DIRECAO": "",
+        "FUNDING_RATE": None,
+
         # ── DECISÃO FINAL ──────────────────────────────────────────
         "OPERAR": False,
         "IGNORAR": False,

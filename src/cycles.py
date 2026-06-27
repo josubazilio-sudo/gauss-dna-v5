@@ -225,7 +225,7 @@ async def main_cycle():
                     if r and len(r) == 3:
                         cycle_signals.append(r)
 
-                # Enviar sinais via Telegram
+                # Enviar sinais via Telegram (formato DNA FLEX)
                 for symbol, direcao, v in cycle_signals:
                     close = v.get("LONG_ENTRADA") or v.get("SHORT_ENTRADA") or 0
                     enviado = await send_signal(
@@ -239,16 +239,8 @@ async def main_cycle():
                         adx=v.get("ADX", 0),
                         rvol=v.get("RVOL", 1.0),
                         tendencia=v.get("TENDENCIA", ""),
-                        stop_loss=v.get("stop_loss"),
-                        tp1=v.get("tp1"),
-                        tp2=v.get("tp2"),
-                        stop_pct=v.get("stop_pct"),
-                        tp1_pct=v.get("tp1_pct"),
-                        tp2_pct=v.get("tp2_pct"),
-                        detalhes={
-                            "MTF": v.get("MTF_CONVERGENCIA", False),
-                            "Mercado": v.get("ESTADO_MERCADO", ""),
-                        },
+                        v=v,
+                        timeframe=TIMEFRAME_OPERACAO,
                     )
                     if enviado:
                         logger.info("Sinal %s %s enviado", v.get("CLASSIFICACAO_FINAL"), symbol)
