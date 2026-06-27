@@ -4,7 +4,7 @@ import os
 # CONFIGURAÇÃO GERAL
 # ═══════════════════════════════════════════════════════════════
 
-TIMEFRAME_OPERACAO    = os.getenv("TIMEFRAME_OPERACAO", "15m")
+TIMEFRAME_OPERACAO    = os.getenv("TIMEFRAME_OPERACAO", "30m")
 TIMEFRAME_CONFIRMACAO = os.getenv("TIMEFRAME_CONFIRMACAO", "1h")
 TIMEFRAME_MACRO       = os.getenv("TIMEFRAME_MACRO", "4h")
 
