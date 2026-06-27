@@ -273,4 +273,4 @@ async def main_cycle():
             except Exception as e:
                 logger.exception("Erro no ciclo: %s", e)
 
-            await asyncio.sleep(300)
+            await asyncio.sleep(120)
