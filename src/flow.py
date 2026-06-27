@@ -12,6 +12,7 @@ def analyze_flow(candles):
     result = {
         "VOLUME": 0.0,
         "VOLUME_MEDIO": 0.0,
+        "PRECO": 0.0,
         "RVOL": 1.0,
         "RVOL_MINIMO": RVOL_MINIMO,
         "DELTA": 0.0,
@@ -29,6 +30,7 @@ def analyze_flow(candles):
     closes = [c[4] for c in candles]
     opens = [c[1] for c in candles]
 
+    result["PRECO"] = closes[-1]
     result["VOLUME"] = volumes[-1]
     result["VOLUME_MEDIO"] = sum(volumes[-20:]) / 20
 

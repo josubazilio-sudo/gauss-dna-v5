@@ -160,22 +160,39 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         v["EXECUTAR_ORDEM"] = False
         return v
 
-    # Decisao final — sinal valido independente do risco
+    # Determinar direcao: tendencia > delta > RSI > EMA
     direcao = op_data["TREND"].get("DIRECAO", "lateral")
     if direcao not in ("long", "short"):
-        v["IGNORAR"] = True
-        v["MOTIVO"] = "sem_direcao"
-        v["EXECUTAR_ORDEM"] = False
-        return v
+        delta = op_data["FLOW"].get("DELTA", 0)
+        rsi = op_data["MOMENTUM"].get("RSI", 50)
+        ema10 = op_data["TREND"].get("EMA_10", 0)
+        ema50 = op_data["TREND"].get("EMA_50", 0)
+        if delta > 0:
+            direcao = "long"
+        elif delta < 0:
+            direcao = "short"
+        elif rsi > 55:
+            direcao = "long"
+        elif rsi < 45:
+            direcao = "short"
+        elif ema10 and ema50 and ema10 > ema50:
+            direcao = "long"
+        elif ema10 and ema50 and ema10 < ema50:
+            direcao = "short"
+        else:
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "sem_direcao"
+            v["EXECUTAR_ORDEM"] = False
+            return v
 
     v["LONG_PERMITIDO"] = direcao == "long"
     v["LONG_CONFIRMADO"] = direcao == "long"
     v["LONG_SCORE"] = score_data["SCORE_TOTAL"]
-    v["LONG_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0) if direcao == "long" else 0
+    v["LONG_ENTRADA"] = op_data["FLOW"].get("PRECO", op_data["FLOW"].get("VOLUME", 0)) if direcao == "long" else 0
     v["SHORT_PERMITIDO"] = direcao == "short"
     v["SHORT_CONFIRMADO"] = direcao == "short"
     v["SHORT_SCORE"] = score_data["SCORE_TOTAL"]
-    v["SHORT_ENTRADA"] = op_data["FLOW"].get("VOLUME", 0) if direcao == "short" else 0
+    v["SHORT_ENTRADA"] = op_data["FLOW"].get("PRECO", op_data["FLOW"].get("VOLUME", 0)) if direcao == "short" else 0
 
     v["OPERAR"] = True
     v["IGNORAR"] = False
@@ -187,7 +204,7 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
 
     # Calcular TP/SL baseado em ATR
     atr = op_data["MOMENTUM"].get("ATR", 0)
-    preco = op_data["FLOW"].get("VOLUME", 0)
+    preco = op_data["FLOW"].get("PRECO", 0)
     if atr > 0 and preco > 0:
         levels = risk.calc_atr_levels(atr, preco, direcao)
         v.update(levels)
