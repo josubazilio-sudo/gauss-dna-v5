@@ -67,7 +67,7 @@ async def _scan_mtf(session, top_n, timeframes):
     logger.info("Scan multi-timeframe: %d pares, timeframes=%s", len(pairs), timeframes)
 
     market_data = {}
-    batch_size = 5
+    batch_size = min(5, max(2, top_n // 5))
     total_batches = (len(pairs) + batch_size - 1) // batch_size
 
     for batch_idx in range(0, len(pairs), batch_size):
