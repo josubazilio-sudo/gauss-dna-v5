@@ -239,10 +239,9 @@ async def main_cycle():
     adaptive = AdaptiveWeights()
 
     async with aiohttp.ClientSession() as session:
-        while True:
-            try:
-                diagnostics.cycle_count += 1
-                logger.info("--- GAUSS DNA V5 INFINITY — Ciclo %d ---", diagnostics.cycle_count)
+        try:
+            diagnostics.cycle_count = 1
+            logger.info("--- GAUSS DNA V5 — Ciclo %d ---", diagnostics.cycle_count)
                 cycle_signals = []
 
                 market_data = await scan_market(
@@ -294,5 +293,6 @@ async def main_cycle():
 
             except Exception as e:
                 logger.exception("Erro no ciclo: %s", e)
+                raise
 
-            await asyncio.sleep(120)
+            logger.info("--- CICLO COMPLETO ---")
