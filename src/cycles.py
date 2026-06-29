@@ -160,6 +160,8 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         elif ema10 and ema50 and ema10 < ema50:
             direcao = "short"
         else:
+            diagnostics.record(symbol, "recusado", "sem_direcao", score=0)
+            diagnostics.add_candidate(symbol, "LAT", 0, rsi_val, "sem_direcao")
             v["IGNORAR"] = True
             v["MOTIVO"] = "sem_direcao"
             v["EXECUTAR_ORDEM"] = False
@@ -231,6 +233,8 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         op_data["SMC"], direcao, preco,
     )
     if not confirmado:
+        diagnostics.record(symbol, "recusado", motivo_confirm, score=score_total)
+        diagnostics.add_candidate(symbol, direcao.upper(), score_total, rsi_val, motivo_confirm)
         v["IGNORAR"] = True
         v["MOTIVO"] = motivo_confirm
         v["EXECUTAR_ORDEM"] = False
@@ -244,11 +248,15 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     ema200 = op_data["TREND"].get("EMA_200", 0)
     if preco and ema200:
         if direcao == "long" and preco < ema200:
+            diagnostics.record(symbol, "recusado", "preco_abaixo_mm200", score=score_total)
+            diagnostics.add_candidate(symbol, direcao.upper(), score_total, rsi_val, "preco_abaixo_mm200")
             v["IGNORAR"] = True
             v["MOTIVO"] = "preco_abaixo_mm200"
             v["EXECUTAR_ORDEM"] = False
             return v
         if direcao == "short" and preco > ema200:
+            diagnostics.record(symbol, "recusado", "preco_acima_mm200", score=score_total)
+            diagnostics.add_candidate(symbol, direcao.upper(), score_total, rsi_val, "preco_acima_mm200")
             v["IGNORAR"] = True
             v["MOTIVO"] = "preco_acima_mm200"
             v["EXECUTAR_ORDEM"] = False
