@@ -128,10 +128,10 @@ PESO_MULTI_TIMEFRAME = 10
 # SCORE — V7.3 Nova Classificacao
 # ═══════════════════════════════════════════════════════════════
 
-SCORE_OURO_SUPREMO_MIN = int(os.getenv("SCORE_OURO_SUPREMO_MIN", "90"))
-SCORE_OURO_MIN = int(os.getenv("SCORE_OURO_MIN", "80"))
-SCORE_PRATA_MIN = int(os.getenv("SCORE_PRATA_MIN", "65"))
-SCORE_BRONZE_MIN = int(os.getenv("SCORE_BRONZE_MIN", "55"))
+SCORE_OURO_SUPREMO_MIN = int(os.getenv("SCORE_OURO_SUPREMO_MIN", "95"))
+SCORE_OURO_MIN = int(os.getenv("SCORE_OURO_MIN", "85"))
+SCORE_PRATA_MIN = int(os.getenv("SCORE_PRATA_MIN", "75"))
+SCORE_BRONZE_MIN = int(os.getenv("SCORE_BRONZE_MIN", "65"))
 
 CONFIANCA_MIN_FORTE = int(os.getenv("CONFIANCA_MIN_FORTE", "60"))
 CONFIANCA_MIN_MODERADO = int(os.getenv("CONFIANCA_MIN_MODERADO", "58"))
