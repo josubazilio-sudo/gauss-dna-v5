@@ -8,7 +8,7 @@ TIMEFRAME_OPERACAO    = os.getenv("TIMEFRAME_OPERACAO", "30m")
 TIMEFRAME_CONFIRMACAO = os.getenv("TIMEFRAME_CONFIRMACAO", "1h")
 TIMEFRAME_MACRO       = os.getenv("TIMEFRAME_MACRO", "4h")
 
-MAX_CRYPTOS = int(os.getenv("MAX_CRYPTOS", "50"))
+MAX_CRYPTOS = int(os.getenv("MAX_CRYPTOS", "300"))
 
 RISCO_POR_OPERACAO = float(os.getenv("RISCO_POR_OPERACAO", "0.03"))
 RISCO_DIARIO       = float(os.getenv("RISCO_DIARIO", "0.06"))
