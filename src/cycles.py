@@ -9,13 +9,17 @@ from smart_money import detect_smc
 from flow import analyze_flow
 from momentum import analyze_momentum
 from score import calculate_score, classify_signal
-from filters import check_filters, check_blockers
+from filters import check_filters, check_blockers, tendencia_confirmada
 from risk import RiskManager
 from diagnostics import Diagnostics
 from notify import send_signal, send_diagnostic
 from schema.variables import empty_schema
 from adaptive import AdaptiveWeights
-from config import MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO, MAX_SINAIS_POR_CICLO
+from config import (
+    MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO,
+    MAX_SINAIS_POR_CICLO,
+    CONFIANCA_MIN_FORTE, CONFIANCA_MIN_MODERADO, CONFIANCA_MIN_FRACO,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -127,11 +131,14 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         diagnostics.record_filter_block(f)
 
     # Score com bonus MTF (calcula mesmo se filtro falhar, para diagnostico)
+    dir_tendencia = op_data["TREND"].get("DIRECAO")
     score_data = calculate_score(
         adaptive.get_weights(symbol),
         op_data["TREND"], op_data["FLOW"], op_data["SMC"],
         op_data["MOMENTUM"], op_data["MARKET"],
         mtf_bonus=mtf_bonus,
+        preco=op_data["FLOW"].get("PRECO", 0),
+        direcao=dir_tendencia if dir_tendencia in ("long", "short") else None,
     )
     v.update(score_data)
     score_total = score_data.get("SCORE_TOTAL", 0)
@@ -160,7 +167,16 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         v["EXECUTAR_ORDEM"] = False
         return v
 
-    if confianca < 60:
+    # Regra 6 — Confianca dinamica conforme forca do mercado
+    estado = op_data["MARKET"].get("ESTADO_MERCADO", "")
+    if estado in ("tendencia_forte",):
+        conf_min = CONFIANCA_MIN_FORTE
+    elif estado in ("tendencia_moderada", "micro_tendencia"):
+        conf_min = CONFIANCA_MIN_MODERADO
+    else:
+        conf_min = CONFIANCA_MIN_FRACO
+
+    if confianca < conf_min:
         diagnostics.record(symbol, "recusado", f"confianca_{confianca}", score=score_total)
         diagnostics.add_candidate(symbol, direction_hint, score_total, rsi_val, f"confianca_{confianca}")
         v["IGNORAR"] = True
@@ -194,6 +210,72 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
             return v
 
     preco = op_data["FLOW"].get("PRECO", 0)
+
+    # Regra 7 — Proibir operacoes contra a tendencia
+    ema21 = op_data["TREND"].get("EMA_21", 0)
+    ema50 = op_data["TREND"].get("EMA_50", 0)
+    kalman = op_data["TREND"].get("KALMAN_DIRECAO", "")
+    if direcao == "long":
+        if preco and ema21 and preco <= ema21:
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "preco_abaixo_ema21"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+        if ema21 and ema50 and ema21 <= ema50:
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "ema21_abaixo_ema50"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+        if kalman not in ("UP",):
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "kalman_nao_altista"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+    elif direcao == "short":
+        if preco and ema21 and preco >= ema21:
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "preco_acima_ema21"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+        if ema21 and ema50 and ema21 >= ema50:
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "ema21_acima_ema50"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+        if kalman not in ("DOWN",):
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "kalman_nao_baixista"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+
+    # Regra 1 e 2 — Filtro de confirmacao de tendencia
+    confirmado, motivo_recusa = tendencia_confirmada(
+        op_data["TREND"], op_data["FLOW"], op_data["MOMENTUM"], direcao, preco,
+    )
+    if not confirmado:
+        v["FILTROS_REPROVADOS"].append("FILTRO_TENDENCIA_NAO_CONFIRMADA")
+        v["IGNORAR"] = True
+        v["MOTIVO"] = f"FILTRO_TENDENCIA_NAO_CONFIRMADA_{motivo_recusa}"
+        v["EXECUTAR_ORDEM"] = False
+        diagnostics.record_filter_block(f"TENDENCIA_NAO_CONFIRMADA_{motivo_recusa}")
+        return v
+
+    # Regra 8 — Filtro de estrutura
+    bos = op_data["SMC"].get("BOS", False)
+    choch = op_data["SMC"].get("CHOCH", False)
+    if direcao == "long" and not (bos or choch):
+        v["IGNORAR"] = True
+        v["MOTIVO"] = "sem_quebra_estrutura_long"
+        v["EXECUTAR_ORDEM"] = False
+        diagnostics.record_filter_block("ESTRUTURA_SEM_BOS_LONG")
+        return v
+    if direcao == "short" and not (bos or choch):
+        v["IGNORAR"] = True
+        v["MOTIVO"] = "sem_quebra_estrutura_short"
+        v["EXECUTAR_ORDEM"] = False
+        diagnostics.record_filter_block("ESTRUTURA_SEM_BOS_SHORT")
+        return v
+
     ema200 = op_data["TREND"].get("EMA_200", 0)
     if preco and ema200:
         if direcao == "long" and preco < ema200:

@@ -69,6 +69,12 @@ def empty_schema():
         "HEIKIN_ASHI": "",
         "HA_BULL": False,
         "HA_BEAR": False,
+        "MACD": None,
+        "MACD_SIGNAL": None,
+        "MACD_HIST": None,
+        "MACD_BULLISH": False,
+        "MACD_BEARISH": False,
+        "MACD_HIST_CRESCENTE": False,
 
         # ── VOLATILIDADE ───────────────────────────────────────────
         "VOLATILIDADE": "",

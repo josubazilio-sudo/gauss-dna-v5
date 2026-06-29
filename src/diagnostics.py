@@ -38,6 +38,8 @@ class Diagnostics:
                 self.blockers["RVOL baixo"] += 1
             elif "adx" in motivo.lower():
                 self.blockers["ADX baixo"] += 1
+            elif "tendencia_nao_confirmada" in motivo.lower():
+                self.blockers["tendencia nao confirmada"] += 1
             elif "tendencia" in motivo.lower():
                 self.blockers["tendencia desfavoravel"] += 1
             elif "volatilidade" in motivo.lower():

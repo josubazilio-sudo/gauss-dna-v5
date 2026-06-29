@@ -1,6 +1,6 @@
 """Módulo 5: Momentum — preenche variáveis MOMENTUM."""
 
-from config import RSI_PERIOD, RSI_LONG_MIN, RSI_LONG_MAX, RSI_SHORT_MIN, RSI_SHORT_MAX, ADX_PERIOD, ATR_PERIOD
+from config import RSI_PERIOD, RSI_LONG_MIN, RSI_LONG_MAX, RSI_SHORT_MIN, RSI_SHORT_MAX, ADX_PERIOD, ATR_PERIOD, MACD_FAST, MACD_SLOW, MACD_SIGNAL
 
 
 def analyze_momentum(candles):
@@ -20,6 +20,12 @@ def analyze_momentum(candles):
         "HEIKIN_ASHI": "neutra",
         "HA_BULL": False,
         "HA_BEAR": False,
+        "MACD": None,
+        "MACD_SIGNAL": None,
+        "MACD_HIST": None,
+        "MACD_BULLISH": False,
+        "MACD_BEARISH": False,
+        "MACD_HIST_CRESCENTE": False,
     }
 
     closes = [c[4] for c in candles]
@@ -43,6 +49,20 @@ def analyze_momentum(candles):
     result["HEIKIN_ASHI"] = ha
     result["HA_BULL"] = ha == "alta"
     result["HA_BEAR"] = ha == "baixa"
+
+    macd, signal, hist = _calc_macd(closes)
+    result["MACD"] = macd
+    result["MACD_SIGNAL"] = signal
+    result["MACD_HIST"] = hist
+    if macd is not None and signal is not None:
+        if len(closes) >= MACD_SLOW + MACD_SIGNAL + 2:
+            prev_macd, prev_signal, _ = _calc_macd(closes[:-1])
+            result["MACD_BULLISH"] = prev_macd <= prev_signal and macd > signal
+            result["MACD_BEARISH"] = prev_macd >= prev_signal and macd < signal
+        if hist is not None and len(closes) >= MACD_SLOW + MACD_SIGNAL + 3:
+            _, _, hist_prev = _calc_macd(closes[:-2])
+            if hist_prev is not None:
+                result["MACD_HIST_CRESCENTE"] = hist > hist_prev
 
     return result
 
@@ -90,6 +110,28 @@ def _calc_atr(highs, lows, closes, period=14):
     for i in range(1, period + 1):
         tr.append(max(highs[-i] - lows[-i], abs(highs[-i] - closes[-i - 1]), abs(lows[-i] - closes[-i - 1])))
     return sum(tr) / period
+
+
+def _calc_macd(closes, fast=None, slow=None, signal=None):
+    fast = fast or MACD_FAST
+    slow = slow or MACD_SLOW
+    signal_period = signal or MACD_SIGNAL
+    if len(closes) < slow + signal_period:
+        return None, None, None
+    def ema(data, period):
+        k = 2 / (period + 1)
+        result = [sum(data[:period]) / period]
+        for price in data[period:]:
+            result.append(price * k + result[-1] * (1 - k))
+        return result
+    ema_fast = ema(closes, fast)
+    ema_slow = ema(closes, slow)
+    macd_line = [ema_fast[i] - ema_slow[i] for i in range(len(ema_slow))]
+    signal_line = ema(macd_line, signal_period)
+    macd_val = macd_line[-1]
+    signal_val = signal_line[-1]
+    hist = macd_val - signal_val
+    return macd_val, signal_val, hist
 
 
 def _calc_heikin_ashi(candles):

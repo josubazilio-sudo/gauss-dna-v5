@@ -1,5 +1,7 @@
 """Módulo 2: Análise de Tendência — preenche variáveis TENDÊNCIA."""
 
+from kalman import kalman_direction
+
 
 def ema(data, period):
     if len(data) < period:
@@ -22,6 +24,7 @@ def analyze_trend(candles):
         "EMA_10": None, "EMA_21": None, "EMA_50": None, "EMA_200": None,
         "EMA_ALINHADA": False, "EMA_CRUZAMENTO": "", "EMA_FORCA": "",
         "EMA_INCLINACAO": "", "TENDENCIA": "neutra", "DIRECAO": "lateral",
+        "KALMAN_DIRECAO": "",
     }
 
     mm10 = ema(closes, 10)
@@ -81,5 +84,7 @@ def analyze_trend(candles):
     else:
         result["TENDENCIA"] = "neutra"
         result["DIRECAO"] = "lateral"
+
+    result["KALMAN_DIRECAO"] = kalman_direction(closes)
 
     return result

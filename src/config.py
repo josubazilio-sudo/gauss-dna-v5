@@ -58,6 +58,14 @@ ADX_MINIMO = int(os.getenv("ADX_MINIMO", "20"))
 ATR_PERIOD = 14
 
 # ═══════════════════════════════════════════════════════════════
+# MACD
+# ═══════════════════════════════════════════════════════════════
+
+MACD_FAST = int(os.getenv("MACD_FAST", "12"))
+MACD_SLOW = int(os.getenv("MACD_SLOW", "26"))
+MACD_SIGNAL = int(os.getenv("MACD_SIGNAL", "9"))
+
+# ═══════════════════════════════════════════════════════════════
 # VOLATILIDADE
 # ═══════════════════════════════════════════════════════════════
 
@@ -128,9 +136,13 @@ TOTAL_PESOS = sum([
 # SCORE
 # ═══════════════════════════════════════════════════════════════
 
-SCORE_OURO_MIN  = 90
-SCORE_PRATA_MIN = 75
-SCORE_BRONZE_MIN = 50
+SCORE_OURO_MIN  = int(os.getenv("SCORE_OURO_MIN", "90"))
+SCORE_PRATA_MIN = int(os.getenv("SCORE_PRATA_MIN", "75"))
+SCORE_BRONZE_MIN = int(os.getenv("SCORE_BRONZE_MIN", "50"))
+
+CONFIANCA_MIN_FORTE = int(os.getenv("CONFIANCA_MIN_FORTE", "60"))
+CONFIANCA_MIN_MODERADO = int(os.getenv("CONFIANCA_MIN_MODERADO", "58"))
+CONFIANCA_MIN_FRACO = int(os.getenv("CONFIANCA_MIN_FRACO", "55"))
 
 # ═══════════════════════════════════════════════════════════════
 # MEXC API

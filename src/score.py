@@ -8,7 +8,7 @@ from config import (
 )
 
 
-def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, market_data, mtf_bonus=0):
+def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, market_data, mtf_bonus=0, preco=0, direcao=None):
     """
     Preenche SCORE_TENDENCIA, SCORE_VOLUME, SCORE_FLUXO,
     SCORE_MOMENTUM, SCORE_LIQUIDEZ, SCORE_ESTRUTURA,
@@ -115,7 +115,42 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
     elif not market_data.get("ATR_COMPRESSAO"):
         result["SCORE_VOLATILIDADE"] = p_volat // 2
 
-    # Soma + bonus multi-timeframe
+    # Bonus de alinhamento (Regra 5)
+    bonus = 0
+    kalman = trend_data.get("KALMAN_DIRECAO", "")
+    fluxo = flow_data.get("FLUXO_TIPO", "")
+    ema21 = trend_data.get("EMA_21", 0)
+    macd_bullish = momentum_data.get("MACD_BULLISH", False)
+    macd_bearish = momentum_data.get("MACD_BEARISH", False)
+    macd_hist_up = momentum_data.get("MACD_HIST_CRESCENTE", False)
+
+    # Kalman alinhado + Fluxo alinhado = +5 (Regra 5)
+    if direcao == "long":
+        if kalman == "UP" and fluxo in ("comprador", "leve_comprador"):
+            bonus += 5
+    elif direcao == "short":
+        if kalman == "DOWN" and fluxo in ("vendedor", "leve_vendedor"):
+            bonus += 5
+
+    # Preco acima (LONG) / abaixo (SHORT) da EMA21 = +3 (Regra 5)
+    if direcao == "long" and preco > ema21 and ema21 > 0:
+        bonus += 3
+    elif direcao == "short" and preco < ema21 and ema21 > 0:
+        bonus += 3
+
+    # MACD confirmado = +3 (Regra 5)
+    if direcao == "long" and (macd_bullish or macd_hist_up):
+        bonus += 3
+    elif direcao == "short" and (macd_bearish or not macd_hist_up):
+        bonus += 3
+
+    # Candle de confirmacao = +2 (Regra 5)
+    if direcao == "long" and preco > ema21 and ema21 > 0:
+        bonus += 2
+    elif direcao == "short" and preco < ema21 and ema21 > 0:
+        bonus += 2
+
+    # Soma + bonus multi-timeframe + bonus alinhamento
     total = sum([
         result["SCORE_TENDENCIA"],
         result["SCORE_FLUXO"],
@@ -126,6 +161,7 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
         result["SCORE_VOLATILIDADE"],
     ])
     total += mtf_bonus
+    total += bonus
     result["SCORE_TOTAL"] = min(total, 100)
 
     return result

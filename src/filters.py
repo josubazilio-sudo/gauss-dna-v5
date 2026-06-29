@@ -8,6 +8,50 @@ from config import (
 )
 
 
+def tendencia_confirmada(trend_data, flow_data, momentum_data, direcao, preco):
+    """
+    Regra 1 e 2 — Confirmacao de tendencia (ANTI-FUNDO / ANTI-TOPO).
+
+    Retorna (aprovado: bool, motivo: str).
+    """
+    ema21 = trend_data.get("EMA_21", 0)
+    ema50 = trend_data.get("EMA_50", 0)
+    kalman = trend_data.get("KALMAN_DIRECAO", "")
+    fluxo = flow_data.get("FLUXO_TIPO", "")
+    macd_bullish = momentum_data.get("MACD_BULLISH", False)
+    macd_bearish = momentum_data.get("MACD_BEARISH", False)
+    macd_hist_up = momentum_data.get("MACD_HIST_CRESCENTE", False)
+    ema_cruzamento = trend_data.get("EMA_CRUZAMENTO", "")
+
+    if direcao == "long":
+        if preco <= ema21:
+            return False, "preco_abaixo_ema21"
+        if not (ema21 > ema50 or ema_cruzamento == "bullish"):
+            return False, "ema21_nao_acima_ema50"
+        if kalman not in ("UP",):
+            return False, "kalman_nao_alta"
+        if fluxo not in ("comprador", "leve_comprador"):
+            return False, "fluxo_nao_comprador"
+        if not (macd_bullish or macd_hist_up):
+            return False, "macd_sem_confirmacao"
+        return True, ""
+
+    if direcao == "short":
+        if preco >= ema21:
+            return False, "preco_acima_ema21"
+        if not (ema21 < ema50 or ema_cruzamento == "bearish"):
+            return False, "ema21_nao_abaixo_ema50"
+        if kalman not in ("DOWN",):
+            return False, "kalman_nao_baixa"
+        if fluxo not in ("vendedor", "leve_vendedor"):
+            return False, "fluxo_nao_vendedor"
+        if not (macd_bearish or not macd_hist_up):
+            return False, "macd_sem_confirmacao"
+        return True, ""
+
+    return False, "sem_direcao"
+
+
 def check_filters(config, trend_data, flow_data, momentum_data, market_data, smc_data):
     """
     Preenche FILTROS_APROVADOS, FILTROS_REPROVADOS, MOTIVO_RECUSA.

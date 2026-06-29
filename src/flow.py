@@ -21,6 +21,7 @@ def analyze_flow(candles):
         "VOLUME_CRESCENTE": False,
         "ABSORCAO": False,
         "EXAUSTAO": False,
+        "FLUXO_TIPO": "",
     }
 
     if not candles or len(candles) < 20:
@@ -53,5 +54,17 @@ def analyze_flow(candles):
     if all(volumes[-i] <= volumes[-i - 1] for i in range(1, min(4, len(volumes)))):
         if volumes[-1] < result["VOLUME_MEDIO"] * 0.5:
             result["EXAUSTAO"] = True
+
+    # FLUXO_TIPO: comprador / vendedor / neutro
+    if result["DELTA"] > 0 and result["VOLUME"] > result["VOLUME_MEDIO"]:
+        result["FLUXO_TIPO"] = "comprador"
+    elif result["DELTA"] < 0 and result["VOLUME"] > result["VOLUME_MEDIO"]:
+        result["FLUXO_TIPO"] = "vendedor"
+    elif result["DELTA"] > 0:
+        result["FLUXO_TIPO"] = "leve_comprador"
+    elif result["DELTA"] < 0:
+        result["FLUXO_TIPO"] = "leve_vendedor"
+    else:
+        result["FLUXO_TIPO"] = "neutro"
 
     return result
