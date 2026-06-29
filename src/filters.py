@@ -23,7 +23,7 @@ def tendencia_adaptativa(trend_data, flow_data, momentum_data, direcao, preco):
 
     if direcao == "long":
         totalmente_alinhado = (
-            preco > ema21 and ema21 > ema50
+            preco and ema21 and preco > ema21 and ema21 and ema50 and ema21 > ema50
             and kalman == "UP"
             and fluxo in ("comprador", "leve_comprador")
         )
@@ -42,17 +42,17 @@ def tendencia_adaptativa(trend_data, flow_data, momentum_data, direcao, preco):
             parcial += 3
         if kalman == "UP":
             parcial += 3
-        if adx >= ADX_MINIMO and momentum_data.get("MOMENTUM") == "crescente":
+        if adx and adx >= ADX_MINIMO and momentum_data.get("MOMENTUM") == "crescente":
             parcial += 2
         if fluxo in ("comprador", "leve_comprador"):
             parcial += 2
-        if preco > ema21:
+        if preco and ema21 and preco > ema21:
             parcial += 1
         return min(parcial, 8), "tendencia_parcial", False
 
     if direcao == "short":
         totalmente_alinhado = (
-            preco < ema21 and ema21 < ema50
+            preco and ema21 and preco < ema21 and ema21 and ema50 and ema21 < ema50
             and kalman == "DOWN"
             and fluxo in ("vendedor", "leve_vendedor")
         )
@@ -71,11 +71,11 @@ def tendencia_adaptativa(trend_data, flow_data, momentum_data, direcao, preco):
             parcial += 3
         if kalman == "DOWN":
             parcial += 3
-        if adx >= ADX_MINIMO and momentum_data.get("MOMENTUM") == "crescente":
+        if adx and adx >= ADX_MINIMO and momentum_data.get("MOMENTUM") == "crescente":
             parcial += 2
         if fluxo in ("vendedor", "leve_vendedor"):
             parcial += 2
-        if preco < ema21:
+        if preco and ema21 and preco < ema21:
             parcial += 1
         return min(parcial, 8), "tendencia_parcial", False
 
@@ -177,7 +177,7 @@ def confirmacao_disparo(trend_data, flow_data, momentum_data, smc_data, direcao,
             detalhes.append("macd_positivo")
         else:
             detalhes.append("macd_sem_positivo")
-        if preco > ema21:
+        if preco and ema21 and preco > ema21:
             detalhes.append("candle_confirmado")
         else:
             detalhes.append("candle_sem_confirmacao")
@@ -202,7 +202,7 @@ def confirmacao_disparo(trend_data, flow_data, momentum_data, smc_data, direcao,
             detalhes.append("macd_negativo")
         else:
             detalhes.append("macd_sem_negativo")
-        if preco < ema21:
+        if preco and ema21 and preco < ema21:
             detalhes.append("candle_confirmado")
         else:
             detalhes.append("candle_sem_confirmacao")
