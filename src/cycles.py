@@ -19,13 +19,21 @@ from config import (
     MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO,
     MAX_SINAIS_POR_CICLO,
     CONFIANCA_MIN_FORTE, CONFIANCA_MIN_MODERADO, CONFIANCA_MIN_FRACO,
-    SCORE_PRATA_MIN, SCORE_OURO_MIN,
+    SCORE_PRATA_MIN,
 )
 
 logger = logging.getLogger(__name__)
 
 # Timeframes para analise multi-timeframe
 TIMEFRAMES = [TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO]
+
+STABLECOINS = {"USDC", "USDF", "USD1", "BUSD", "FDUSD", "TUSD", "DAI", "USDP", "USDD", "USDE", "EUR", "BRL"}
+
+def is_stablecoin(symbol):
+    for s in STABLECOINS:
+        if symbol.startswith(s) or symbol.endswith(s):
+            return True
+    return False
 
 
 def analisar_tf(candles, tf):
@@ -100,6 +108,13 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     v["TIMEFRAME_OPERACAO"] = TIMEFRAME_OPERACAO
     v["TIMEFRAME_CONFIRMACAO"] = TIMEFRAME_CONFIRMACAO
     v["TIMEFRAME_MACRO"] = TIMEFRAME_MACRO
+
+    # Filtrar stablecoins
+    if is_stablecoin(symbol):
+        v["IGNORAR"] = True
+        v["MOTIVO"] = "stablecoin"
+        v["EXECUTAR_ORDEM"] = False
+        return v
 
     # Preencher dados principais (timeframe de operacao)
     v.update(op_data["MARKET"])
@@ -234,8 +249,8 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         op_data["SMC"], direcao, preco,
     )
     if not confirmado:
-        # Bypass confirmacao para sinais OURO+ (score >= 80)
-        if score_total >= SCORE_OURO_MIN:
+        # Bypass confirmacao para sinais PRATA+ (score >= 82)
+        if score_total >= SCORE_PRATA_MIN:
             detalhes = ["score_alto_bypass"]
         else:
             diagnostics.record(symbol, "recusado", motivo_confirm, score=score_total)
