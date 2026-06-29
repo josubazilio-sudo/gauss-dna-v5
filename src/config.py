@@ -154,6 +154,21 @@ ADX_MEDIO = 25
 ADX_BAIXO = 20
 
 # ═══════════════════════════════════════════════════════════════
+# Pesos legados (usados pelo adaptive.py)
+# ═══════════════════════════════════════════════════════════════
+
+PESO_VOLATILIDADE = 5
+PESO_MULTI_TIMEFRAME = 10
+PESO_CONFIANCA = 10
+PESO_ATIVO = 5
+
+TOTAL_PESOS = sum([
+    PESO_TENDENCIA, PESO_FLUXO, PESO_VOLUME, PESO_LIQUIDEZ,
+    PESO_ESTRUTURA, PESO_MOMENTUM, PESO_VOLATILIDADE,
+    PESO_MULTI_TIMEFRAME, PESO_CONFIANCA, PESO_ATIVO
+])
+
+# ═══════════════════════════════════════════════════════════════
 # MEXC API
 # ═══════════════════════════════════════════════════════════════
 
