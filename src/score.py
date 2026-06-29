@@ -17,11 +17,13 @@ def _score_tendencia(trend_data, direcao):
             return PESO_TENDENCIA
         if tend in ("alta_moderada",):
             return PESO_TENDENCIA - 5
+        return PESO_TENDENCIA // 2
     elif direcao == "short":
         if tend in ("baixa",):
             return PESO_TENDENCIA
         if tend in ("baixa_moderada",):
             return PESO_TENDENCIA - 5
+        return PESO_TENDENCIA // 2
 
     ema_alinhada = trend_data.get("EMA_ALINHADA", False)
     if ema_alinhada:
@@ -93,9 +95,9 @@ def _score_momentum(momentum_data, mercado_estado):
     elif adx >= ADX_BAIXO:
         pontos = 4
     elif mercado_estado in ("tendencia_forte", "tendencia_moderada"):
-        pontos = 2
+        pontos = 3
     else:
-        pontos = 0
+        pontos = 3
 
     if adx_crescente:
         pontos += 2
@@ -119,7 +121,7 @@ def _score_estrutura(smc_data):
         return PESO_ESTRUTURA - 2
     if liquidity:
         return PESO_ESTRUTURA - 4
-    return PESO_ESTRUTURA - 6
+    return PESO_ESTRUTURA - 5
 
 
 def _score_liquidez(smc_data):
@@ -134,7 +136,7 @@ def _score_liquidez(smc_data):
         return PESO_LIQUIDEZ - 3
     if mitigacao:
         return PESO_LIQUIDEZ - 5
-    return PESO_LIQUIDEZ - 7
+    return PESO_LIQUIDEZ - 6
 
 
 def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, market_data, mtf_bonus=0, preco=0, direcao=None):
