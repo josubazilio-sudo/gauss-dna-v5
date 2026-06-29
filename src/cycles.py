@@ -19,7 +19,7 @@ from config import (
     MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO,
     MAX_SINAIS_POR_CICLO,
     CONFIANCA_MIN_FORTE, CONFIANCA_MIN_MODERADO, CONFIANCA_MIN_FRACO,
-    SCORE_PRATA_MIN,
+    SCORE_PRATA_MIN, SCORE_OURO_MIN,
 )
 
 logger = logging.getLogger(__name__)
@@ -229,13 +229,15 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         return v
 
     # V7.3 Regra 6 — Confirmacao antes do disparo (ate 2 falhas permitidas)
-    # Pula confirmacao para sinais PRATA+ (score >= 65)
-    if score_total < SCORE_PRATA_MIN:
-        confirmado, motivo_confirm, detalhes = confirmacao_disparo(
-            op_data["TREND"], op_data["FLOW"], op_data["MOMENTUM"],
-            op_data["SMC"], direcao, preco,
-        )
-        if not confirmado:
+    confirmado, motivo_confirm, detalhes = confirmacao_disparo(
+        op_data["TREND"], op_data["FLOW"], op_data["MOMENTUM"],
+        op_data["SMC"], direcao, preco,
+    )
+    if not confirmado:
+        # Bypass confirmacao para sinais OURO+ (score >= 80)
+        if score_total >= SCORE_OURO_MIN:
+            detalhes = ["score_alto_bypass"]
+        else:
             diagnostics.record(symbol, "recusado", motivo_confirm, score=score_total)
             diagnostics.add_candidate(symbol, direcao.upper(), score_total, rsi_val, motivo_confirm)
             v["IGNORAR"] = True
@@ -243,8 +245,6 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
             v["EXECUTAR_ORDEM"] = False
             diagnostics.record_filter_block(f"CONFIRMACAO_{motivo_confirm}")
             return v
-    else:
-        detalhes = ["score_alto_bypass"]
 
     for d in detalhes:
         if "sem_" in d:

@@ -187,7 +187,7 @@ def confirmacao_disparo(trend_data, flow_data, momentum_data, smc_data, direcao,
             detalhes.append("estrutura_sem_alta")
 
         falhas = sum(1 for d in detalhes if "sem_" in d)
-        return falhas <= 2, "confirmacao_long" if falhas <= 2 else "falta_confirmacao_long", detalhes
+        return falhas <= 3, "confirmacao_long" if falhas <= 3 else "falta_confirmacao_long", detalhes
 
     if direcao == "short":
         if fluxo in ("vendedor", "leve_vendedor"):
@@ -212,6 +212,6 @@ def confirmacao_disparo(trend_data, flow_data, momentum_data, smc_data, direcao,
             detalhes.append("estrutura_sem_baixa")
 
         falhas = sum(1 for d in detalhes if "sem_" in d)
-        return falhas <= 2, "confirmacao_short" if falhas <= 2 else "falta_confirmacao_short", detalhes
+        return falhas <= 3, "confirmacao_short" if falhas <= 3 else "falta_confirmacao_short", detalhes
 
     return False, "sem_direcao", []
