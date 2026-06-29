@@ -130,57 +130,13 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     for f in v.get("FILTROS_REPROVADOS", []):
         diagnostics.record_filter_block(f)
 
-    # Score com bonus MTF (calcula mesmo se filtro falhar, para diagnostico)
-    dir_tendencia = op_data["TREND"].get("DIRECAO")
-    score_data = calculate_score(
-        adaptive.get_weights(symbol),
-        op_data["TREND"], op_data["FLOW"], op_data["SMC"],
-        op_data["MOMENTUM"], op_data["MARKET"],
-        mtf_bonus=mtf_bonus,
-        preco=op_data["FLOW"].get("PRECO", 0),
-        direcao=dir_tendencia if dir_tendencia in ("long", "short") else None,
-    )
-    v.update(score_data)
-    score_total = score_data.get("SCORE_TOTAL", 0)
-
     rsi_val = op_data["MOMENTUM"].get("RSI", 50)
-    direction_hint = "LONG" if op_data["TREND"].get("DIRECAO") == "long" else "SHORT"
 
     if not passed:
-        diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"), score=score_total)
-        diagnostics.add_candidate(symbol, direction_hint, score_total, rsi_val, v.get("MOTIVO_RECUSA", "filtro"))
+        diagnostics.record(symbol, "recusado", v.get("MOTIVO_RECUSA", "filtro"), score=0)
+        diagnostics.add_candidate(symbol, "LAT", 0, rsi_val, v.get("MOTIVO_RECUSA", "filtro"))
         v["IGNORAR"] = True
         v["MOTIVO"] = v.get("MOTIVO_RECUSA", "filtro")
-        v["EXECUTAR_ORDEM"] = False
-        return v
-
-    # Classificacao
-    confianca = adaptive.get_confianca(symbol, score_total)
-    classification = classify_signal(score_total, confianca)
-    v.update(classification)
-
-    if not classification.get("CLASSIFICACAO_FINAL"):
-        diagnostics.record(symbol, "recusado", f"score_{score_total}", score=score_total)
-        diagnostics.add_candidate(symbol, direction_hint, score_total, rsi_val, f"score_{score_total}")
-        v["IGNORAR"] = True
-        v["MOTIVO"] = f"score_{score_total}"
-        v["EXECUTAR_ORDEM"] = False
-        return v
-
-    # Regra 6 — Confianca dinamica conforme forca do mercado
-    estado = op_data["MARKET"].get("ESTADO_MERCADO", "")
-    if estado in ("tendencia_forte",):
-        conf_min = CONFIANCA_MIN_FORTE
-    elif estado in ("tendencia_moderada", "micro_tendencia"):
-        conf_min = CONFIANCA_MIN_MODERADO
-    else:
-        conf_min = CONFIANCA_MIN_FRACO
-
-    if confianca < conf_min:
-        diagnostics.record(symbol, "recusado", f"confianca_{confianca}", score=score_total)
-        diagnostics.add_candidate(symbol, direction_hint, score_total, rsi_val, f"confianca_{confianca}")
-        v["IGNORAR"] = True
-        v["MOTIVO"] = f"confianca_{confianca}"
         v["EXECUTAR_ORDEM"] = False
         return v
 
@@ -216,6 +172,8 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         op_data["TREND"], op_data["FLOW"], op_data["MOMENTUM"], direcao, preco,
     )
     if tend_bloq:
+        diagnostics.record(symbol, "recusado", f"tendencia_bloqueada_{tend_motivo}", score=0)
+        diagnostics.add_candidate(symbol, direcao.upper(), 0, rsi_val, f"TENDENCIA_BLOQUEADA_{tend_motivo}")
         v["IGNORAR"] = True
         v["MOTIVO"] = f"TENDENCIA_BLOQUEADA_{tend_motivo}"
         v["EXECUTAR_ORDEM"] = False
@@ -225,7 +183,7 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     if tend_motivo == "tendencia_parcial":
         diagnostics.record_filter_block(f"TENDENCIA_PARCIAL_{tend_pontos}pts")
 
-    # Recalcular score com a direcao real e bonus de tendencia
+    # Score com direcao real, bonus MTF e bonus de tendencia
     score_data = calculate_score(
         adaptive.get_weights(symbol),
         op_data["TREND"], op_data["FLOW"], op_data["SMC"],
@@ -237,7 +195,8 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
     v.update(score_data)
     score_total = score_data.get("SCORE_TOTAL", 0)
 
-    # Reclassificar com o novo score
+    # Classificacao
+    confianca = adaptive.get_confianca(symbol, score_total)
     classification = classify_signal(score_total, confianca)
     v.update(classification)
 
@@ -246,6 +205,23 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         diagnostics.add_candidate(symbol, direcao.upper(), score_total, rsi_val, f"score_{score_total}")
         v["IGNORAR"] = True
         v["MOTIVO"] = f"score_{score_total}"
+        v["EXECUTAR_ORDEM"] = False
+        return v
+
+    # Confianca dinamica conforme forca do mercado
+    estado = op_data["MARKET"].get("ESTADO_MERCADO", "")
+    if estado in ("tendencia_forte",):
+        conf_min = CONFIANCA_MIN_FORTE
+    elif estado in ("tendencia_moderada", "micro_tendencia"):
+        conf_min = CONFIANCA_MIN_MODERADO
+    else:
+        conf_min = CONFIANCA_MIN_FRACO
+
+    if confianca < conf_min:
+        diagnostics.record(symbol, "recusado", f"confianca_{confianca}", score=score_total)
+        diagnostics.add_candidate(symbol, direcao.upper(), score_total, rsi_val, f"confianca_{confianca}")
+        v["IGNORAR"] = True
+        v["MOTIVO"] = f"confianca_{confianca}"
         v["EXECUTAR_ORDEM"] = False
         return v
 
