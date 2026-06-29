@@ -14,6 +14,7 @@ class Diagnostics:
         self.cycle_count = 0
         self.total_analises = 0
         self.trade_results = []
+        self.sinais_pulados = 0
 
     def record(self, symbol, decision, detail=None, score=None):
         entry = {
@@ -131,6 +132,8 @@ class Diagnostics:
             avg_r = sum(r["r"] for r in self.trade_results) / total if total > 0 else 0
             winrate_str = f"\n\nResultados ({total} fechados) — STOP:{losses} TP:{wins} — winrate: {winrate:.0f}% — R medio: {avg_r:.2f}R"
 
+        pulados = f" | ⏭ Pulados: {self.sinais_pulados}" if self.sinais_pulados else ""
+
         return (
             f"DIAGNOSTICO GAUSS+DNA — {tempo_sem_sinal}\n"
             f"Mercado neutro — Analisados: {len(self.entries)}\n"
@@ -139,7 +142,7 @@ class Diagnostics:
             f"{filtros_str}\n\n"
             f"Candidatos (por que nao disparou):\n{top_str}\n"
             f"{winrate_str}\n\n"
-            f"Ciclos: {self.cycle_count} | Analises: {self.total_analises}"
+            f"Ciclos: {self.cycle_count} | Analises: {self.total_analises}{pulados}"
         )
 
     def reset_candidates(self):

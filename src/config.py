@@ -16,6 +16,8 @@ RISCO_DIARIO       = float(os.getenv("RISCO_DIARIO", "0.06"))
 MAX_OPERACOES              = int(os.getenv("MAX_OPERACOES", "5"))
 MAX_OPERACOES_SIMULTANEAS  = int(os.getenv("MAX_OPERACOES_SIMULTANEAS", "2"))
 
+MAX_SINAIS_POR_CICLO = int(os.getenv("MAX_SINAIS_POR_CICLO", "5"))
+
 MODO_AUTOMATICO = os.getenv("MODO_AUTOMATICO", "true").lower() == "true"
 MODO_OURO       = os.getenv("MODO_OURO", "true").lower() == "true"
 MODO_PRATA      = os.getenv("MODO_PRATA", "true").lower() == "true"

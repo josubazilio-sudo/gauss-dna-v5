@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import aiohttp
 from datetime import datetime
@@ -119,27 +120,31 @@ async def send_signal(session, symbol, direction, preco, score, classificacao,
     texto = "\n".join(lines)
 
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    try:
-        async with session.post(
-            url,
-            json={"chat_id": TG_CHATID, "text": texto},
-            timeout=aiohttp.ClientTimeout(total=10),
-        ) as r:
-            data = await r.json()
-            if data.get("ok"):
-                logger.info("Sinal enviado: %s %s %s Score:%s", direction, symbol, classificacao, score)
-                return True
-            else:
-                logger.warning("Telegram erro: %s", data.get("description"))
-                return False
-    except Exception as e:
-        logger.error("Falha ao enviar Telegram: %s", e)
-        return False
+    for tentativa in range(2):
+        try:
+            async with session.post(
+                url,
+                json={"chat_id": TG_CHATID, "text": texto},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as r:
+                data = await r.json()
+                if data.get("ok"):
+                    logger.info("Sinal enviado: %s %s %s Score:%s", direction, symbol, classificacao, score)
+                    return True
+                desc = data.get("description", "")
+                logger.warning("Telegram erro (tentativa %d/2): %s", tentativa + 1, desc)
+                if "retry after" in desc:
+                    segundos = int(desc.split("retry after")[-1].strip().split()[0]) + 1
+                    await asyncio.sleep(segundos)
+                    continue
+        except Exception as e:
+            logger.error("Falha ao enviar Telegram (tentativa %d/2): %s", tentativa + 1, e)
+        await asyncio.sleep(3)
+    return False
 
 async def send_diagnostic(session, texto):
     if not TG_TOKEN or not TG_CHATID:
         return
-    import asyncio
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     for tentativa in range(3):
         try:

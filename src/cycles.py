@@ -15,7 +15,7 @@ from diagnostics import Diagnostics
 from notify import send_signal, send_diagnostic
 from schema.variables import empty_schema
 from adaptive import AdaptiveWeights
-from config import MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO
+from config import MAX_CRYPTOS, TIMEFRAME_OPERACAO, TIMEFRAME_CONFIRMACAO, TIMEFRAME_MACRO, MAX_SINAIS_POR_CICLO
 
 logger = logging.getLogger(__name__)
 
@@ -287,11 +287,11 @@ async def main_cycle():
                     cycle_signals.append(r)
 
             # Enviar sinais via Telegram (formato DNA FLEX)
-            MAX_SINAIS_POR_CICLO = 5
             sinais_enviados = 0
             for symbol, direcao, v in cycle_signals:
                 if sinais_enviados >= MAX_SINAIS_POR_CICLO:
-                    logger.info("Limite de %d sinais por ciclo atingido, pulando resto", MAX_SINAIS_POR_CICLO)
+                    diagnostics.sinais_pulados = len(cycle_signals) - sinais_enviados
+                    logger.info("Limite de %d sinais por ciclo (%d pulados)", MAX_SINAIS_POR_CICLO, diagnostics.sinais_pulados)
                     break
                 close = v.get("LONG_ENTRADA") or v.get("SHORT_ENTRADA") or 0
                 enviado = await send_signal(
