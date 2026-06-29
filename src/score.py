@@ -188,14 +188,14 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
     if direcao == "long":
         if kalman == "UP" and fluxo in ("comprador", "leve_comprador"):
             bonus += 3
-        if preco > ema21 and ema21 > 0:
+        if preco is not None and ema21 is not None and preco > ema21:
             bonus += 2
         if macd_bullish or macd_hist_up:
             bonus += 2
     elif direcao == "short":
         if kalman == "DOWN" and fluxo in ("vendedor", "leve_vendedor"):
             bonus += 3
-        if preco < ema21 and ema21 > 0:
+        if preco is not None and ema21 is not None and preco < ema21:
             bonus += 2
         if macd_bearish or not macd_hist_up:
             bonus += 2
