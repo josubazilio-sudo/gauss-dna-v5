@@ -219,11 +219,11 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
 
 def classify_signal(score_total, confianca=100):
     """
-    V7.3 — Nova classificacao (ajustada).
+    V7.3 — Nova classificacao (calibrada).
 
-    Bronze: 65-74
-    Prata: 75-84
-    Ouro: 85-94
+    Bronze: 75-81
+    Prata: 82-89
+    Ouro: 90-94
     Ouro Supremo: 95+
     """
     result = {

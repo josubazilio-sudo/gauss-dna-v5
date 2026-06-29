@@ -141,10 +141,10 @@ class Diagnostics:
             avg_r = sum(r["r"] for r in self.trade_results) / total if total > 0 else 0
             winrate_str = f"\n\nResultados ({total} fechados) — STOP:{losses} TP:{wins} — winrate: {winrate:.0f}% — R medio: {avg_r:.2f}R"
 
-        # V7.3 — Contagem de quase-sinais (60-64)
-        quase = [e for e in self.entries if e["decision"] == "recusado" and e.get("score") and 60 <= e["score"] <= 64]
+        # V7.3 — Contagem de quase-sinais (70-74)
+        quase = [e for e in self.entries if e["decision"] == "recusado" and e.get("score") and 70 <= e["score"] <= 74]
         self.quase_sinais = len(quase)
-        quase_str = f"\n\n⚠ Quase sinais (60-64pts): {self.quase_sinais}" if self.quase_sinais else ""
+        quase_str = f"\n\n⚠ Quase sinais (70-74pts): {self.quase_sinais}" if self.quase_sinais else ""
 
         # V7.3 — Sugestao automatica se >80% bloqueado pelo mesmo filtro
         auto_sugestao = ""
