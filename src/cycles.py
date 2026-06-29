@@ -160,6 +160,14 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         v["EXECUTAR_ORDEM"] = False
         return v
 
+    if confianca < 60:
+        diagnostics.record(symbol, "recusado", f"confianca_{confianca}", score=score_total)
+        diagnostics.add_candidate(symbol, direction_hint, score_total, rsi_val, f"confianca_{confianca}")
+        v["IGNORAR"] = True
+        v["MOTIVO"] = f"confianca_{confianca}"
+        v["EXECUTAR_ORDEM"] = False
+        return v
+
     # Determinar direcao: tendencia > delta > RSI > EMA
     direcao = op_data["TREND"].get("DIRECAO", "lateral")
     if direcao not in ("long", "short"):
@@ -182,6 +190,20 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
         else:
             v["IGNORAR"] = True
             v["MOTIVO"] = "sem_direcao"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+
+    preco = op_data["FLOW"].get("PRECO", 0)
+    ema200 = op_data["TREND"].get("EMA_200", 0)
+    if preco and ema200:
+        if direcao == "long" and preco < ema200:
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "preco_abaixo_mm200"
+            v["EXECUTAR_ORDEM"] = False
+            return v
+        if direcao == "short" and preco > ema200:
+            v["IGNORAR"] = True
+            v["MOTIVO"] = "preco_acima_mm200"
             v["EXECUTAR_ORDEM"] = False
             return v
 
@@ -265,7 +287,12 @@ async def main_cycle():
                     cycle_signals.append(r)
 
             # Enviar sinais via Telegram (formato DNA FLEX)
+            MAX_SINAIS_POR_CICLO = 5
+            sinais_enviados = 0
             for symbol, direcao, v in cycle_signals:
+                if sinais_enviados >= MAX_SINAIS_POR_CICLO:
+                    logger.info("Limite de %d sinais por ciclo atingido, pulando resto", MAX_SINAIS_POR_CICLO)
+                    break
                 close = v.get("LONG_ENTRADA") or v.get("SHORT_ENTRADA") or 0
                 enviado = await send_signal(
                     session=session,
@@ -282,9 +309,12 @@ async def main_cycle():
                     timeframe=TIMEFRAME_OPERACAO,
                 )
                 if enviado:
-                    logger.info("Sinal %s %s enviado", v.get("CLASSIFICACAO_FINAL"), symbol)
+                    sinais_enviados += 1
+                    logger.info("Sinal %s %s enviado (%d/%d)", v.get("CLASSIFICACAO_FINAL"), symbol, sinais_enviados, MAX_SINAIS_POR_CICLO)
+                await asyncio.sleep(0.5)
 
             # Sempre enviar resumo com recomendacao
+            await asyncio.sleep(2)
             resumo = diagnostics.summary()
             if resumo:
                 await send_diagnostic(session, resumo)

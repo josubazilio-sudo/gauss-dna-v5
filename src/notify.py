@@ -139,15 +139,24 @@ async def send_signal(session, symbol, direction, preco, score, classificacao,
 async def send_diagnostic(session, texto):
     if not TG_TOKEN or not TG_CHATID:
         return
+    import asyncio
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    try:
-        async with session.post(
-            url,
-            json={"chat_id": TG_CHATID, "text": texto},
-            timeout=aiohttp.ClientTimeout(total=10),
-        ) as r:
-            data = await r.json()
-            if not data.get("ok"):
-                logger.warning("Diagnostico Telegram: %s", data.get("description"))
-    except Exception as e:
-        logger.warning("Diagnostico Telegram falhou: %s", e)
+    for tentativa in range(3):
+        try:
+            async with session.post(
+                url,
+                json={"chat_id": TG_CHATID, "text": texto},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as r:
+                data = await r.json()
+                if data.get("ok"):
+                    return
+                desc = data.get("description", "")
+                logger.warning("Diagnostico Telegram (tentativa %d/3): %s", tentativa + 1, desc)
+                if "retry after" in desc:
+                    segundos = int(desc.split("retry after")[-1].strip().split()[0]) + 1
+                    await asyncio.sleep(segundos)
+                    continue
+        except Exception as e:
+            logger.warning("Diagnostico Telegram falhou (tentativa %d/3): %s", tentativa + 1, e)
+        await asyncio.sleep(5 * (tentativa + 1))
