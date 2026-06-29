@@ -333,6 +333,11 @@ async def main_cycle():
                 if len(r) == 3:
                     cycle_signals.append(r)
 
+            logger.info(
+                "Ciclo: %d sinais gerados, %d analises, %d candidates registrados",
+                len(cycle_signals), diagnostics.total_analises, len(diagnostics.candidates)
+            )
+
             # Enviar sinais via Telegram (formato DNA FLEX)
             sinais_enviados = 0
             for symbol, direcao, v in cycle_signals:
@@ -364,6 +369,7 @@ async def main_cycle():
             await asyncio.sleep(2)
             resumo = diagnostics.summary()
             if resumo:
+                logger.info("=== DIAGNOSTICO ===\n%s", resumo)
                 await send_diagnostic(session, resumo)
 
             await risk.refresh()
