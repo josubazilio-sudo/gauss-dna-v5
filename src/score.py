@@ -12,14 +12,16 @@ from config import (
 
 def _score_tendencia(trend_data, direcao):
     tend = trend_data.get("TENDENCIA", "neutra")
-    if direcao == "long" and tend in ("alta",):
-        return PESO_TENDENCIA
-    if direcao == "short" and tend in ("baixa",):
-        return PESO_TENDENCIA
-    if direcao == "long" and tend in ("alta_moderada",):
-        return PESO_TENDENCIA - 5
-    if direcao == "short" and tend in ("baixa_moderada",):
-        return PESO_TENDENCIA - 5
+    if direcao == "long":
+        if tend in ("alta",):
+            return PESO_TENDENCIA
+        if tend in ("alta_moderada",):
+            return PESO_TENDENCIA - 5
+    elif direcao == "short":
+        if tend in ("baixa",):
+            return PESO_TENDENCIA
+        if tend in ("baixa_moderada",):
+            return PESO_TENDENCIA - 5
 
     ema_alinhada = trend_data.get("EMA_ALINHADA", False)
     if ema_alinhada:
@@ -154,6 +156,16 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
     }
 
     if direcao not in ("long", "short"):
+        mercado_estado = market_data.get("ESTADO_MERCADO", "")
+        result["SCORE_TENDENCIA"] = _score_tendencia(trend_data, None)
+        result["SCORE_FLUXO"] = PESO_FLUXO // 3
+        result["SCORE_VOLUME"] = _score_volume(flow_data, mercado_estado)
+        result["SCORE_MOMENTUM"] = _score_momentum(momentum_data, mercado_estado)
+        result["SCORE_ESTRUTURA"] = _score_estrutura(smc_data)
+        result["SCORE_LIQUIDEZ"] = _score_liquidez(smc_data)
+        total = sum(v for k, v in result.items() if k != "SCORE_TOTAL")
+        total += mtf_bonus
+        result["SCORE_TOTAL"] = min(total, 100)
         return result
 
     mercado_estado = market_data.get("ESTADO_MERCADO", "")
