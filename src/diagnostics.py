@@ -15,6 +15,7 @@ class Diagnostics:
         self.total_analises = 0
         self.trade_results = []
         self.sinais_pulados = 0
+        self.quase_sinais = 0
 
     def record(self, symbol, decision, detail=None, score=None):
         entry = {
@@ -38,8 +39,14 @@ class Diagnostics:
                 self.blockers["RVOL baixo"] += 1
             elif "adx" in motivo.lower():
                 self.blockers["ADX baixo"] += 1
-            elif "tendencia_nao_confirmada" in motivo.lower():
-                self.blockers["tendencia nao confirmada"] += 1
+            elif "tendencia_bloq" in motivo.lower():
+                self.blockers["tendencia bloqueada"] += 1
+            elif "tendencia_parcial" in motivo.lower():
+                self.blockers["tendencia parcial"] += 1
+            elif "confirmacao_falta_" in motivo.lower():
+                self.blockers["confirmacao insuficiente"] += 1
+            elif "confirmacao_" in motivo.lower():
+                self.blockers["confirmacao reprovada"] += 1
             elif "tendencia" in motivo.lower():
                 self.blockers["tendencia desfavoravel"] += 1
             elif "volatilidade" in motivo.lower():
@@ -134,6 +141,19 @@ class Diagnostics:
             avg_r = sum(r["r"] for r in self.trade_results) / total if total > 0 else 0
             winrate_str = f"\n\nResultados ({total} fechados) — STOP:{losses} TP:{wins} — winrate: {winrate:.0f}% — R medio: {avg_r:.2f}R"
 
+        # V7.3 — Contagem de quase-sinais (55-59)
+        quase = [e for e in self.entries if e["decision"] == "recusado" and e.get("score") and 55 <= e["score"] <= 59]
+        self.quase_sinais = len(quase)
+        quase_str = f"\n\n⚠ Quase sinais (55-59pts): {self.quase_sinais}" if self.quase_sinais else ""
+
+        # V7.3 — Sugestao automatica se >80% bloqueado pelo mesmo filtro
+        auto_sugestao = ""
+        if self.entries:
+            total = len(self.entries)
+            for motivo, count in self.filter_blocks.most_common(1):
+                if count > total * 0.8:
+                    auto_sugestao = f"\n\n💡 Sugestao: {count}/{total} bloqueados por '{motivo}' — considere ajustar"
+
         pulados = f" | ⏭ Pulados: {self.sinais_pulados}" if self.sinais_pulados else ""
 
         return (
@@ -141,7 +161,9 @@ class Diagnostics:
             f"Mercado neutro — Analisados: {len(self.entries)}\n"
             f"✅ Aprovados: {len(aprovados)} | 🔒 Bloqueados: {len(bloqueados)} | ❌ Recusados: {len(recusados)}\n\n"
             f"Bloqueadores mais frequentes:\n{bloqueadores_str}"
-            f"{filtros_str}\n\n"
+            f"{filtros_str}"
+            f"{quase_str}"
+            f"{auto_sugestao}\n\n"
             f"Candidatos (por que nao disparou):\n{top_str}\n"
             f"{winrate_str}\n\n"
             f"Ciclos: {self.cycle_count} | Analises: {self.total_analises}{pulados}"

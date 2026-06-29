@@ -9,7 +9,7 @@ from smart_money import detect_smc
 from flow import analyze_flow
 from momentum import analyze_momentum
 from score import calculate_score, classify_signal
-from filters import check_filters, check_blockers, tendencia_confirmada
+from filters import check_filters, check_blockers, tendencia_adaptativa, confirmacao_disparo
 from risk import RiskManager
 from diagnostics import Diagnostics
 from notify import send_signal, send_diagnostic
@@ -211,70 +211,59 @@ async def processar_par(symbol, tf_data, risk, diagnostics, adaptive, session):
 
     preco = op_data["FLOW"].get("PRECO", 0)
 
-    # Regra 7 — Proibir operacoes contra a tendencia
-    ema21 = op_data["TREND"].get("EMA_21", 0)
-    ema50 = op_data["TREND"].get("EMA_50", 0)
-    kalman = op_data["TREND"].get("KALMAN_DIRECAO", "")
-    if direcao == "long":
-        if preco and ema21 and preco <= ema21:
-            v["IGNORAR"] = True
-            v["MOTIVO"] = "preco_abaixo_ema21"
-            v["EXECUTAR_ORDEM"] = False
-            return v
-        if ema21 and ema50 and ema21 <= ema50:
-            v["IGNORAR"] = True
-            v["MOTIVO"] = "ema21_abaixo_ema50"
-            v["EXECUTAR_ORDEM"] = False
-            return v
-        if kalman not in ("UP",):
-            v["IGNORAR"] = True
-            v["MOTIVO"] = "kalman_nao_altista"
-            v["EXECUTAR_ORDEM"] = False
-            return v
-    elif direcao == "short":
-        if preco and ema21 and preco >= ema21:
-            v["IGNORAR"] = True
-            v["MOTIVO"] = "preco_acima_ema21"
-            v["EXECUTAR_ORDEM"] = False
-            return v
-        if ema21 and ema50 and ema21 >= ema50:
-            v["IGNORAR"] = True
-            v["MOTIVO"] = "ema21_acima_ema50"
-            v["EXECUTAR_ORDEM"] = False
-            return v
-        if kalman not in ("DOWN",):
-            v["IGNORAR"] = True
-            v["MOTIVO"] = "kalman_nao_baixista"
-            v["EXECUTAR_ORDEM"] = False
-            return v
-
-    # Regra 1 e 2 — Filtro de confirmacao de tendencia
-    confirmado, motivo_recusa = tendencia_confirmada(
+    # V7.3 — Tendencia adaptativa (score-based, nao bloqueia)
+    tend_pontos, tend_motivo, tend_bloq = tendencia_adaptativa(
         op_data["TREND"], op_data["FLOW"], op_data["MOMENTUM"], direcao, preco,
     )
-    if not confirmado:
-        v["FILTROS_REPROVADOS"].append("FILTRO_TENDENCIA_NAO_CONFIRMADA")
+    if tend_bloq:
         v["IGNORAR"] = True
-        v["MOTIVO"] = f"FILTRO_TENDENCIA_NAO_CONFIRMADA_{motivo_recusa}"
+        v["MOTIVO"] = f"TENDENCIA_BLOQUEADA_{tend_motivo}"
         v["EXECUTAR_ORDEM"] = False
-        diagnostics.record_filter_block(f"TENDENCIA_NAO_CONFIRMADA_{motivo_recusa}")
+        diagnostics.record_filter_block(f"TENDENCIA_BLOQ_{tend_motivo}")
         return v
 
-    # Regra 8 — Filtro de estrutura
-    bos = op_data["SMC"].get("BOS", False)
-    choch = op_data["SMC"].get("CHOCH", False)
-    if direcao == "long" and not (bos or choch):
+    if tend_motivo == "tendencia_parcial":
+        diagnostics.record_filter_block(f"TENDENCIA_PARCIAL_{tend_pontos}pts")
+
+    # Recalcular score com a direcao real e bonus de tendencia
+    score_data = calculate_score(
+        adaptive.get_weights(symbol),
+        op_data["TREND"], op_data["FLOW"], op_data["SMC"],
+        op_data["MOMENTUM"], op_data["MARKET"],
+        mtf_bonus=mtf_bonus + tend_pontos,
+        preco=preco,
+        direcao=direcao,
+    )
+    v.update(score_data)
+    score_total = score_data.get("SCORE_TOTAL", 0)
+
+    # Reclassificar com o novo score
+    classification = classify_signal(score_total, confianca)
+    v.update(classification)
+
+    if not classification.get("CLASSIFICACAO_FINAL"):
+        diagnostics.record(symbol, "recusado", f"score_{score_total}", score=score_total)
+        diagnostics.add_candidate(symbol, direcao.upper(), score_total, rsi_val, f"score_{score_total}")
         v["IGNORAR"] = True
-        v["MOTIVO"] = "sem_quebra_estrutura_long"
+        v["MOTIVO"] = f"score_{score_total}"
         v["EXECUTAR_ORDEM"] = False
-        diagnostics.record_filter_block("ESTRUTURA_SEM_BOS_LONG")
         return v
-    if direcao == "short" and not (bos or choch):
+
+    # V7.3 Regra 6 — Confirmacao antes do disparo (ate 2 falhas permitidas)
+    confirmado, motivo_confirm, detalhes = confirmacao_disparo(
+        op_data["TREND"], op_data["FLOW"], op_data["MOMENTUM"],
+        op_data["SMC"], direcao, preco,
+    )
+    if not confirmado:
         v["IGNORAR"] = True
-        v["MOTIVO"] = "sem_quebra_estrutura_short"
+        v["MOTIVO"] = motivo_confirm
         v["EXECUTAR_ORDEM"] = False
-        diagnostics.record_filter_block("ESTRUTURA_SEM_BOS_SHORT")
+        diagnostics.record_filter_block(f"CONFIRMACAO_{motivo_confirm}")
         return v
+
+    for d in detalhes:
+        if "sem_" in d:
+            diagnostics.record_filter_block(f"CONFIRMACAO_FALTA_{d}")
 
     ema200 = op_data["TREND"].get("EMA_200", 0)
     if preco and ema200:

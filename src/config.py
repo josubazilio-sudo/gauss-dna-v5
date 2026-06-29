@@ -112,37 +112,46 @@ LIMITE_GAIN  = float(os.getenv("LIMITE_GAIN", "0.10"))
 LIMITE_LOSS  = float(os.getenv("LIMITE_LOSS", "0.06"))
 
 # ═══════════════════════════════════════════════════════════════
-# IA ADAPTATIVA — Pesos iniciais
+# IA ADAPTATIVA — Pesos iniciais (V7.3: Score por Pesos)
 # ═══════════════════════════════════════════════════════════════
 
-PESO_TENDENCIA    = 20
+PESO_TENDENCIA    = 30
 PESO_FLUXO        = 20
-PESO_VOLUME       = 10
-PESO_LIQUIDEZ     = 15
-PESO_ESTRUTURA    = 20
-PESO_MOMENTUM     = 10
-PESO_VOLATILIDADE = 5
+PESO_VOLUME       = 15
+PESO_MOMENTUM     = 15
+PESO_ESTRUTURA    = 10
+PESO_LIQUIDEZ     = 10
+
 PESO_MULTI_TIMEFRAME = 10
-PESO_CONFIANCA    = 10
-PESO_ATIVO        = 5
-
-TOTAL_PESOS = sum([
-    PESO_TENDENCIA, PESO_FLUXO, PESO_VOLUME, PESO_LIQUIDEZ,
-    PESO_ESTRUTURA, PESO_MOMENTUM, PESO_VOLATILIDADE,
-    PESO_MULTI_TIMEFRAME, PESO_CONFIANCA, PESO_ATIVO
-])
 
 # ═══════════════════════════════════════════════════════════════
-# SCORE
+# SCORE — V7.3 Nova Classificacao
 # ═══════════════════════════════════════════════════════════════
 
-SCORE_OURO_MIN  = int(os.getenv("SCORE_OURO_MIN", "90"))
-SCORE_PRATA_MIN = int(os.getenv("SCORE_PRATA_MIN", "75"))
-SCORE_BRONZE_MIN = int(os.getenv("SCORE_BRONZE_MIN", "50"))
+SCORE_OURO_SUPREMO_MIN = int(os.getenv("SCORE_OURO_SUPREMO_MIN", "90"))
+SCORE_OURO_MIN = int(os.getenv("SCORE_OURO_MIN", "80"))
+SCORE_PRATA_MIN = int(os.getenv("SCORE_PRATA_MIN", "65"))
+SCORE_BRONZE_MIN = int(os.getenv("SCORE_BRONZE_MIN", "55"))
 
 CONFIANCA_MIN_FORTE = int(os.getenv("CONFIANCA_MIN_FORTE", "60"))
 CONFIANCA_MIN_MODERADO = int(os.getenv("CONFIANCA_MIN_MODERADO", "58"))
 CONFIANCA_MIN_FRACO = int(os.getenv("CONFIANCA_MIN_FRACO", "55"))
+
+# ═══════════════════════════════════════════════════════════════
+# RVOL DINAMICO (V7.3)
+# ═══════════════════════════════════════════════════════════════
+
+RVOL_FORTE = float(os.getenv("RVOL_FORTE", "1.20"))
+RVOL_MODERADO = float(os.getenv("RVOL_MODERADO", "1.00"))
+RVOL_FRACO = float(os.getenv("RVOL_FRACO", "0.80"))
+
+# ═══════════════════════════════════════════════════════════════
+# ADX ADAPTATIVO (V7.3)
+# ═══════════════════════════════════════════════════════════════
+
+ADX_ALTO = 30
+ADX_MEDIO = 25
+ADX_BAIXO = 20
 
 # ═══════════════════════════════════════════════════════════════
 # MEXC API

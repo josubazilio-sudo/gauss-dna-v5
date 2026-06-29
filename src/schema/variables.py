@@ -148,6 +148,7 @@ def empty_schema():
         "MTF_BONUS": 0,
 
         # ── CLASSIFICAÇÃO ──────────────────────────────────────────
+        "SINAL_OURO_SUPREMO": False,
         "SINAL_OURO": False,
         "SINAL_PRATA": False,
         "SINAL_BRONZE": False,

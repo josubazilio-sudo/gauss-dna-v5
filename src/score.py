@@ -1,19 +1,146 @@
-"""Score Institucional — preenche variaveis SCORE e CLASSIFICACAO."""
+"""Score Institucional — V7.3: Score por Pesos."""
 
 from config import (
-    PESO_TENDENCIA, PESO_FLUXO, PESO_VOLUME, PESO_LIQUIDEZ,
-    PESO_ESTRUTURA, PESO_MOMENTUM, PESO_VOLATILIDADE,
+    PESO_TENDENCIA, PESO_FLUXO, PESO_VOLUME,
+    PESO_MOMENTUM, PESO_ESTRUTURA, PESO_LIQUIDEZ,
     PESO_MULTI_TIMEFRAME,
-    SCORE_OURO_MIN, SCORE_PRATA_MIN, SCORE_BRONZE_MIN,
+    SCORE_OURO_SUPREMO_MIN, SCORE_OURO_MIN, SCORE_PRATA_MIN, SCORE_BRONZE_MIN,
+    ADX_ALTO, ADX_MEDIO, ADX_BAIXO,
+    RVOL_FORTE, RVOL_MODERADO, RVOL_FRACO,
 )
+
+
+def _score_tendencia(trend_data, direcao):
+    tend = trend_data.get("TENDENCIA", "neutra")
+    if direcao == "long" and tend in ("alta",):
+        return PESO_TENDENCIA
+    if direcao == "short" and tend in ("baixa",):
+        return PESO_TENDENCIA
+    if direcao == "long" and tend in ("alta_moderada",):
+        return PESO_TENDENCIA - 5
+    if direcao == "short" and tend in ("baixa_moderada",):
+        return PESO_TENDENCIA - 5
+
+    ema_alinhada = trend_data.get("EMA_ALINHADA", False)
+    if ema_alinhada:
+        return PESO_TENDENCIA // 2
+    return PESO_TENDENCIA // 3
+
+
+def _score_fluxo(flow_data, direcao):
+    delta = flow_data.get("DELTA", 0)
+    fluxo_tipo = flow_data.get("FLUXO_TIPO", "")
+    volume = flow_data.get("VOLUME", 0)
+    volume_medio = flow_data.get("VOLUME_MEDIO", 1)
+
+    if direcao == "long":
+        if delta > 0 and fluxo_tipo in ("comprador",):
+            return PESO_FLUXO
+        if delta > 0:
+            return PESO_FLUXO - 5
+        if volume > volume_medio * 1.5 and delta > 0:
+            return PESO_FLUXO - 3
+        return PESO_FLUXO // 2
+
+    if direcao == "short":
+        if delta < 0 and fluxo_tipo in ("vendedor",):
+            return PESO_FLUXO
+        if delta < 0:
+            return PESO_FLUXO - 5
+        if volume > volume_medio * 1.5 and delta < 0:
+            return PESO_FLUXO - 3
+        return PESO_FLUXO // 2
+
+    return PESO_FLUXO // 3
+
+
+def _score_volume(flow_data, mercado_estado):
+    rvol = flow_data.get("RVOL", 0)
+
+    if mercado_estado in ("tendencia_forte",):
+        rvol_min = RVOL_FORTE
+    elif mercado_estado in ("tendencia_moderada", "micro_tendencia"):
+        rvol_min = RVOL_MODERADO
+    else:
+        rvol_min = RVOL_FRACO
+
+    if rvol >= rvol_min * 2:
+        return PESO_VOLUME
+    if rvol >= rvol_min * 1.5:
+        return PESO_VOLUME - 3
+    if rvol >= rvol_min:
+        return PESO_VOLUME - 6
+    if rvol >= rvol_min * 0.7:
+        return PESO_VOLUME - 9
+
+    return PESO_VOLUME // 2
+
+
+def _score_momentum(momentum_data, mercado_estado):
+    adx = momentum_data.get("ADX", 0)
+    adx_crescente = momentum_data.get("MOMENTUM") == "crescente"
+    ha_bull = momentum_data.get("HA_BULL", False)
+    ha_bear = momentum_data.get("HA_BEAR", False)
+
+    pontos = 0
+
+    if adx >= ADX_ALTO:
+        pontos = 10
+    elif adx >= ADX_MEDIO:
+        pontos = 7
+    elif adx >= ADX_BAIXO:
+        pontos = 4
+    elif mercado_estado in ("tendencia_forte", "tendencia_moderada"):
+        pontos = 2
+    else:
+        pontos = 0
+
+    if adx_crescente:
+        pontos += 2
+
+    ha_alinhado = (ha_bull or ha_bear)
+    if ha_alinhado:
+        pontos += 3
+
+    return min(pontos, PESO_MOMENTUM)
+
+
+def _score_estrutura(smc_data):
+    bos = smc_data.get("BOS", False)
+    choch = smc_data.get("CHOCH", False)
+    estrutura_ok = smc_data.get("ESTRUTURA_OK", False)
+    liquidity = smc_data.get("LIQUIDITY_SWEEP", False)
+
+    if bos and estrutura_ok:
+        return PESO_ESTRUTURA
+    if bos or choch:
+        return PESO_ESTRUTURA - 2
+    if liquidity:
+        return PESO_ESTRUTURA - 4
+    return PESO_ESTRUTURA - 6
+
+
+def _score_liquidez(smc_data):
+    liquidity = smc_data.get("LIQUIDITY_SWEEP", False)
+    order_block = smc_data.get("ORDER_BLOCK", False)
+    fvg = smc_data.get("FVG", False)
+    mitigacao = smc_data.get("MITIGACAO", False)
+
+    if liquidity or (order_block and fvg):
+        return PESO_LIQUIDEZ
+    if order_block or fvg:
+        return PESO_LIQUIDEZ - 3
+    if mitigacao:
+        return PESO_LIQUIDEZ - 5
+    return PESO_LIQUIDEZ - 7
 
 
 def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, market_data, mtf_bonus=0, preco=0, direcao=None):
     """
-    Preenche SCORE_TENDENCIA, SCORE_VOLUME, SCORE_FLUXO,
-    SCORE_MOMENTUM, SCORE_LIQUIDEZ, SCORE_ESTRUTURA,
-    SCORE_VOLATILIDADE, SCORE_TOTAL.
-    Mais liberal que a versao original.
+    V7.3 — Score por pesos.
+
+    Cada componente contribui com seu peso maximo.
+    Bloqueios rigidos foram substituidos por reducao de pontos.
     """
     result = {
         "SCORE_TENDENCIA": 0,
@@ -26,96 +153,18 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
         "SCORE_TOTAL": 0,
     }
 
-    p_tend = config.get("PESO_TENDENCIA", PESO_TENDENCIA)
-    p_fluxo = config.get("PESO_FLUXO", PESO_FLUXO)
-    p_vol = config.get("PESO_VOLUME", PESO_VOLUME)
-    p_mom = config.get("PESO_MOMENTUM", PESO_MOMENTUM)
-    p_liq = config.get("PESO_LIQUIDEZ", PESO_LIQUIDEZ)
-    p_est = config.get("PESO_ESTRUTURA", PESO_ESTRUTURA)
-    p_volat = config.get("PESO_VOLATILIDADE", PESO_VOLATILIDADE)
+    if direcao not in ("long", "short"):
+        return result
 
-    # Tendencia (peso cheio se nao for neutra)
-    tend = trend_data.get("TENDENCIA", "neutra")
-    if tend in ("alta", "alta_moderada"):
-        result["SCORE_TENDENCIA"] = p_tend
-    elif tend in ("baixa", "baixa_moderada"):
-        result["SCORE_TENDENCIA"] = p_tend
-    elif trend_data.get("EMA_ALINHADA"):
-        result["SCORE_TENDENCIA"] = p_tend // 2
-    else:
-        result["SCORE_TENDENCIA"] = p_tend // 3
+    mercado_estado = market_data.get("ESTADO_MERCADO", "")
 
-    if trend_data.get("EMA_CRUZAMENTO") in ("bullish", "bearish"):
-        result["SCORE_TENDENCIA"] = min(result["SCORE_TENDENCIA"] + 5, p_tend)
+    result["SCORE_TENDENCIA"] = _score_tendencia(trend_data, direcao)
+    result["SCORE_FLUXO"] = _score_fluxo(flow_data, direcao)
+    result["SCORE_VOLUME"] = _score_volume(flow_data, mercado_estado)
+    result["SCORE_MOMENTUM"] = _score_momentum(momentum_data, mercado_estado)
+    result["SCORE_ESTRUTURA"] = _score_estrutura(smc_data)
+    result["SCORE_LIQUIDEZ"] = _score_liquidez(smc_data)
 
-    # Fluxo (parcial se delta existir, cheio se alinhado com direcao)
-    delta = flow_data.get("DELTA", 0)
-    direcao = trend_data.get("DIRECAO", "lateral")
-    if delta > 0 and direcao == "long":
-        result["SCORE_FLUXO"] = p_fluxo
-    elif delta < 0 and direcao == "short":
-        result["SCORE_FLUXO"] = p_fluxo
-    elif delta != 0:
-        result["SCORE_FLUXO"] = p_fluxo // 2
-    else:
-        result["SCORE_FLUXO"] = p_fluxo // 4
-
-    # Volume (parcial se RVOL > 0.7, cheio se > 1.0)
-    rvol = flow_data.get("RVOL", 0)
-    if rvol >= 1.0:
-        result["SCORE_VOLUME"] = p_vol
-    elif rvol >= 0.7:
-        result["SCORE_VOLUME"] = p_vol // 2
-    else:
-        result["SCORE_VOLUME"] = p_vol // 4
-
-    if flow_data.get("VOLUME_CRESCENTE"):
-        result["SCORE_VOLUME"] = min(result["SCORE_VOLUME"] + 5, p_vol)
-
-    # Momentum
-    adx = momentum_data.get("ADX", 0)
-    if adx >= 20:
-        result["SCORE_MOMENTUM"] = p_mom
-    elif adx >= 15:
-        result["SCORE_MOMENTUM"] = p_mom // 2
-    else:
-        result["SCORE_MOMENTUM"] = p_mom // 4
-
-    mom = momentum_data.get("MOMENTUM", "neutro")
-    if mom == "crescente" and direcao == "long":
-        result["SCORE_MOMENTUM"] = min(result["SCORE_MOMENTUM"] + 5, p_mom)
-    elif mom == "decrescente" and direcao == "short":
-        result["SCORE_MOMENTUM"] = min(result["SCORE_MOMENTUM"] + 5, p_mom)
-
-    # Liquidez
-    if smc_data.get("LIQUIDITY_SWEEP") or smc_data.get("STOP_HUNT"):
-        result["SCORE_LIQUIDEZ"] = p_liq
-    elif smc_data.get("ORDER_BLOCK") or smc_data.get("FVG"):
-        result["SCORE_LIQUIDEZ"] = p_liq // 2
-    else:
-        result["SCORE_LIQUIDEZ"] = p_liq // 3
-
-    if smc_data.get("RETESTE"):
-        result["SCORE_LIQUIDEZ"] = min(result["SCORE_LIQUIDEZ"] + 5, p_liq)
-
-    # Estrutura
-    if smc_data.get("BOS"):
-        result["SCORE_ESTRUTURA"] = p_est
-    elif smc_data.get("CHOCH"):
-        result["SCORE_ESTRUTURA"] = p_est // 2
-    else:
-        result["SCORE_ESTRUTURA"] = p_est // 3
-
-    if smc_data.get("ESTRUTURA_OK"):
-        result["SCORE_ESTRUTURA"] = min(result["SCORE_ESTRUTURA"] + 5, p_est)
-
-    # Volatilidade
-    if market_data.get("ATR_EXPANSAO") or market_data.get("VOL_ALTA"):
-        result["SCORE_VOLATILIDADE"] = p_volat
-    elif not market_data.get("ATR_COMPRESSAO"):
-        result["SCORE_VOLATILIDADE"] = p_volat // 2
-
-    # Bonus de alinhamento (Regra 5)
     bonus = 0
     kalman = trend_data.get("KALMAN_DIRECAO", "")
     fluxo = flow_data.get("FLUXO_TIPO", "")
@@ -124,41 +173,28 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
     macd_bearish = momentum_data.get("MACD_BEARISH", False)
     macd_hist_up = momentum_data.get("MACD_HIST_CRESCENTE", False)
 
-    # Kalman alinhado + Fluxo alinhado = +5 (Regra 5)
     if direcao == "long":
         if kalman == "UP" and fluxo in ("comprador", "leve_comprador"):
-            bonus += 5
+            bonus += 3
+        if preco > ema21 and ema21 > 0:
+            bonus += 2
+        if macd_bullish or macd_hist_up:
+            bonus += 2
     elif direcao == "short":
         if kalman == "DOWN" and fluxo in ("vendedor", "leve_vendedor"):
-            bonus += 5
+            bonus += 3
+        if preco < ema21 and ema21 > 0:
+            bonus += 2
+        if macd_bearish or not macd_hist_up:
+            bonus += 2
 
-    # Preco acima (LONG) / abaixo (SHORT) da EMA21 = +3 (Regra 5)
-    if direcao == "long" and preco > ema21 and ema21 > 0:
-        bonus += 3
-    elif direcao == "short" and preco < ema21 and ema21 > 0:
-        bonus += 3
-
-    # MACD confirmado = +3 (Regra 5)
-    if direcao == "long" and (macd_bullish or macd_hist_up):
-        bonus += 3
-    elif direcao == "short" and (macd_bearish or not macd_hist_up):
-        bonus += 3
-
-    # Candle de confirmacao = +2 (Regra 5)
-    if direcao == "long" and preco > ema21 and ema21 > 0:
-        bonus += 2
-    elif direcao == "short" and preco < ema21 and ema21 > 0:
-        bonus += 2
-
-    # Soma + bonus multi-timeframe + bonus alinhamento
     total = sum([
         result["SCORE_TENDENCIA"],
         result["SCORE_FLUXO"],
         result["SCORE_VOLUME"],
         result["SCORE_MOMENTUM"],
-        result["SCORE_LIQUIDEZ"],
         result["SCORE_ESTRUTURA"],
-        result["SCORE_VOLATILIDADE"],
+        result["SCORE_LIQUIDEZ"],
     ])
     total += mtf_bonus
     total += bonus
@@ -169,10 +205,15 @@ def calculate_score(config, trend_data, flow_data, smc_data, momentum_data, mark
 
 def classify_signal(score_total, confianca=100):
     """
-    Preenche SINAL_OURO, SINAL_PRATA, SINAL_BRONZE,
-    NIVEL_CONFIANCA, QUALIDADE_SINAL, CLASSIFICACAO_FINAL.
+    V7.3 — Nova classificacao.
+
+    Bronze: 55-64
+    Prata: 65-79
+    Ouro: 80-89
+    Ouro Supremo: 90+
     """
     result = {
+        "SINAL_OURO_SUPREMO": False,
         "SINAL_OURO": False,
         "SINAL_PRATA": False,
         "SINAL_BRONZE": False,
@@ -181,10 +222,14 @@ def classify_signal(score_total, confianca=100):
         "CLASSIFICACAO_FINAL": "",
     }
 
-    if score_total >= SCORE_OURO_MIN:
+    if score_total >= SCORE_OURO_SUPREMO_MIN:
+        result["SINAL_OURO_SUPREMO"] = True
+        result["CLASSIFICACAO_FINAL"] = "OURO_SUPREMO"
+        result["QUALIDADE_SINAL"] = "excelente"
+    elif score_total >= SCORE_OURO_MIN:
         result["SINAL_OURO"] = True
         result["CLASSIFICACAO_FINAL"] = "OURO"
-        result["QUALIDADE_SINAL"] = "excelente"
+        result["QUALIDADE_SINAL"] = "otima"
     elif score_total >= SCORE_PRATA_MIN:
         result["SINAL_PRATA"] = True
         result["CLASSIFICACAO_FINAL"] = "PRATA"
