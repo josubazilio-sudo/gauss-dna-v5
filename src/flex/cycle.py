@@ -34,16 +34,20 @@ from flex.score import (
     calcular_score, classificar_por_requisitos,
     mapear_score_final, calcular_timing_index,
     calcular_conviction_score, calcular_exaustao,
-    calcular_penalidades, calcular_confianca,
+    calcular_penalidades,
     calcular_gestao_operacao, validar_sinal_matematico,
-    adjust_confidence, gerar_diagnostico,
+    gerar_diagnostico,
     calcular_fluxo_score,
 )
 from flex.institutional_regime import (
     analyze_institutional_regime, classify_priority,
     dynamic_atr_stop_multiplier,
 )
-from flex.filters import run_all
+from flex.filters import (
+    run_all, validar_filtros_rigorosos,
+    detectar_zona_transicao, detectar_movimento_esticado, detectar_sr_proximo,
+)
+from modules.scanner import buscar_top_pares_usdt
 from flex.gpt_confirmation import validar_confirmacao_gpt
 from flex.notify import send_signal, send_diagnostic, Diagnostics
 from flex.trades import TradeTracker
@@ -119,10 +123,11 @@ def _determine_direction(trend_data, flow_data, momentum_data, kalman_dir):
     return None
 
 
-def _calc_atr_levels(atr, preco, direction, sl_atr_mult=None):
+def _calc_atr_levels(atr, preco, direction, sl_atr_mult=None, tp1_atr_mult=None):
     stop_mult = sl_atr_mult if sl_atr_mult is not None else SL_ATR_MULT
+    tp1_mult = tp1_atr_mult if tp1_atr_mult is not None else TP1_ATR_MULT
     sl_dist = atr * stop_mult
-    tp1 = atr * TP1_ATR_MULT
+    tp1 = atr * tp1_mult
     tp2 = atr * TP2_ATR_MULT
     if direction == "long":
         sl = preco - sl_dist
@@ -138,6 +143,7 @@ def _calc_atr_levels(atr, preco, direction, sl_atr_mult=None):
         "tp2": round(tp2_p, 8),
         "stop_pct": round(sl_dist / preco * 100, 2) if preco > 0 else 0,
         "sl_atr_mult": stop_mult,
+        "tp1_atr_mult": round(tp1_mult, 2),
     }
 
 
@@ -160,7 +166,8 @@ def _get_fluxo_desc(flow_data, direction, fluxo_data=None):
 
 
 async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_pct=0,
-                         btc_direction="", eth_direction="", modo_defensivo=False):
+                         btc_direction="", eth_direction="", modo_defensivo=False,
+                         market_quality_index=70):
     candles_op = tf_data.get(TF_OPER, [])
     candles_1h = tf_data.get(TIMEFRAMES[1], [])
     candles_4h = tf_data.get(TIMEFRAMES[2], [])
@@ -186,18 +193,61 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     kalman_dir = kalman_direction(closes)
 
     direction = _determine_direction(trend, flow, momentum, kalman_dir)
+
+    # Indicadores (precisamos destes antes dos primeiros pontos de rejeição)
+    volume_24h = ticker["volume"] if ticker else 0
+    spread = ticker["spread_pct"] if ticker else 0
+    rvol = flow.get("RVOL", 0)
+    adx = momentum.get("ADX", 0)
+    rsi = momentum.get("RSI", 50)
+
     if direction is None:
         diag.record_funil("recusada")
+        diag.record_analise(symbol, "?", 0, False, "direcao_indefinida",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h,
+                           tendencia=trend.get("TENDENCIA","?"))
         logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Direção do mercado indefinida.")
         return None
 
-    # V9.0: Detector de Setup Institucional
+    # V9.0: Detector de Setup Institucional (bônus de qualidade, não portão)
     setup = detect_setup(candles_op, trend, smc, flow, momentum, direction=direction)
-    if not setup:
-        diag.record_funil("recusada")
+    setup_detectado = setup is not None
+    if setup_detectado:
+        setup_razao = f"Setup: {setup}"
+    else:
+        # Gerar diagnóstico de entrada mesmo sem setup formal
+        partes = []
+        if smc.get("BOS"):
+            partes.append("BOS")
+        if smc.get("CHOCH"):
+            partes.append("CHoCH")
+        if smc.get("FVG"):
+            partes.append("FVG")
+        if smc.get("ORDER_BLOCK"):
+            partes.append("OB")
+        if smc.get("LIQUIDITY_SWEEP"):
+            partes.append("Sweep")
+        fluxo_desc = _get_fluxo_desc(flow, direction)
+        if fluxo_desc in ("Muito Forte", "Forte"):
+            partes.append(f"Fluxo {fluxo_desc}")
+        tendencia = trend.get("TENDENCIA", "")
+        if "forte" in tendencia.lower():
+            partes.append(f"Tendência {tendencia}")
+        if flow.get("DELTA", 0) > 0 and direction == "long":
+            partes.append("Delta comprador")
+        elif flow.get("DELTA", 0) < 0 and direction == "short":
+            partes.append("Delta vendedor")
+        adx = momentum.get("ADX", 0)
+        if adx >= 25:
+            partes.append(f"ADX {adx:.0f}")
+        rvol = flow.get("RVOL", 0)
+        if rvol >= 1.5:
+            partes.append(f"RVOL {rvol:.2f}")
+        if not partes:
+            partes.append("Score elevado")
+        setup_razao = " + ".join(partes) if partes else "Score elevado"
         diag.record_bloqueador("setup_nao_detectado")
-        logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Setup institucional não detectado.")
-        return None
+        logger.info(f"\n{symbol} | Setup: NÃO detectado (razao: {setup_razao})")
 
     # Direção no 1H e 4H para multi-timeframe
     direction_1h = None
@@ -218,18 +268,13 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
 
     diag.record_funil("liquidez")
 
-    # Indicadores
-    volume_24h = ticker["volume"] if ticker else 0
-    spread = ticker["spread_pct"] if ticker else 0
-    rvol = flow.get("RVOL", 0)
-    adx = momentum.get("ADX", 0)
-    rsi = momentum.get("RSI", 50)
-
     if volume_24h is not None and volume_24h > 0:
         diag.record_funil("volume")
     else:
         diag.record_sem_indicador("volume")
         diag.record_bloqueador("liquidez")
+        diag.record_analise(symbol, direction.upper(), 0, False, "volume_invalido_zerado",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h)
         logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Volume de 24h inválido ou zerado.")
         return None
 
@@ -238,6 +283,8 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     else:
         diag.record_sem_indicador("atr")
         diag.record_bloqueador("atr")
+        diag.record_analise(symbol, direction.upper(), 0, False, "atr_indisponivel",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h)
         logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Indicador ATR não disponível.")
         return None
 
@@ -246,6 +293,8 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     else:
         diag.record_sem_indicador("rsi")
         diag.record_bloqueador("rsi")
+        diag.record_analise(symbol, direction.upper(), 0, False, "rsi_indisponivel",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h)
         logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Indicador RSI não disponível.")
         return None
 
@@ -254,6 +303,8 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     else:
         diag.record_sem_indicador("adx")
         diag.record_bloqueador("adx")
+        diag.record_analise(symbol, direction.upper(), 0, False, "adx_indisponivel",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h)
         logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Indicador ADX não disponível.")
         return None
 
@@ -262,6 +313,8 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     else:
         diag.record_sem_indicador("rvol")
         diag.record_bloqueador("rvol")
+        diag.record_analise(symbol, direction.upper(), 0, False, "rvol_indisponivel",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h)
         logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Indicador RVOL não disponível.")
         return None
 
@@ -277,7 +330,12 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
         diag.record_funil("recusada")
         motivo_final = motivos[0] if motivos else "filtro_desconhecido"
         diag.record_bloqueador(motivo_final)
+        diag.record_analise(symbol, direction.upper(), 0, False, f"filtro_inicial_{motivo_final}",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h,
+                           kalman_dir=kalman_dir, tendencia=trend.get("TENDENCIA","?"))
         logger.info(f"\n{symbol}\nScore: 0\nStatus: REPROVADO\nMotivo: Filtro institucional rejeitado ({motivo_final}).")
+        if motivos:
+            logger.info(f"  MOTIVO(S): {'; '.join(str(m) for m in motivos)}")
         return None
 
     diag.record_funil("fluxo")
@@ -393,30 +451,116 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
         smc, momentum, kalman_dir, timing_index=timing_index
     )
 
-    # Classificar
-    categoria, motivo_recusa = classificar_por_requisitos(
+    # ── FILTROS RIGOROSOS V9.2 (Qualidade Acima de Quantidade) ──
+    filtros_ok, filtros_info = validar_filtros_rigorosos(
+        symbol, direction, trend, flow, momentum, smc,
+        candles_op, kalman_dir, volume_24h, timing_index,
+        conviction_score, score_com_penalidade, preco,
+        market_quality_index=market_quality_index
+    )
+    for filtro, status in filtros_info["resultados"].items():
+        if not status:
+            diag.record_bloqueador(f"qualidade_{filtro}")
+    if not filtros_ok:
+        diag.record_funil("recusada")
+        motivos = "/".join(filtros_info["reprovados"])
+        diag.record_bloqueador(f"filtros_rigorosos_{motivos}")
+        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Filtros rigorosos não aprovados ({motivos}).")
+        # Log detalhado: valor × mínimo para cada filtro
+        logger.info(f"  FILTROS RIGOROSOS [MODO {filtros_info.get('modo_desc','?')}]:")
+        for f_name, f_data in filtros_info["detalhes"].items():
+            status_f = "OK" if filtros_info["resultados"].get(f_name) else "BLOQUEADO"
+            logger.info(f"    {f_name}: {status_f} | Valor: {f_data['valor']} | Minimo: {f_data['minimo']}")
+        diag.record_analise(symbol, direction.upper(), score_com_penalidade, False,
+                           f"filtros_rigorosos_{motivos}",
+                           rsi=rsi, adx=adx, rvol=rvol, volume=volume_24h,
+                           kalman_dir=kalman_dir, timing_index=timing_index,
+                           tendencia=trend.get("TENDENCIA","?"))
+        return None
+
+    # ── NOVOS FILTROS V9.3: Transição, Esticado, S/R Próximo ──
+    em_transicao, motivos_trans, grav_trans = detectar_zona_transicao(
+        trend, momentum, flow, kalman_dir, candles_op, direction
+    )
+    if em_transicao:
+        logger.info(f"  TRANSICAO [{grav_trans.upper()}]: {'; '.join(motivos_trans)}")
+        diag.record_bloqueador(f"transicao_{grav_trans}")
+        diag.record_funil("recusada")
+        diag.record_analise(symbol, direction.upper(), score_com_penalidade, False,
+                            f"zona_transicao_{grav_trans}", rsi, adx, rvol, volume_24h,
+                            atr=atr_pct, tendencia=tendencia_str)
+        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Zona de transicao detectada ({grav_trans}). {'; '.join(motivos_trans)}")
+        return None
+
+    # Regime institucional TRANSIÇÃO em mercado desfavorável (< 50) bloqueia
+    if regime_name == "TRANSIÇÃO" and market_quality_index < 50:
+        logger.info(f"  REGIME TRANSIÇÃO em mercado {market_quality_index}/100 (desfavoravel) — bloqueado")
+        diag.record_bloqueador("regime_transicao_mercado_ruim")
+        diag.record_funil("recusada")
+        diag.record_analise(symbol, direction.upper(), score_com_penalidade, False,
+                            "regime_transicao", rsi, adx, rvol, volume_24h,
+                            atr=atr_pct, tendencia=tendencia_str)
+        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Regime institucional TRANSICAO em mercado desfavoravel ({market_quality_index}/100).")
+        return None
+
+    esticado, motivos_est, grav_est = detectar_movimento_esticado(
+        trend, momentum, flow, candles_op, direction
+    )
+    if esticado:
+        logger.info(f"  ESTICADO [{grav_est.upper()}]: {'; '.join(motivos_est)}")
+        diag.record_bloqueador(f"esticado_{grav_est}")
+        diag.record_funil("recusada")
+        diag.record_analise(symbol, direction.upper(), score_com_penalidade, False,
+                            f"movimento_esticado_{grav_est}", rsi, adx, rvol, volume_24h,
+                            atr=atr_pct, tendencia=tendencia_str)
+        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Movimento esticado detectado ({grav_est}). {'; '.join(motivos_est)}")
+        return None
+
+    sr_proximo, motivos_sr = detectar_sr_proximo(smc, candles_op, direction, preco, atr)
+    if sr_proximo:
+        logger.info(f"  S/R PROXIMO: {'; '.join(motivos_sr)}")
+
+    # ── FILTRO KALMAN: None → bloqueia, SIDE/contra penaliza ──
+    if kalman_dir is None:
+        logger.info(f"  KALMAN None (indisponivel) — bloqueado")
+        diag.record_bloqueador("kalman_indisponivel")
+        diag.record_funil("recusada")
+        diag.record_analise(symbol, direction.upper(), score_com_penalidade, False,
+                            "kalman_indisponivel", rsi, adx, rvol, volume_24h,
+                            atr=atr_pct, tendencia=tendencia_str)
+        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Kalman indisponivel (filtro sem direcao).")
+        return None
+
+    # Classificar (usando confiança unificada oficial via calcular_confianca)
+    fluxo_score_val = fluxo_data.get("fluxo_score", 0) if fluxo_data else 0
+    smc_component = score_data.get('componentes', {}).get('smart_money', 0)
+    categoria, _, gaps_classificacao, confianca_oficial = classificar_por_requisitos(
         score_com_penalidade, adx, rvol, timing_index, flow, direction,
         kalman_dir, trend, velas, conviction_score, direction_1h=direction_1h,
-        direction_4h=direction_4h, follow_through_pct=follow_through_pct
+        direction_4h=direction_4h, follow_through_pct=follow_through_pct,
+        fluxo_score=fluxo_score_val, smc_data=smc, smc_component=smc_component
     )
     if categoria is None:
         diag.record_funil("recusada")
         diag.record_bloqueador("score")
         diag.record_analise(symbol, direction.upper(), score_com_penalidade, False,
-                            motivo_recusa or "classificacao_reprovada", rsi, adx, rvol,
+                            "requisitos_brz_nao_atendidos", rsi, adx, rvol,
                             volume_24h, atr=atr_pct, tendencia=tendencia_str)
-        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Requisitos mínimos da categoria não atingidos ({motivo_recusa or 'classificacao_reprovada'}).")
+        bronze_gaps = gaps_classificacao.get("BRONZE", [])
+        gaps_log = " | ".join(bronze_gaps) if bronze_gaps else ""
+        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Requisitos BRONZE não atingidos. {gaps_log}")
         return None
 
-    confianca = calcular_confianca(score_com_penalidade, categoria, conviction_score=conviction_score)
-    confianca = adjust_confidence(confianca, regime_data.get("regime"), direction)
-    if confianca < MIN_CONFIANCA:
+    # Registrar gaps de upgrade para diagnóstico
+    diag.gaps_classificacao = gaps_classificacao
+
+    if confianca_oficial < MIN_CONFIANCA:
         diag.record_funil("recusada")
         diag.record_bloqueador("confianca")
         diag.record_analise(symbol, direction.upper(), score_final, False,
-                            f"confianca_baixa_{confianca}", rsi, adx, rvol, volume_24h,
+                            f"confianca_baixa_{confianca_oficial}", rsi, adx, rvol, volume_24h,
                             atr=atr_pct, tendencia=tendencia_str)
-        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Confiança abaixo do limite mínimo ({confianca} < {MIN_CONFIANCA}).")
+        logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Confiança abaixo do limite mínimo ({confianca_oficial} < {MIN_CONFIANCA}).")
         return None
 
     # Filtro de Segurança V10: Bloqueio de Sinais Neutros ou Baixa Qualidade
@@ -429,22 +573,8 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
         logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: CANCELADO\nMotivo: Tendência neutra/lateral ({tendencia_str}) ou qualidade baixa ({categoria}) após confirmação.")
         return None
 
-    # Regra 3: Probabilidade não pode ser maior que a qualidade real dos filtros
-    confianca_ajustada = confianca
-    if rvol < 0.8:
-        confianca_ajustada = min(confianca_ajustada, 70)
-    
-    # Corrigir caso de direction "long"/"short" vs "LONG"/"SHORT"
-    delta = flow.get("DELTA", 0)
-    vol_cres = flow.get("VOLUME_CRESCENTE", False)
-    rvol_v = flow.get("RVOL", 0)
-    fluxo_forte = (
-        (direction.lower() == "long" and delta > 0) or
-        (direction.lower() == "short" and delta < 0)
-    ) and vol_cres and rvol_v > 1.2
-    
-    if not fluxo_forte:
-        confianca_ajustada = min(confianca_ajustada, 80)
+    # Confiança final: usar o valor oficial único (calculado pelo classificar_por_requisitos)
+    confianca_ajustada = confianca_oficial
         
     classific = {
         "classificacao": categoria,
@@ -480,7 +610,19 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     preco = flow.get("PRECO", 0)
     atr = momentum.get("ATR", 0)
     sl_atr_mult, atr_regime = dynamic_atr_stop_multiplier(atr_pct)
-    levels = _calc_atr_levels(atr, preco, direction, sl_atr_mult) if atr > 0 and preco > 0 else {}
+
+    # TP1 dinâmico: mais próximo para sinais fracos/mercado fraco, mais longo para fortes
+    _tp1_base = {
+        "OURO_SUPREMO": min(TP1_ATR_MULT * 1.25, 3.0),
+        "OURO": 2.0,
+        "PRATA": 1.5,
+        "BRONZE": 1.2,
+    }.get(categoria, 1.2)
+    _mq = market_quality_index
+    _tp1_mq = 1.0 if _mq >= 70 else (0.9 if _mq >= 50 else 0.75)
+    tp1_atr_mult = round(_tp1_base * _tp1_mq, 2)
+
+    levels = _calc_atr_levels(atr, preco, direction, sl_atr_mult, tp1_atr_mult) if atr > 0 and preco > 0 else {}
 
     # TP1 mínimo $1 + RR check
     gestao = calcular_gestao_operacao(
@@ -529,6 +671,7 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     logger.info(
         f"\n{symbol}\n"
         f"Score: {score_com_penalidade} (Trend: {score_data['componentes']['trend']}, Momentum: {score_data['componentes']['momentum']}, SMC: {score_data['componentes']['smart_money']}, Flow: {score_data['componentes']['flow_volume']}, Entry: {score_data['componentes']['entry_timing']}, Risk: {score_data['componentes']['risk']})\n"
+        f"Entrada: {setup_razao}\n"
         f"Fluxo: {fluxo_desc_val}\n"
         f"Kalman: {kalman_dir}\n"
         f"ATR: {atr_pct:.2f}% (OK)\n"
@@ -544,12 +687,13 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
     result_data = {
         "symbol": symbol,
         "direction": direction.upper(),
-        "setup": setup,
+        "setup": setup_razao,
+        "setup_razao": setup_razao,
         "classificacao": classific["classificacao"],
         "prioridade": classify_priority(categoria, regime_data, flow, kalman_dir, direction, adx, rvol),
         "emoji": classific["emoji"],
         "score": score_com_penalidade,
-        "confianca": confianca,
+        "confianca": confianca_ajustada,
         "preco": preco,
         "rsi": rsi,
         "adx": adx,
@@ -569,7 +713,6 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
         "funding": funding,
         "timeframe": TF_OPER,
         "velas": velas,
-        "fluxo_forte": fluxo_forte,
         "conviction_score": conviction_score,
         "diagnostico": diagnostico,
         "fluxo_data": fluxo_data,
@@ -603,7 +746,24 @@ async def main_cycle(send_diag=True):
         try:
             logger.info("--- SINAIS TOP V2 — Iniciando ciclo (%d moedas) ---", MAX_CRYPTOS)
             t0 = asyncio.get_event_loop().time()
-            market_data = await scan_market(session=session, top_n=MAX_CRYPTOS, timeframes=TIMEFRAMES)
+
+            # V9.2: Buscar futuros ANTES de escanear para garantir 300 moedas com contrato futuro
+            futuros_validos = await fetch_futures_symbols(session)
+
+            # Buscar top 900+ da spot para ter candidates suficientes
+            top_pairs = await buscar_top_pares_usdt(session, top_n=MAX_CRYPTOS * 3)
+
+            if futuros_validos is not None:
+                # Filtrar apenas pares com futuro, pegar os top 300
+                final_symbols = [s for s in top_pairs if s in futuros_validos][:MAX_CRYPTOS]
+                logger.info("Filtro futuros: %d spot -> %d futuros (top %d mantidos)",
+                            len(top_pairs), len([s for s in top_pairs if s in futuros_validos]), len(final_symbols))
+            else:
+                final_symbols = top_pairs[:MAX_CRYPTOS]
+                logger.warning("Nao foi possivel obter lista de futuros — prosseguindo sem filtro")
+
+            # Escanear candles apenas dos pares filtrados
+            market_data = await scan_market(session=session, top_n=MAX_CRYPTOS, timeframes=TIMEFRAMES, symbols=final_symbols)
             t1 = asyncio.get_event_loop().time()
 
             moedas_carregadas = len(market_data)
@@ -612,17 +772,8 @@ async def main_cycle(send_diag=True):
             candles_ok = sum(1 for v in market_data.values() if len(v.get(TIMEFRAMES[0], [])) >= 50)
             candles_inv = max(0, moedas_carregadas - candles_ok)
 
-            futuros_validos = await fetch_futures_symbols(session)
-            if futuros_validos is not None:
-                antes = len(market_data)
-                market_data = {s: v for s, v in market_data.items() if s in futuros_validos}
-                logger.info("Filtro futuros: %d -> %d pares (removidos %d sem contrato futuro)",
-                            antes, len(market_data), antes - len(market_data))
-            else:
-                logger.warning("Nao foi possivel obter lista de futuros — prosseguindo sem filtro")
-
-            moedas_validas = len(market_data)
-            erros_api = moedas_carregadas - moedas_validas
+            moedas_validas = moedas_carregadas
+            erros_api = 0
             diag.record_scanner_debug(moedas_carregadas, moedas_validas, candles_ok, candles_inv, erros_api, t1 - t0)
 
             logger.info("Buscando tickers 24h e funding...")
@@ -726,6 +877,18 @@ async def main_cycle(send_diag=True):
                 eth_direction = _determine_direction(eth_trend, eth_flow, eth_emotions, eth_kd)
                 diag.eth_trend = eth_trend.get("TENDENCIA", "?")
 
+            # ── INDICE DE QUALIDADE DO MERCADO ──
+            btc_adx = btc_emotions.get("ADX", 0) if len(btc_data) >= 50 else 0
+            market_quality_index = int((follow_through_pct * 0.6) + (btc_adx * 0.4))
+            market_quality_index = max(0, min(100, market_quality_index))
+            logger.info("INDICE DE QUALIDADE DO MERCADO: %d/100 (FT=%.1f%%, BTC_ADX=%.1f)", market_quality_index, follow_through_pct, btc_adx)
+            if market_quality_index >= 70:
+                logger.info("  -> MERCADO FAVORAVEL: modo RIGOROSO (1 falha bloqueia, Setup obrigatorio)")
+            elif market_quality_index >= 50:
+                logger.info("  -> MERCADO MODERADO: RVOL>=0.80, Timing>=45, 2+ falhas bloqueiam")
+            else:
+                logger.info("  -> MERCADO DESFAVORAVEL: RVOL>=0.80, Timing>=45, 2+ falhas, sem portao de setup")
+
             cooldown_file = os.path.join(os.path.dirname(__file__), "..", "..", "state", "cooldown.json")
             cooldown_map = {}
             try:
@@ -763,7 +926,8 @@ async def main_cycle(send_diag=True):
                     
                     result = await processar_par(
                         symbol, tf_data, ticker, funding, diag,
-                        follow_through_pct, btc_direction, eth_direction, modo_defensivo
+                        follow_through_pct, btc_direction, eth_direction, modo_defensivo,
+                        market_quality_index=market_quality_index
                     )
                     
                     if result:

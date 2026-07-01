@@ -8,9 +8,12 @@ from flex.config import (
     ALLOW_KALMAN_SIDEWAYS_BRONZE, ALLOW_KALMAN_SIDEWAYS_PRATA,
     ALLOW_KALMAN_SIDEWAYS_OURO, ALLOW_KALMAN_SIDEWAYS_SUPREMO,
     HA_CONTRARIO_PENALIDADE,
+    CONVICCAO_BRONZE_MIN, CONVICCAO_PRATA_MIN, CONVICCAO_OURO_MIN, CONVICCAO_OURO_SUPREMO_MIN,
+    TIMING_BOM, TIMING_BRONZE, TIMING_PRATA, TIMING_OURO,
 )
 from flex.config import ADX_OURO_SUPREMO, ADX_OURO, ADX_PRATA, ADX_BRONZE
 from flex.config import RVOL_OURO_SUPREMO, RVOL_OURO, RVOL_PRATA, RVOL_BRONZE
+from flex.config import TIMING_MUITO_BOM, TIMING_EXCELENTE
 
 
 def _score_kalman_by_direction(kalman_dir, direction):
@@ -306,26 +309,27 @@ def _verificar_multi_timeframe(direction_30m, direction_1h, direction_4h=None):
 
 
 def calcular_confianca(score, classificacao, conviction_score=None):
-    if conviction_score is not None and conviction_score > 0:
-        base = float(conviction_score)
-        delta_score = (score - 75) * 0.25
-        confianca = base + delta_score
-        if conviction_score < 46:
-            confianca = min(confianca, 70)
-        elif conviction_score < 61:
-            confianca = max(min(confianca, 80), 60)
-        elif conviction_score < 76:
-            confianca = max(min(confianca, 90), 75)
-        else:
-            confianca = max(confianca, 85)
-        return max(min(int(round(confianca)), 100), 0)
-    if classificacao == "OURO_SUPREMO":
-        return max(score, CONFIANCA_OURO_SUPREMO)
-    if classificacao == "OURO":
-        return max(score, CONFIANCA_OURO)
-    if classificacao == "PRATA":
-        return max(score, CONFIANCA_PRATA)
-    return max(score, CONFIANCA_BRONZE)
+    """
+    FUNÇÃO OFICIAL ÚNICA de confiança do sistema.
+    60% convicção + 40% score, com piso por categoria.
+    Usada por TODO o sistema — nunca calcular confiança em outro lugar.
+    """
+    base = float(conviction_score) if conviction_score is not None and conviction_score > 0 else float(score)
+
+    conviccao_weight = 0.60
+    score_weight = 0.40
+    confianca = (base * conviccao_weight) + (score * score_weight)
+
+    pisos = {
+        "OURO_SUPREMO": CONFIANCA_OURO_SUPREMO,
+        "OURO": CONFIANCA_OURO,
+        "PRATA": CONFIANCA_PRATA,
+        "BRONZE": CONFIANCA_BRONZE,
+    }
+    piso = pisos.get(classificacao, CONFIANCA_BRONZE) if classificacao else CONFIANCA_BRONZE
+    confianca = max(confianca, piso)
+
+    return max(min(int(round(confianca)), 100), 0)
 
 
 def validar_sinal_matematico(symbol, direction, entry, stop, tp1, tp2, tp3, r_pct, funding):
@@ -981,7 +985,12 @@ def gerar_diagnostico(score_data, flow_data, smc_data, trend_data, kalman_dir, d
     if smc_data.get("FVG"):
         pontos_fortes.append("Fair Value Gap presente")
     if not smc_data.get("BOS") and not smc_data.get("CHOCH") and componentes.get("smart_money", 0) < 8:
-        pontos_fracos.append("Sem rompimento estrutural SMC")
+        if smc_data.get("FVG"):
+            pontos_fracos.append("Estrutura SMC parcial (so FVG, sem BOS/CHoCH)")
+        elif smc_data.get("ORDER_BLOCK"):
+            pontos_fracos.append("Estrutura SMC parcial (so OB, sem BOS/CHoCH)")
+        else:
+            pontos_fracos.append("Sem rompimento estrutural SMC")
 
     if componentes.get("flow_volume", 0) >= 12:
         pontos_fortes.append("Fluxo institucional forte")
@@ -1096,6 +1105,42 @@ def adjust_confidence(confianca, regime, direction):
     if regime == "LATERAL_RUIDOSO":
         return max(0, confianca - 10)
     return confianca
+
+def calcular_qualidade_rating(filtros_resultados, score, conviccao, timing_index, rvol, adx):
+    """
+    Classificação real de 1 a 5 estrelas considerando TODOS os filtros.
+    ⭐⭐⭐⭐⭐ = Excepcional (todos os filtros aprovados + score >= 90 + conviccao >= 80 + timing >= 80)
+    ⭐⭐⭐⭐   = Muito Alta (todos os filtros aprovados + score >= 80 + conviccao >= 65 + timing >= 70)
+    ⭐⭐⭐     = Boa (máximo 1 filtro reprovado + score >= 75 + timing >= 60)
+    ⭐⭐      = Média (máximo 2 filtros reprovados)
+    ⭐       = Fraca (3+ filtros reprovados)
+    """
+    if not filtros_resultados:
+        padrao = score / 20.0
+        if score >= 90: return 5
+        if score >= 80: return 4
+        if score >= 70: return 3
+        if score >= 60: return 2
+        return 1
+
+    reprovados = filtros_resultados.get("reprovados", [])
+    total_reprovados = len(reprovados)
+
+    todos_ok = total_reprovados == 0
+    score_alto = score >= 90
+    conv_alta = conviccao is not None and conviccao >= 80
+    timing_alto = timing_index is not None and timing_index >= 80
+
+    if todos_ok and score_alto and conv_alta and timing_alto:
+        return 5
+    if todos_ok and score >= 80 and conviccao is not None and conviccao >= 65 and (timing_index or 0) >= 70:
+        return 4
+    if total_reprovados <= 1 and score >= 75 and (timing_index or 0) >= TIMING_BOM:
+        return 3
+    if total_reprovados <= 2:
+        return 2
+    return 1
+
 
 def calcular_gestao_operacao(score, classificacao, adx, rvol, timing_index,
                              flow_data, direction, kalman_dir, stop_pct=0):
@@ -1432,35 +1477,116 @@ def is_structurally_valid(trend_data, flow_data, kalman_dir, direction):
 def classificar_por_requisitos(score, adx, rvol, timing, flow_data, direction,
                                 kalman_dir, trend_data, velas_fortes, conviccao,
                                 direction_1h=None, direction_4h=None,
-                                follow_through_pct=None):
-    valid, reason = is_structurally_valid(trend_data, flow_data, kalman_dir, direction)
-    if not valid:
-        return None, f"bloqueio_estrutural_{reason}"
+                                follow_through_pct=None, fluxo_score=None,
+                                smc_data=None, smc_component=0):
+    """
+    Classifica o sinal em OURO/PRATA/BRONZE/None com requisitos institucionais.
+    Se OURO falhar em algum critério → rebaixa automaticamente para PRATA (não bloqueia).
+    Retorna (categoria, motivo, gaps_dict, confianca_oficial).
+    gaps_dict: {"OURO": [...], "PRATA": [...], "BRONZE": [...]} — deficits para upgrade.
+    """
+    gaps = {}
 
-    if score < 60:
-        return None, f"score_baixo_{score}"
+    # ── BRONZE: requisitos mínimos (abaixo disso = sem sinal) ──
+    bronze_gaps = []
+    if score < SCORE_BRONZE_MIN:
+        bronze_gaps.append(f"Score {score} < {SCORE_BRONZE_MIN}")
+    if conviccao < CONVICCAO_BRONZE_MIN:
+        bronze_gaps.append(f"Conviccao {conviccao} < {CONVICCAO_BRONZE_MIN}")
+    if timing is not None and timing < TIMING_BRONZE:
+        bronze_gaps.append(f"Timing {timing} < {TIMING_BRONZE}")
+    if adx < ADX_BRONZE:
+        bronze_gaps.append(f"ADX {adx} < {ADX_BRONZE}")
+    if rvol < RVOL_BRONZE:
+        bronze_gaps.append(f"RVOL {rvol:.2f} < {RVOL_BRONZE}")
+    if smc_component < 5:
+        bronze_gaps.append(f"SMC {smc_component} < 5")
+    if fluxo_score is not None and fluxo_score < 50:
+        bronze_gaps.append(f"Fluxo {fluxo_score} < 50")
+    if bronze_gaps:
+        return None, "requisitos_brz_nao_atendidos", {"BRONZE": bronze_gaps}, 0
+    gaps["BRONZE"] = bronze_gaps
 
-    fluxo_ok = _fluxo_a_favor(flow_data, direction)
-    timing = timing or 0
-    if not fluxo_ok:
-        return None, "fluxo_sem_confirmacao"
-    if timing < 45:
-        return None, f"timing_baixo_{timing}"
-    if adx < 15:
-        return None, f"adx_baixo_{adx}"
+    # ── PRATA: requisitos intermediários ──
+    prata_gaps = []
+    if score < SCORE_PRATA_MIN:
+        prata_gaps.append(f"Score {score} < {SCORE_PRATA_MIN}")
+    if conviccao < CONVICCAO_PRATA_MIN:
+        prata_gaps.append(f"Conviccao {conviccao} < {CONVICCAO_PRATA_MIN}")
+    if adx < ADX_PRATA:
+        prata_gaps.append(f"ADX {adx} < {ADX_PRATA}")
+    if rvol < RVOL_PRATA:
+        prata_gaps.append(f"RVOL {rvol:.2f} < {RVOL_PRATA}")
+    if timing is not None and timing < TIMING_PRATA:
+        prata_gaps.append(f"Timing {timing} < {TIMING_PRATA}")
+    if smc_component < 5:
+        prata_gaps.append(f"SMC {smc_component} < 5")
+    gaps["PRATA"] = prata_gaps
+    if prata_gaps:
+        categoria = "BRONZE"
+        confianca_oficial = calcular_confianca(score, categoria, conviction_score=conviccao)
+        return categoria, None, gaps, confianca_oficial
 
-    if (conviccao < 50 or rvol < 0.7):
-        return "BRONZE", "Rebaixado por inconsistência (Convicção/RVOL)"
-    
-    if score >= 93 and conviccao >= 85:
-        return "OURO_SUPREMO", None
-    if score >= 90 and conviccao >= 80:
-        return "OURO", None
-    if score >= 85 and conviccao >= 70:
-        return "PRATA", None
-    if score >= 75 and conviccao >= 55:
-        return "BRONZE", None
-    return None, "requisitos_categoria"
+    # ── OURO SUPREMO: requisitos excepcionais (todos OURO + extras com folga) ──
+    tendencia = trend_data.get("TENDENCIA", "").lower()
+    kalman_ouro = (direction == "long" and kalman_dir == "UP") or (direction == "short" and kalman_dir == "DOWN")
+    smc_ok = False
+    if smc_data:
+        smc_ok = smc_data.get("BOS") or smc_data.get("CHOCH") or smc_data.get("FVG") or smc_data.get("ORDER_BLOCK")
+
+    ouro_supremo_gaps = []
+    if score < SCORE_OURO_SUPREMO_MIN:
+        ouro_supremo_gaps.append(f"Score {score} < {SCORE_OURO_SUPREMO_MIN}")
+    if conviccao < CONVICCAO_OURO_SUPREMO_MIN:
+        ouro_supremo_gaps.append(f"Conviccao {conviccao} < {CONVICCAO_OURO_SUPREMO_MIN}")
+    if adx < ADX_OURO_SUPREMO:
+        ouro_supremo_gaps.append(f"ADX {adx} < {ADX_OURO_SUPREMO}")
+    if rvol < RVOL_OURO_SUPREMO:
+        ouro_supremo_gaps.append(f"RVOL {rvol:.2f} < {RVOL_OURO_SUPREMO}")
+    if timing is not None and timing < TIMING_MUITO_BOM:
+        ouro_supremo_gaps.append(f"Timing {timing} < {TIMING_MUITO_BOM}")
+    if fluxo_score is not None and fluxo_score < 85:
+        ouro_supremo_gaps.append(f"Fluxo {fluxo_score} < 85")
+    if not smc_ok:
+        ouro_supremo_gaps.append("Sem SMC")
+
+    gaps["OURO_SUPREMO"] = ouro_supremo_gaps
+    if not ouro_supremo_gaps:
+        categoria = "OURO_SUPREMO"
+        confianca_oficial = calcular_confianca(score, categoria, conviction_score=conviccao)
+        return categoria, None, gaps, confianca_oficial
+
+    # ── OURO: requisitos institucionais (todos obrigatórios, qualquer falha → PRATA) ──
+    ouro_gaps = []
+    if score < SCORE_OURO_MIN:
+        ouro_gaps.append(f"Score {score} < {SCORE_OURO_MIN}")
+    if conviccao < CONVICCAO_OURO_MIN:
+        ouro_gaps.append(f"Conviccao {conviccao} < {CONVICCAO_OURO_MIN}")
+    if adx < ADX_OURO:
+        ouro_gaps.append(f"ADX {adx} < {ADX_OURO}")
+    if rvol < RVOL_OURO:
+        ouro_gaps.append(f"RVOL {rvol:.2f} < {RVOL_OURO}")
+    if timing is not None and timing < TIMING_OURO:
+        ouro_gaps.append(f"Timing {timing} < {TIMING_OURO}")
+    if fluxo_score is not None and fluxo_score < 75:
+        ouro_gaps.append(f"Fluxo {fluxo_score} < 75")
+    if direction == "long" and "baixa" in tendencia:
+        ouro_gaps.append("Tendencia baixista (contra LONG)")
+    if direction == "short" and "alta" in tendencia:
+        ouro_gaps.append("Tendencia altista (contra SHORT)")
+    if not kalman_ouro:
+        ouro_gaps.append(f"Kalman {kalman_dir} (precisa UP/DOWN alinhado)")
+    if not smc_ok:
+        ouro_gaps.append("Sem SMC (precisa BOS/CHoCH/FVG/OB)")
+
+    gaps["OURO"] = ouro_gaps
+    if ouro_gaps:
+        categoria = "PRATA"
+    else:
+        categoria = "OURO"
+
+    confianca_oficial = calcular_confianca(score, categoria, conviction_score=conviccao)
+    return categoria, None, gaps, confianca_oficial
 
 
 

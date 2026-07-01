@@ -47,7 +47,7 @@ async def buscar_top_pares_usdt(session, top_n=300):
     return [p["symbol"] for p in pares[:top_n]]
 
 
-async def scan_market(session=None, top_n=300, timeframes=None):
+async def scan_market(session=None, top_n=300, timeframes=None, symbols=None):
     """
     Escaneia multiplos timeframes para cada par.
 
@@ -55,6 +55,7 @@ async def scan_market(session=None, top_n=300, timeframes=None):
         session: aiohttp session (opcional)
         top_n: numero de pares
         timeframes: lista de timeframes (ex: ["15m", "1h", "4h"])
+        symbols: lista pre-definida de simbolos (opcional, se fornecida ignora buscar_top_pares_usdt)
 
     Returns: { "SYMBOL": { "15m": [...], "1h": [...], "4h": [...] }, ... }
     """
@@ -63,13 +64,16 @@ async def scan_market(session=None, top_n=300, timeframes=None):
 
     if session is None:
         async with aiohttp.ClientSession() as _session:
-            return await _scan_mtf(_session, top_n, timeframes)
-    return await _scan_mtf(session, top_n, timeframes)
+            return await _scan_mtf(_session, top_n, timeframes, symbols=symbols)
+    return await _scan_mtf(session, top_n, timeframes, symbols=symbols)
 
 
-async def _scan_mtf(session, top_n, timeframes):
-    top_pairs = await buscar_top_pares_usdt(session, top_n)
-    pairs = top_pairs[:top_n]
+async def _scan_mtf(session, top_n, timeframes, symbols=None):
+    if symbols is not None:
+        pairs = symbols[:top_n]
+    else:
+        top_pairs = await buscar_top_pares_usdt(session, top_n)
+        pairs = top_pairs[:top_n]
     logger.info("Scan multi-timeframe: %d pares, timeframes=%s", len(pairs), timeframes)
 
     market_data = {}

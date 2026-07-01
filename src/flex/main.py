@@ -7,8 +7,9 @@ import os
 import time
 
 _SRC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if _SRC_PATH not in sys.path:
-    sys.path.insert(0, _SRC_PATH)
+if _SRC_PATH in sys.path:
+    sys.path.remove(_SRC_PATH)
+sys.path.insert(0, _SRC_PATH)
 
 _ENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
 if os.path.exists(_ENV_PATH):

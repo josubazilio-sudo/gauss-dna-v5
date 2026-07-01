@@ -82,9 +82,9 @@ async def send_signal(session, symbol, direction, preco, score,
                       setup=None,
                       timing_index=None, atr_pct=0, tp2=None,
                       regime_data=None, prioridade=None, atr_regime=None,
-                      sl_atr_mult=None, conviction_score=None,
-                      trend_text=None, kalman_dir=None, velas_fortes=0, funding_rate=None,
-                      diagnostico=None, fluxo_data=None, **kwargs):
+                   sl_atr_mult=None, conviction_score=None,
+                       trend_text=None, kalman_dir=None, velas_fortes=0, funding_rate=None,
+                       diagnostico=None, fluxo_data=None, tp1_atr_mult=None, **kwargs):
     if not TG_TOKEN or not TG_CHATID:
         logger.warning("TG_TOKEN ou TG_CHATID nao configurados")
         return False
@@ -95,7 +95,8 @@ async def send_signal(session, symbol, direction, preco, score,
     fluxo = _fluxo_desc(flow_data, direction.lower(), fluxo_data)
 
     sl_pct_str = _fmt(stop_pct)
-    tp1_ganho = float(TP1_ATR_MULT) / float(SL_ATR_MULT) if SL_ATR_MULT else 0
+    _tp1_mult_efetivo = tp1_atr_mult if tp1_atr_mult is not None else TP1_ATR_MULT
+    tp1_ganho = float(_tp1_mult_efetivo) / float(SL_ATR_MULT) if SL_ATR_MULT else 0
     gestao = calcular_gestao_operacao(
         score, classificacao, adx, rvol, timing_index,
         flow_data, direction, kalman_dir, stop_pct
@@ -128,8 +129,12 @@ async def send_signal(session, symbol, direction, preco, score,
     prob = conviction_score
     
     # Setup
-    setup_name = setup.get("name", "N/A") if setup else "Desconhecido"
-    setup_quality = "★" * setup.get("quality", 3) if setup else "★★★"
+    setup_name = "Desconhecido"
+    if isinstance(setup, str):
+        setup_name = setup
+    elif isinstance(setup, dict):
+        setup_name = setup.get("name", "Desconhecido")
+    setup_quality = "★★★"
     
     tp2_ganho = float(TP2_ATR_MULT) / float(SL_ATR_MULT) if float(SL_ATR_MULT) else 0
     half_pos = posicao_total / 2
@@ -182,11 +187,11 @@ async def send_signal(session, symbol, direction, preco, score,
         f"📈 RVOL: {rvol:.2f}x ({_rvol_band(rvol)})",
         f"📉 ADX: {adx:.0f} ({_adx_band(adx)})",
         f"📦 Fluxo: {fluxo}",
-        f"🧭 Kalman: {_html(kalman_dir)}",
-        f"📍 Tendência: {_html(trend_text) if trend_text else '—'}",
+    f"🧭 Kalman: {kalman_dir if kalman_dir else '—'}",
+    f"📍 Tendência: {trend_text if trend_text else '—'}",
         f"🔥 Velas Fortes: {velas_fortes}",
         f"⏱ Timing: {timing_index}/100" if timing_index is not None else "",
-        f"📊 ATR: {atr_pct:.1f}% ({_html(atr_regime or 'ATR')}) | Stop: {sl_atr_mult or SL_ATR_MULT} ATR",
+        f"📊 ATR: {atr_pct:.1f}% ({_html(atr_regime or 'ATR')}) | Stop: {sl_atr_mult or SL_ATR_MULT}×ATR | TP1: {_tp1_mult_efetivo}×ATR",
         *([f"📊 Score Fluxo: {fluxo_data.get('fluxo_score', '—')}/100",
            f"🔹 Vol {fluxo_data.get('componentes', {}).get('volume', '—')} | Delta {fluxo_data.get('componentes', {}).get('delta', '—')} | Mom {fluxo_data.get('componentes', {}).get('momentum', '—')}",
            f"🔸 SMC {fluxo_data.get('componentes', {}).get('smc', '—')} | Liq {fluxo_data.get('componentes', {}).get('liquidity', '—')} | PA {fluxo_data.get('componentes', {}).get('price_action', '—')}"] if fluxo_data and isinstance(fluxo_data, dict) else []),
@@ -327,6 +332,18 @@ class Diagnostics:
         self.bloqueador_tp1_minimo = 0
         self.bloqueador_mm200 = 0
 
+        # Novos bloqueadores V9.2 (Qualidade > Quantidade)
+        self.ultimo_candidato = None
+        self.gaps_classificacao = {}
+
+        self.bloqueador_qualidade_RVOL = 0
+        self.bloqueador_qualidade_KALMAN = 0
+        self.bloqueador_qualidade_TIMING = 0
+        self.bloqueador_qualidade_FLUXO = 0
+        self.bloqueador_qualidade_ESTRUTURA = 0
+        self.bloqueador_qualidade_TENDENCIA = 0
+        self.bloqueador_filtros_rigorosos = 0
+
         self.scanner_ok = True
         self.scanner_motivo = ""
         self.scan_erros_lista = []
@@ -342,12 +359,14 @@ class Diagnostics:
                        volume=None, atr=None, velas=None, fluxo_forte=None,
                        kalman_dir=None, timing_index=None, tendencia=None):
         self.total_analisadas += 1
-        self.todos_resultados.append({
+        entry = {
             "symbol": symbol, "direction": direction, "score": score,
             "aprovado": aprovado, "motivo": motivo,
             "rsi": rsi, "adx": adx, "rvol": rvol, "volume": volume,
             "atr": atr, "velas": velas,
-        })
+        }
+        self.todos_resultados.append(entry)
+        self.ultimo_candidato = entry
         if rsi is not None:
             self.rsi_medio_geral.append(rsi)
         if adx is not None:
@@ -504,6 +523,20 @@ class Diagnostics:
             self.bloqueador_multi_timeframe += 1
         elif tipo == "tp1_minimo":
             self.bloqueador_tp1_minimo += 1
+        elif tipo == "qualidade_RVOL":
+            self.bloqueador_qualidade_RVOL += 1
+        elif tipo == "qualidade_KALMAN":
+            self.bloqueador_qualidade_KALMAN += 1
+        elif tipo == "qualidade_TIMING":
+            self.bloqueador_qualidade_TIMING += 1
+        elif tipo == "qualidade_FLUXO":
+            self.bloqueador_qualidade_FLUXO += 1
+        elif tipo == "qualidade_ESTRUTURA":
+            self.bloqueador_qualidade_ESTRUTURA += 1
+        elif tipo == "qualidade_TENDENCIA":
+            self.bloqueador_qualidade_TENDENCIA += 1
+        elif tipo.startswith("filtros_rigorosos"):
+            self.bloqueador_filtros_rigorosos += 1
 
     def record_erro_api(self, msg):
         self.scanner_ok = False
@@ -838,6 +871,17 @@ class Diagnostics:
                                 ("Score", "bloqueador_score"), ("MM200", "bloqueador_mm200")]:
             count = getattr(self, attr, 0)
             lines.append(f"  • {filtro}: {count}")
+        lines.append("")
+        lines.append("📊 BLOQUEIOS V9.2 (QUALIDADE)")
+        for filtro, attr in [("RVOL < 1.0", "bloqueador_qualidade_RVOL"),
+                                ("Kalman lateral/contrário", "bloqueador_qualidade_KALMAN"),
+                                ("Timing < 60", "bloqueador_qualidade_TIMING"),
+                                ("Fluxo contra", "bloqueador_qualidade_FLUXO"),
+                                ("Sem estrutura (BOS/CHoCH)", "bloqueador_qualidade_ESTRUTURA"),
+                                ("Contra tendência", "bloqueador_qualidade_TENDENCIA"),
+                                ("Filtros Rigorosos (total)", "bloqueador_filtros_rigorosos")]:
+            count = getattr(self, attr, 0)
+            lines.append(f"  • {filtro}: {count}")
 
         if self.score_penalizados:
             lines.append("")
@@ -908,20 +952,54 @@ class Diagnostics:
             timing_line = "  Timing:" + " ".join(f"≥{th}:{sum(1 for v in timing_vals if v>=th)}" for th in timing_ths)
             lines.append(timing_line)
 
+        if self.gaps_classificacao:
+            lines.append("")
+            lines.append("📊 GAPS DE CLASSIFICACAO (upgrade BRONZE->PRATA->OURO)")
+            for nivel, deficits in self.gaps_classificacao.items():
+                if deficits:
+                    marker = "🔴" if nivel in ("BRONZE",) else "🟡" if nivel in ("PRATA",) else "🔵"
+                    lines.append(f"  {marker} FALTA para {nivel}:")
+                    for d in deficits:
+                        lines.append(f"    ❌ {d}")
+                else:
+                    lines.append(f"  ✅ {nivel}: OK")
+            lines.append("")
+
+        if self.ultimo_candidato and not self.ultimo_candidato.get("aprovado"):
+            uc = self.ultimo_candidato
+            lines.append("")
+            lines.append("🔍 ÚLTIMO CANDIDATO ELIMINADO")
+            lines.append(f"  Ativo: {uc.get('symbol', '?')} ({uc.get('direction', '?')})")
+            if uc.get('score', 0) > 0:
+                lines.append(f"  Score: {uc.get('score', 0)}")
+            lines.append(f"  Motivo: {uc.get('motivo', 'desconhecido')}")
+            if uc.get('rvol') is not None:
+                lines.append(f"  RVOL: {uc['rvol']} | ADX: {uc.get('adx', '?')} | RSI: {uc.get('rsi', '?')}")
+            if uc.get('kalman_dir'):
+                lines.append(f"  Kalman: {uc['kalman_dir']}")
+            if uc.get('timing_index') is not None:
+                lines.append(f"  Timing: {uc['timing_index']}")
+            if uc.get('tendencia'):
+                lines.append(f"  Tendência: {uc['tendencia']}")
+            if uc.get('volume'):
+                lines.append(f"  Volume 24h: ${uc['volume']:,.0f}")
+
         lines.append("\n━━━━━━━━━━━━━━━━━━━━━━━━")
         return "\n".join(lines)
 
 
 def _star_rating(score, classificacao):
     if classificacao == "OURO_SUPREMO":
-        return "💎💎💎💎💎💎"
+        return "💎💎💎💎💎"
     if classificacao == "OURO":
         return "⭐⭐⭐⭐⭐"
     if classificacao == "PRATA":
-        if score >= 80:
+        if score >= 85:
             return "⭐⭐⭐⭐"
         return "⭐⭐⭐"
-    if score >= 71:
+    if classificacao == "BRONZE":
+        if score >= 80:
+            return "⭐⭐⭐"
         return "⭐⭐"
     return "⭐"
 

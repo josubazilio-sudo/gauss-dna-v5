@@ -20,39 +20,39 @@ BLACKLIST = {
 }
 
 # =========================
-# SCORE (V12: Novas faixas de classificação)
+# SCORE (V13: Categorias institucionais rigorosas)
 # =========================
-SCORE_BRONZE_MIN = 75
-SCORE_PRATA_MIN = 82
-SCORE_OURO_MIN = 88
-SCORE_OURO_SUPREMO_MIN = 93
+SCORE_BRONZE_MIN = 70
+SCORE_PRATA_MIN = 80
+SCORE_OURO_MIN = 90
+SCORE_OURO_SUPREMO_MIN = 95
 
 # Confianca por categoria
-CONFIANCA_BRONZE = 75
-CONFIANCA_PRATA = 82
-CONFIANCA_OURO = 88
-CONFIANCA_OURO_SUPREMO = 93
+CONFIANCA_BRONZE = 70
+CONFIANCA_PRATA = 80
+CONFIANCA_OURO = 90
+CONFIANCA_OURO_SUPREMO = 95
 
 MIN_INST_SCORE = 40
-MIN_CONFIANCA = 60
+MIN_CONFIANCA = 65
 
 # =========================
-# ADX (Mais rigoroso)
+# ADX (por categoria)
 # =========================
-MIN_ADX = 22
-ADX_BRONZE = 25
-ADX_PRATA = 30
-ADX_OURO = 35
-ADX_OURO_SUPREMO = 40
+MIN_ADX = 18
+ADX_BRONZE = 18
+ADX_PRATA = 20
+ADX_OURO = 25
+ADX_OURO_SUPREMO = 30
 
 # =========================
-# RVOL (Mais rigoroso)
+# RVOL (por categoria)
 # =========================
-MIN_RVOL = 1.0
-RVOL_BRONZE = 1.0
-RVOL_PRATA = 1.2
-RVOL_OURO = 1.5
-RVOL_OURO_SUPREMO = 2.0
+MIN_RVOL = 0.85
+RVOL_BRONZE = 0.90
+RVOL_PRATA = 1.00
+RVOL_OURO = 1.20
+RVOL_OURO_SUPREMO = 1.50
 
 # =========================
 # RSI
@@ -85,6 +85,28 @@ PENALTY_IF_AGAINST_EMA50 = -12
 PENALTY_IF_AGAINST_EMA200 = -20
 
 BLOCK_IF_MAIN_TREND_OPPOSITE = True
+
+# =========================
+# TIMING
+# =========================
+# =========================
+# TIMING (por categoria)
+# =========================
+TIMING_MINIMO = 60
+TIMING_BRONZE = 60
+TIMING_PRATA = 60
+TIMING_OURO = 70
+TIMING_BOM = 60
+TIMING_MUITO_BOM = 70
+TIMING_EXCELENTE = 80
+
+# =========================
+# CONVICÇÃO MÍNIMA
+# =========================
+CONVICCAO_BRONZE_MIN = 50
+CONVICCAO_PRATA_MIN = 55
+CONVICCAO_OURO_MIN = 65
+CONVICCAO_OURO_SUPREMO_MIN = 80
 
 # =========================
 # KALMAN
