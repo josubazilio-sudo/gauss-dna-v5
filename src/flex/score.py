@@ -305,7 +305,20 @@ def _verificar_multi_timeframe(direction_30m, direction_1h, direction_4h=None):
     return {"penalidade": penalidade, "bloquear": False}
 
 
-def calcular_confianca(score, classificacao):
+def calcular_confianca(score, classificacao, conviction_score=None):
+    if conviction_score is not None and conviction_score > 0:
+        base = float(conviction_score)
+        delta_score = (score - 75) * 0.25
+        confianca = base + delta_score
+        if conviction_score < 46:
+            confianca = min(confianca, 70)
+        elif conviction_score < 61:
+            confianca = max(min(confianca, 80), 60)
+        elif conviction_score < 76:
+            confianca = max(min(confianca, 90), 75)
+        else:
+            confianca = max(confianca, 85)
+        return max(min(int(round(confianca)), 100), 0)
     if classificacao == "OURO_SUPREMO":
         return max(score, CONFIANCA_OURO_SUPREMO)
     if classificacao == "OURO":
@@ -1439,13 +1452,13 @@ def classificar_por_requisitos(score, adx, rvol, timing, flow_data, direction,
     if (conviccao < 50 or rvol < 0.7):
         return "BRONZE", "Rebaixado por inconsistência (Convicção/RVOL)"
     
-    if score >= 93 and adx >= 18 and timing >= 55:
+    if score >= 93 and conviccao >= 85:
         return "OURO_SUPREMO", None
-    if score >= 88 and adx >= 18 and timing >= 50:
+    if score >= 90 and conviccao >= 80:
         return "OURO", None
-    if score >= 82 and adx >= 15 and timing >= 45:
+    if score >= 85 and conviccao >= 70:
         return "PRATA", None
-    if score >= 75 and adx >= 12 and timing >= 40:
+    if score >= 75 and conviccao >= 55:
         return "BRONZE", None
     return None, "requisitos_categoria"
 

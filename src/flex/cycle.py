@@ -408,7 +408,7 @@ async def processar_par(symbol, tf_data, ticker, funding, diag, follow_through_p
         logger.info(f"\n{symbol}\nScore: {score_com_penalidade}\nStatus: REPROVADO\nMotivo: Requisitos mínimos da categoria não atingidos ({motivo_recusa or 'classificacao_reprovada'}).")
         return None
 
-    confianca = calcular_confianca(score_com_penalidade, categoria)
+    confianca = calcular_confianca(score_com_penalidade, categoria, conviction_score=conviction_score)
     confianca = adjust_confidence(confianca, regime_data.get("regime"), direction)
     if confianca < MIN_CONFIANCA:
         diag.record_funil("recusada")
