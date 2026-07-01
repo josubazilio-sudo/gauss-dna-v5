@@ -22,17 +22,21 @@ class KalmanFilter1D:
         return self.x
 
 
-def _dynamic_threshold(closes, lookback=12, base=0.0015):
+def kalman_slope(closes, lookback=12):
+    """Retorna a inclinação normalizada do Kalman (valor bruto)."""
     if len(closes) < lookback + 1:
-        return base
-    recent_range = (max(closes[-lookback:]) - min(closes[-lookback:])) / closes[-1]
-    return max(base, recent_range * 0.15)
+        return 0.0
+    kf = KalmanFilter1D()
+    smoothed = [kf.update(p) for p in closes]
+    recent = smoothed[-lookback:]
+    return (recent[-1] - recent[0]) / recent[0]
 
 
-def kalman_direction(closes, lookback=12, threshold=None):
+def kalman_direction(closes, lookback=12):
     """Retorna 'UP' (subindo), 'DOWN' (descendo), 'SIDE' (lateral).
-    
-    Usa threshold adaptativo baseado na volatilidade do ativo.
+
+    Regra: Nunca permite que o Kalman elimine sozinho um excelente sinal.
+           A penalização ocorre por fora, no score.
     """
     if len(closes) < lookback + 1:
         return "SIDE"
@@ -40,9 +44,8 @@ def kalman_direction(closes, lookback=12, threshold=None):
     smoothed = [kf.update(p) for p in closes]
     recent = smoothed[-lookback:]
     slope = (recent[-1] - recent[0]) / recent[0]
-    dyn = _dynamic_threshold(closes, lookback) if threshold is None else threshold
-    if slope > dyn:
+    if slope > 0.003:
         return "UP"
-    elif slope < -dyn:
+    elif slope < -0.003:
         return "DOWN"
     return "SIDE"

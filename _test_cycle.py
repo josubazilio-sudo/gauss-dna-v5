@@ -1,10 +1,7 @@
-import asyncio
-import logging
-import os
-import sys
+import asyncio, logging, os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-# Carregar .env manualmente (sem dependencias)
-_env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
 if os.path.exists(_env_path):
     with open(_env_path, encoding="utf-8") as f:
         for line in f:
@@ -15,14 +12,12 @@ if os.path.exists(_env_path):
             k, v = k.strip(), v.strip().strip("\"'")
             os.environ.setdefault(k, v)
 
-from cycles import main_cycle
-
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s %(message)s",
     stream=sys.stdout,
     force=True,
 )
 
-if __name__ == "__main__":
-    asyncio.run(main_cycle())
+from flex.cycle import main_cycle
+asyncio.run(main_cycle(send_diag=True))

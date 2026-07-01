@@ -73,7 +73,7 @@ async def _scan_mtf(session, top_n, timeframes):
     logger.info("Scan multi-timeframe: %d pares, timeframes=%s", len(pairs), timeframes)
 
     market_data = {}
-    batch_size = 10
+    batch_size = 2
     total_batches = (len(pairs) + batch_size - 1) // batch_size
 
     for batch_idx in range(0, len(pairs), batch_size):
@@ -97,7 +97,7 @@ async def _scan_mtf(session, top_n, timeframes):
                 market_data.pop(pair, None)
 
         if batch_idx + batch_size < len(pairs):
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.8)
 
     logger.info("Scan concluido: %d pares com dados completos", len(market_data))
     return market_data
