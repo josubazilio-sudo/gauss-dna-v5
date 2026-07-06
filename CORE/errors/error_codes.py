@@ -1,0 +1,65 @@
+"""
+Códigos oficiais de erro do QuantOS.
+
+Todo erro lançado pelo sistema deve utilizar um código desta lista.
+"""
+
+
+class ErrorCodes:
+    """Códigos de erro organizados por categoria.
+
+    Formato: XXXNNN (3 letras da categoria + 3 dígitos sequenciais).
+    """
+
+    # Configuração
+    CONFIG_NOT_FOUND = "CFG001"
+    CONFIG_INVALID = "CFG002"
+    CONFIG_TYPE_ERROR = "CFG003"
+    CONFIG_REQUIRED_FIELD = "CFG004"
+
+    # Engine
+    ENGINE_FAILED = "ENG001"
+    ENGINE_TIMEOUT = "ENG002"
+    ENGINE_INIT_ERROR = "ENG003"
+
+    # Scanner
+    SCANNER_FAILED = "SCN001"
+    SCANNER_TIMEOUT = "SCN002"
+    SCANNER_NO_DATA = "SCN003"
+
+    # Validação
+    VALIDATION_FAILED = "VAL001"
+    INVALID_PARAMS = "VAL002"
+    VALIDATION_TYPE_ERROR = "VAL003"
+    VALIDATION_REQUIRED = "VAL004"
+
+    # Baseline
+    BASELINE_FAILED = "BSL001"
+    BASELINE_NOT_FOUND = "BSL002"
+    BASELINE_ALREADY_EXISTS = "BSL003"
+    BASELINE_ROLLBACK_FAILED = "BSL004"
+
+    # Interface
+    INTERFACE_NOT_IMPLEMENTED = "INT001"
+    INTERFACE_CONTRACT_VIOLATED = "INT002"
+    INTERFACE_INCOMPATIBLE = "INT003"
+
+    # Segurança
+    SECURITY_UNAUTHORIZED = "SEC001"
+    SECURITY_ENCRYPTION_FAILED = "SEC002"
+    SECURITY_TOKEN_INVALID = "SEC003"
+    SECURITY_ACCESS_DENIED = "SEC004"
+
+    # Recursos
+    RESOURCE_EXHAUSTED = "RES001"
+    RESOURCE_LIMIT_EXCEEDED = "RES002"
+    RESOURCE_MONITOR_FAILED = "RES003"
+
+    # Cache
+    CACHE_STORE_FAILED = "CCH001"
+    CACHE_RETRIEVAL_FAILED = "CCH002"
+
+    # Sistema
+    SYSTEM_BOOT_FAILED = "SYS001"
+    SYSTEM_SHUTDOWN_FAILED = "SYS002"
+    SYSTEM_STATE_INVALID = "SYS003"

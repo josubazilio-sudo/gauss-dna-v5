@@ -1,0 +1,53 @@
+PERIODS_ADX = 14
+PERIODS_ATR = 14
+PERIODS_RSI = 14
+PERIODS_BB = 20
+BB_STD_MULTIPLIER = 2.0
+PERIODS_EMA_9 = 9
+PERIODS_EMA_21 = 21
+PERIODS_EMA_50 = 50
+PERIODS_EMA_200 = 200
+PERIODS_RVOL = 20
+PERIODS_AVG_VOLUME = 20
+PERIODS_HIGH_LOW = 10
+PERIODS_BODY_RATIO = 10
+
+TREND_ADX_THRESHOLD = 25.0
+TREND_ADX_STRONG = 40.0
+TREND_CONFIRMATION_LEVELS = 3
+
+RSI_OVERBOUGHT = 70.0
+RSI_OVERSOLD = 30.0
+
+VOLATILITY_ATR_LOW = 0.003
+VOLATILITY_ATR_MODERATE = 0.008
+VOLATILITY_ATR_HIGH = 0.02
+VOLATILITY_BB_WIDTH_LOW = 0.02
+VOLATILITY_BB_WIDTH_HIGH = 0.08
+
+LIQUIDITY_SPREAD_GOOD = 0.0005
+LIQUIDITY_SPREAD_ACCEPTABLE = 0.001
+LIQUIDITY_SPREAD_POOR = 0.003
+LIQUIDITY_FUNDING_WARN = 0.005
+LIQUIDITY_FUNDING_CRITICAL = 0.01
+
+SCORE_WEIGHTS = {
+    "market_score": {
+        "trend": 0.25,
+        "momentum": 0.20,
+        "volatility": 0.15,
+        "liquidity": 0.15,
+        "risk": 0.15,
+        "confidence": 0.10,
+    },
+    "institutional_score": {
+        "trend": 0.20,
+        "momentum": 0.15,
+        "volatility": 0.10,
+        "liquidity": 0.25,
+        "risk": 0.20,
+        "confidence": 0.10,
+    },
+}
+
+DEFAULT_CANDLE_LIMIT = 250

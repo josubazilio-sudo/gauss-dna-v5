@@ -1,0 +1,43 @@
+DEFAULT_TIMEFRAMES = ["5m", "15m", "1h", "4h", "1d"]
+
+SCORE_THRESHOLD_OURO_SUPREMO = 0.90
+SCORE_THRESHOLD_OURO = 0.75
+SCORE_THRESHOLD_PRATA = 0.60
+SCORE_THRESHOLD_BRONZE = 0.45
+SCORE_THRESHOLD_MINIMUM = 0.40
+
+QUALITY_GATE_MIN_SCORE = 0.60
+QUALITY_GATE_TREND_MIN = 0.40
+QUALITY_GATE_RISK_MAX = 0.70
+QUALITY_GATE_CONFIDENCE_MIN = 0.40
+
+SWING_LOOKBACK = 10
+SWING_LEFT_RIGHT = 2
+BOS_CONFIRMATION_BARS = 3
+FVG_MIN_GAP_BPS = 2
+OB_CONFIRMATION_BARS = 2
+LIQUIDITY_SWEEP_RETRACE = 0.5
+
+MAX_CANDIDATES_PER_CYCLE = 10
+SCAN_CYCLE_INTERVAL_SECONDS = 30
+PARALLEL_WORKERS = 10
+
+SCORE_WEIGHTS = {
+    "quality_score": {
+        "institutional": 0.20,
+        "structural": 0.20,
+        "market": 0.15,
+        "momentum": 0.15,
+        "liquidity": 0.10,
+        "risk": 0.10,
+        "confidence": 0.10,
+    },
+}
+
+PATTERN_CONFIDENCE = {
+    "order_block": 0.75,
+    "fvg": 0.70,
+    "liquidity_sweep": 0.80,
+    "bos": 0.65,
+    "choch": 0.85,
+}

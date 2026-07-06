@@ -1,0 +1,24 @@
+{
+  "baseline": "v2.2.0",
+  "version": "2.2.0",
+  "date": "2026-07-05",
+  "phase": "FASE 04 — ENGINE: MARKET INTELLIGENCE",
+  "status": "COMPLETO",
+  "tests": 452,
+  "tests_passing": 452,
+  "engine_module_files": 12,
+  "engine_module_lines": 1003,
+  "scores_implemented": [
+    "market_score", "trend_score", "momentum_score", "volatility_score",
+    "liquidity_score", "risk_score", "confidence_score", "institutional_score"
+  ],
+  "capabilities": [
+    "trend_detection", "momentum_analysis", "volatility_analysis",
+    "liquidity_analysis", "funding_analysis", "regime_classification",
+    "btc_correlation", "eth_correlation", "btc_dominance",
+    "multi_timeframe_context", "technical_indicators_ATR_ADX_RSI_BB_EMA_RVOL"
+  ],
+  "spec_docs": ["054", "055", "056", "057", "058", "059", "060", "061"],
+  "responsible": "QuantOS AI",
+  "rollback": "git checkout v2.1.0"
+}
