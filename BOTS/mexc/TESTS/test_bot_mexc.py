@@ -189,7 +189,9 @@ class TestExecutionEngine(unittest.TestCase):
         self.om = OrderManager(self.cfg, self.exchange)
         self.pm = BotPositionManager(self.cfg, self.exchange)
         self.rm = BotRiskManager(self.cfg, self.pm)
-        self.ee = ExecutionEngine(self.cfg, self.exchange, self.om, self.pm, self.rm)
+        self.monitor = PositionMonitor(self.cfg, self.exchange, self.pm)
+        self.tpm = TakeProfitManager(self.cfg, self.om)
+        self.ee = ExecutionEngine(self.cfg, self.exchange, self.om, self.pm, self.rm, self.monitor, self.tpm)
 
     def test_execution_flow(self):
         res = self.ee.execute_long("BTCUSDT", 100.0, 90.0, 110.0, 120.0, 1.0)
@@ -200,7 +202,7 @@ class TestExecutionEngine(unittest.TestCase):
 
 class TestSignals(unittest.TestCase):
     def test_signals_receiver_and_validator(self):
-        cfg = BotConfig(pairs=["BTCUSDT"], min_confidence=0.60, min_quality=0.60)
+        cfg = BotConfig(pairs=["BTCUSDT"], min_confidence=0.85, min_quality=0.85)
         receiver = SignalReceiver(cfg)
         validator = SignalValidator(cfg)
 
@@ -208,15 +210,20 @@ class TestSignals(unittest.TestCase):
             "ticker": "BTCUSDT", "direction": "long", "entry_price": "100.0",
             "stop_loss": "90.0", "take_profit_1": "120.0", "take_profit_2": "130.0",
             "timeframe": "1h", "setup": "bos", "regime": "trending_up",
-            "confidence": "0.80", "quality": "0.80", "score": "0.85",
+            "confidence": "0.88", "quality": "0.88", "score": "0.88",
+            "structural_score": "0.85", "entry_type": "pullback_ob",
             "classification": "ouro", "patterns": ["bos", "fvg"], "signal_id": "sig123",
+            "false_breakout_clear": True, "traps_clear": True,
+            "volume_above_avg": True, "rvol_confirmed": True,
+            "no_absorption": True, "no_rejection": True, "structure_valid": True,
+            "atr": "5.0",
         }
 
         signal = receiver.receive_signal(raw_signal)
         self.assertIsNotNone(signal)
         self.assertEqual(receiver.pending_count, 1)
 
-        approval, reasons = validator.validate(signal)
+        approval, reasons = validator.validate(signal, signal.entry_price, None)
         self.assertEqual(approval, SignalApproval.APPROVED)
 
 
@@ -272,7 +279,9 @@ class TestEmergencyAndRecovery(unittest.TestCase):
         self.om = OrderManager(self.cfg, self.exchange)
         self.pm = BotPositionManager(self.cfg, self.exchange)
         self.rm = BotRiskManager(self.cfg, self.pm)
-        self.ee = ExecutionEngine(self.cfg, self.exchange, self.om, self.pm, self.rm)
+        self.monitor = PositionMonitor(self.cfg, self.exchange, self.pm)
+        self.tpm = TakeProfitManager(self.cfg, self.om)
+        self.ee = ExecutionEngine(self.cfg, self.exchange, self.om, self.pm, self.rm, self.monitor, self.tpm)
         self.ep = EmergencyProtection(self.cfg, self.pm, self.ee)
         self.recovery = RecoveryEngine(self.cfg, self.exchange, self.om, self.pm)
 
@@ -302,15 +311,20 @@ class TestBotEngine(unittest.TestCase):
         bot.start()
         self.assertEqual(bot.status, BotStatus.RUNNING)
 
-        # Trigger mock signal via event bus
+        # Trigger mock signal via event bus (Baseline v4.0 compliant)
         bus.publish(Event(
             type="signal.generated",
             data={
                 "ticker": "BTCUSDT", "direction": "long", "entry_price": "100.0",
                 "stop_loss": "90.0", "take_profit_1": "120.0", "take_profit_2": "130.0",
                 "timeframe": "1h", "setup": "bos", "regime": "trending_up",
-                "confidence": "0.85", "quality": "0.85", "score": "0.88",
+                "confidence": "0.88", "quality": "0.88", "score": "0.88",
+                "structural_score": "0.85", "entry_type": "pullback_ob",
                 "classification": "ouro", "patterns": ["bos"], "signal_id": "sig123",
+                "false_breakout_clear": True, "traps_clear": True,
+                "volume_above_avg": True, "rvol_confirmed": True,
+                "no_absorption": True, "no_rejection": True, "structure_valid": True,
+                "atr": "5.0",
             }
         ))
 

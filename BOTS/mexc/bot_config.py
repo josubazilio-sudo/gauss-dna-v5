@@ -6,17 +6,26 @@ from typing import List
 class BotConfig:
     enabled: bool = True
     dry_run: bool = True
-    sandbox: bool = True  # Adicionado campo faltante
+    sandbox: bool = True
     pairs: List[str] = field(default_factory=lambda: ["BTCUSDT", "ETHUSDT"])
     timeframes: List[str] = field(default_factory=lambda: ["1h", "4h", "1d"])
     max_positions: int = 2
     pyramiding: bool = False
     pyramiding_levels: int = 1
     position_size_pct: float = 0.02
-    min_confidence: float = 0.60
-    min_quality: float = 0.60
-    required_classification: str = "prata"
+
+    # Baseline v4.0 — Quality Gates Institucionais
+    min_confidence: float = 0.85
+    min_quality: float = 0.85
+    min_structural_score: float = 0.80
+    min_institutional_score: float = 0.85
+    required_classification: str = "ouro"
     min_risk_reward: float = 2.0
+
+    # Baseline v4.0 — Distância de Entrada
+    max_entry_distance_recalc: float = 0.005   # >0.50% → recalcular
+    max_entry_distance_cancel: float = 0.01    # >1.00% → CANCELAR
+
     max_spread_pct: float = 0.001
     max_slippage_pct: float = 0.005
     circuit_breaker_consecutive_losses: int = 3

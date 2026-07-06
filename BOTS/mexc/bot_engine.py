@@ -53,16 +53,17 @@ class BotEngine:
         self._om = OrderManager(self._config, self._exchange)
         self._pm = BotPositionManager(self._config, self._exchange)
         self._rm = BotRiskManager(self._config, self._pm)
-        self._ee = ExecutionEngine(self._config, self._exchange, self._om, self._pm, self._rm)
+        self._monitor = PositionMonitor(self._config, self._exchange, self._pm)
+
+        self._sm = StopManager(self._config, self._om)
+        self._tpm = TakeProfitManager(self._config, self._om)
+        self._ee = ExecutionEngine(self._config, self._exchange, self._om, self._pm,
+                                    self._rm, self._monitor, self._tpm)
 
         self._receiver = SignalReceiver(self._config)
         self._validator = SignalValidator(self._config)
 
         self._executor = OrderExecutor(self._config, self._om, self._pm)
-        self._monitor = PositionMonitor(self._config, self._exchange, self._pm)
-
-        self._sm = StopManager(self._config, self._om)
-        self._tpm = TakeProfitManager(self._config, self._om)
         self._bem = BreakEvenManager(self._config, self._sm)
         self._tsm = TrailingStopManager(self._config, self._sm)
 
@@ -258,6 +259,18 @@ class BotEngine:
 
             current_price = pos.current_price
 
+            # Baseline v4.0 — Revalidação Contínua
+            exit_result = self._ee.revalidate_and_maybe_exit(
+                pos, current_price,
+                structure_broken=False,
+                regime_changed=False,
+                bos_contrario=False,
+                choch_contrario=False,
+            )
+            if exit_result:
+                self._rm.record_trade_result(pos.unrealized_pnl)
+                continue
+
             # 1. Check stop loss
             if self._sm.check_and_adjust_stop(pos, current_price):
                 self._ee.close_position_market(pos.id)
@@ -273,7 +286,6 @@ class BotEngine:
                     self._rm.record_trade_result(pos.unrealized_pnl)
                     self._notify.notify_tp2_hit(pos, current_price)
                 else:
-                    # Partial TP
                     partial_qty = pos.quantity * pct
                     close_side = OrderSide.SELL if pos.side == OrderSide.BUY else OrderSide.BUY
                     self._om.create_market_order(pos.pair, close_side, partial_qty, reduce_only=True)
@@ -299,22 +311,22 @@ class BotEngine:
         if self._status != BotStatus.RUNNING:
             return
 
-        # 1. Validation phase (Signals, Scores, Classification)
-        approval, reasons = self._validator.validate(signal)
+        # 1. Validation phase (Baseline v4.0 — full institutional gate)
+        market_ctx = self._market.get_market_context(signal.pair) if hasattr(self._market, 'get_market_context') else None
+        approval, reasons = self._validator.validate(signal, signal.entry_price, market_ctx)
         if approval != SignalApproval.APPROVED:
-            log.warning("BotEngine: signal rejected: %s", "; ".join(reasons))
+            log.warning("BotEngine v4.0: signal rejected (%d reasons): %s", len(reasons), "; ".join(reasons))
             return
 
         # 2. Market Intelligence regime check
         if signal.regime.lower() in ("ranging", "volatile") and not self._config.reentry_enabled:
-            log.warning("BotEngine: signal rejected by Market Intelligence regime filter (%s)", signal.regime)
+            log.warning("BotEngine v4.0: signal rejected by Market Intelligence regime filter (%s)", signal.regime)
             return
 
-        # 3. Backtest check - verify if this setup/strategy has positive metrics
-        # (In production, the backtest check queries backtest history for win rate & expectancy)
+        # 3. Backtest check
         bt_stats = self._backtest.last_result()
         if bt_stats and bt_stats.win_rate < self._config.min_confidence:
-            log.warning("BotEngine: signal rejected by Backtest target check (Win Rate %.2f < %.2f)",
+            log.warning("BotEngine v4.0: signal rejected by Backtest (Win Rate %.2f < %.2f)",
                         bt_stats.win_rate, self._config.min_confidence)
             return
 
@@ -322,22 +334,31 @@ class BotEngine:
         balance = self._balance.total
         qty = self._rm.calculate_position_size(balance, signal.entry_price, signal.stop_loss)
         if qty <= 0:
-            log.warning("BotEngine: position size calculation returned 0 quantity")
+            log.warning("BotEngine v4.0: position size = 0 for %s", signal.pair)
             return
 
-        # 5. Execution phase
-        log.info("BotEngine: executing signal for %s", signal.pair)
+        # 5. Validate TP targets before execution
+        dummy_position = self._pm.create_dummy(signal)
+        targets_valid, reason = self._tpm.validate_targets(dummy_position, signal.score, market_ctx)
+        if not targets_valid:
+            log.warning("BotEngine v4.0: TP targets invalid for %s: %s", signal.pair, reason)
+            return
+
+        # 6. Execution phase
+        log.info("BotEngine v4.0: executing signal for %s", signal.pair)
         if signal.order_side == OrderSide.BUY:
             res = self._ee.execute_long(
                 signal.pair, signal.entry_price, signal.stop_loss,
                 signal.take_profit_1, signal.take_profit_2,
-                qty, signal.signal_id, atr=1.5, setup=signal.setup, regime=signal.regime,
+                qty, signal.signal_id, atr=signal.atr, setup=signal.setup,
+                regime=signal.regime, signal_score=signal.score, market_ctx=market_ctx,
             )
         else:
             res = self._ee.execute_short(
                 signal.pair, signal.entry_price, signal.stop_loss,
                 signal.take_profit_1, signal.take_profit_2,
-                qty, signal.signal_id, atr=1.5, setup=signal.setup, regime=signal.regime,
+                qty, signal.signal_id, atr=signal.atr, setup=signal.setup,
+                regime=signal.regime, signal_score=signal.score, market_ctx=market_ctx,
             )
 
         if res.success and res.position:

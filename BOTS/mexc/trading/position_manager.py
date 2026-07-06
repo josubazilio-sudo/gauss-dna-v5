@@ -103,5 +103,23 @@ class BotPositionManager:
     def sync_positions(self) -> None:
         pass
 
+    def create_dummy(self, signal) -> Position:
+        pos = Position(
+            id=f"dummy_{signal.signal_id}",
+            pair=signal.pair,
+            side=signal.order_side,
+            quantity=1.0,
+            entry_price=signal.entry_price,
+            current_price=signal.entry_price,
+            stop_loss=signal.stop_loss,
+            take_profit_1=signal.take_profit_1,
+            take_profit_2=signal.take_profit_2,
+            atr_at_entry=signal.atr,
+            setup=signal.setup,
+            regime=signal.regime,
+            signal_id=signal.signal_id,
+        )
+        return pos
+
     def reset(self) -> None:
         self._positions.clear()
