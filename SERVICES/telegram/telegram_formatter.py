@@ -1,5 +1,5 @@
 ﻿import logging
-from typing import Any
+from typing import Any, Optional
 from ENGINE.common.score_normalizer import scale_1_to_100
 from ENGINE.common.operational import OperationalCalculator
 
