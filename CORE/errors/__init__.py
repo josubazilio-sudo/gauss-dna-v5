@@ -1,7 +1,10 @@
 """
-Sistema padronizado de erros do QuantOS.
+Sistema minimo de erros do QuantOS.
 
-Fornece exceções, códigos, handlers e recuperação.
+Restaurado parcialmente em 2026-07-11: apenas exceptions e handlers,
+que sao os unicos usados por CORE/bootstrap/startup.py. error_codes,
+recovery e validators permanecem em archive/CORE/errors/ por nao
+terem nenhum importador no caminho vivo do main.py.
 """
 
 from .exceptions import (
@@ -13,10 +16,7 @@ from .exceptions import (
     BaselineError,
     InterfaceError,
 )
-from .error_codes import ErrorCodes
 from .handlers import setup_global_handlers, global_exception_handler
-from .recovery import Recovery
-from .validators import validate_error_code, validate_module_name, validate_context
 
 __all__ = [
     "QuantOSError",
@@ -26,11 +26,6 @@ __all__ = [
     "ValidationError",
     "BaselineError",
     "InterfaceError",
-    "ErrorCodes",
     "setup_global_handlers",
     "global_exception_handler",
-    "Recovery",
-    "validate_error_code",
-    "validate_module_name",
-    "validate_context",
 ]

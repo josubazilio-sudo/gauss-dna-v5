@@ -1,0 +1,281 @@
+======================================
+  RELATÓRIO EXECUTIVO — QUANTOS V2.1
+======================================
+Gerado em: 2026-07-06 03:24:53 UTC
+Período: 24 meses | Ativos: 5 | Timeframes: 3
+Metas: PF >= 1.50 | WR >= 40% | DD <= 10% | Sharpe >= 1.20 | Sortino >= 1.80
+
+─── 1. RESUMO GERAL ───
+  Total de operações             861
+  Win Rate                       23.9% [PENDENTE]
+  Profit Factor                  0.93 [PENDENTE]
+  Drawdown Máximo                3.54% [META OK]
+  Expectância                    -0.0000 [PENDENTE]
+  Sharpe Ratio                   -0.37 [PENDENTE]
+  Sortino Ratio                  -0.61 [PENDENTE]
+  Calmar Ratio                   -10.35
+  Média de RR                    2.17:1
+  Duração Média                  163.0h
+  Lucro Bruto                    $2067.43
+  Prejuízo Bruto                 $2212.21
+  P/L Líquido                    $-144.78
+
+─── 1B. MONTE CARLO (5.000 simulações) ───
+  Retorno Médio                  $9854.93
+  Retorno Mediano                $9848.54
+  VaR 95%                        $9519.42
+  VaR 99%                        $9385.22
+  Prob. Lucro                    24.4%
+  Prob. PF > 1.0                 25.0%
+  Prob. DD < 10%                 100.0%
+  Risco de Ruína                 0.0% [META OK]
+  Drawdown Esperado              3.2%
+  Lucro Esperado                 $-145.07
+  Pior Sequência de Perdas       21
+  Melhor Sequência de Ganhos     4
+  Confidence Score               0.0%
+
+─── 1C. WALK FORWARD VALIDATION ───
+  In-Sample Trades               430
+  In-Sample WR                   22.1%
+  In-Sample PF                   0.76
+  Out-of-Sample Trades           431
+  Out-of-Sample WR               25.8%
+  Out-of-Sample PF               1.07
+  Robustness Score               128.68%
+  Strategy Decay                 -28.68%
+
+─── 2. ESTATÍSTICAS POR ATIVO ───
+  Ativo                | Trades               | Wins                 | WR                   | Avg RR               | PF                   | P&L                 
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------
+  BNBUSDT              | 196                  | 49                   | 25.0%                | 2.18                 | 1.08                 | $+0.16              
+  BTCUSDT              | 193                  | 42                   | 21.8%                | 2.20                 | 0.81                 | $-0.33              
+  ETHUSDT              | 190                  | 43                   | 22.6%                | 2.21                 | 0.72                 | $-0.76              
+  SOLUSDT              | 190                  | 45                   | 23.7%                | 2.14                 | 0.97                 | $-0.08              
+  XRPUSDT              | 92                   | 27                   | 29.3%                | 2.12                 | 1.18                 | $+0.29              
+
+─── 3. ESTATÍSTICAS POR TIMEFRAME ───
+  TF                   | Trades               | Wins                 | WR                   | PF                  
+  --------------------------------------------------------------------------------------------------------------
+  15m                  | 303                  | 68                   | 22.4%                | 0.82                
+  1h                   | 282                  | 71                   | 25.2%                | 0.90                
+  4h                   | 276                  | 67                   | 24.3%                | 0.98                
+
+─── 4. ESTATÍSTICAS POR CLASSE ───
+  Classe               | Trades               | Wins                 | WR                   | PF                  
+  --------------------------------------------------------------------------------------------------------------
+  ouro                 | 111                  | 21                   | 18.9%                | 0.56                
+  prata                | 509                  | 114                  | 22.4%                | 0.84                
+  bronze               | 241                  | 71                   | 29.5%                | 1.36                
+
+─── 5. ESTATÍSTICAS POR REGIME ───
+  Regime               | Trades               | Wins                 | WR                   | PF                  
+  --------------------------------------------------------------------------------------------------------------
+  ranging              | 861                  | 206                  | 23.9%                | 0.93                
+
+─── 6. ESTATÍSTICAS POR DIREÇÃO ───
+  Direção              | Trades               | Wins                 | WR                   | Avg RR              
+  --------------------------------------------------------------------------------------------------------------
+  long                 | 405                  | 82                   | 20.2%                | 2.17                
+  short                | 456                  | 124                  | 27.2%                | 2.18                
+
+─── 7. RANKING DE FEATURES ───
+  Feature              | Wins/Total           | WR                  
+  ------------------------------------------------------------------
+  Class: bronze        | 71/241               | 29.5%               
+  Direção SHORT        | 124/456              | 27.2%               
+  TF: 1h               | 71/282               | 25.2%               
+  TF: 4h               | 67/276               | 24.3%               
+  Regime: ranging      | 206/861              | 23.9%               
+  TF: 15m              | 68/303               | 22.4%               
+  Class: prata         | 114/509              | 22.4%               
+  Direção LONG         | 82/405               | 20.2%               
+  Class: ouro          | 21/111               | 18.9%               
+
+─── 8. EVOLUÇÃO MENSAL ───
+  Mês                  | P&L ($)             
+  --------------------------------------------
+  2026-07              | $-144.78            
+
+─── 9. DIAGNÓSTICO — PERDAS ───
+  Causa                | Ocorrências         
+  --------------------------------------------
+  regime=ranging       | 655                 
+  class=prata          | 395                 
+  class=bronze         | 170                 
+  class=ouro           | 90                  
+
+─── 10. DIAGNÓSTICO — GANHOS ───
+  Causa                | Ocorrências         
+  --------------------------------------------
+  regime=ranging       | 206                 
+  class=prata          | 114                 
+  class=bronze         | 71                  
+  class=ouro           | 21                  
+
+─── 11. AUTO-CALIBRAÇÃO — SUGESTÕES ───
+  Feature              | Wins                 | Total                | WR                   | Sugestão            
+  --------------------------------------------------------------------------------------------------------------
+  Class: ouro          | 21                   | 111                  | 18.9%                | ouro tem WR abaixo do esperado — revisar critérios de classificação
+  Regime: ranging      | 206                  | 861                  | 23.9%                | Ranging tem WR muito baixo — reforçar filtro de regime ou aumentar structural_score mínimo para 60
+  ADX >= 25 (baixo WR) | 149                  | 861                  | 17.3%                | Peso do ADX muito alto — reduzir threshold ou diminuir peso no scoring
+  ADX < 20 (baixo WR)  | 38                   | 861                  | 4.4%                 | ADX baixo tem WR baixo — reforçar filtro de tendência fraca
+
+─── 4B. MÉTRICAS INSTITUCIONAIS ───
+  Alpha                          -1.7230
+  Beta                           -860.0000
+  Information Ratio              -0.6770
+  Recovery Factor                0.41
+  Ulcer Index                    2.0236%
+  Kelly Criterion                0.00%
+  SQN (System Quality Number)    -0.68
+  Expectancy por Trade           -0.0841%
+  Exposure %                     9999.14%
+  Avg Holding Time               163.0h
+  Avg Winner                     5.0180%
+  Avg Loser                      -1.6887%
+  Largest Winner                 20.0000%
+  Largest Loser                  -9.9978%
+  Profit Diario (medio)          $-144.78
+
+─── 5B. MATRIZ DE ROBUSTEZ ───
+=== ROBUSTNESS MATRIX SUMMARY ===
+
+  Asset x TF
+----------------------------------------------------------------------------------------------------
+  Row                  Col           Trades      WR       PF   Sharpe       DD   AvgRR
+----------------------------------------------------------------------------------------------------
+  XRPUSDT              4h                29  37.9%     1.45     6.69   10.0%    2.00
+  BNBUSDT              4h                67  25.4%     1.22     6.26    8.6%    2.15
+  SOLUSDT              4h                56  28.6%     1.21     4.74   13.7%    2.07
+  BTCUSDT              15m               70  22.9%     1.15    25.74   11.1%    2.16
+  ETHUSDT              1h                65  27.7%     1.12    10.10   19.2%    2.24
+  BNBUSDT              1h                61  27.9%     0.96    12.62   30.5%    2.19
+  XRPUSDT              1h                30  26.7%     0.95     5.44   30.3%    2.09
+  BTCUSDT              1h                58  22.4%     0.82    10.06   36.5%    2.20
+  XRPUSDT              15m               33  24.2%     0.78    10.18   40.7%    2.25
+  BNBUSDT              15m               68  22.1%     0.78    17.07   39.6%    2.20
+  SOLUSDT              15m               66  21.2%     0.77    10.65   39.5%    2.17
+  ETHUSDT              15m               66  22.7%     0.75    14.09   42.3%    2.21
+  BTCUSDT              4h                65  20.0%     0.73     4.24   41.5%    2.23
+  SOLUSDT              1h                68  22.1%     0.72     5.16   44.0%    2.17
+  ETHUSDT              4h                59  17.0%     0.52     1.94   56.8%    2.16
+
+  Setup x TF
+----------------------------------------------------------------------------------------------------
+  Row                  Col           Trades      WR       PF   Sharpe       DD   AvgRR
+----------------------------------------------------------------------------------------------------
+
+  Setup x Asset
+----------------------------------------------------------------------------------------------------
+  Row                  Col           Trades      WR       PF   Sharpe       DD   AvgRR
+----------------------------------------------------------------------------------------------------
+
+  Regime x Asset
+----------------------------------------------------------------------------------------------------
+  Row                  Col           Trades      WR       PF   Sharpe       DD   AvgRR
+----------------------------------------------------------------------------------------------------
+  ranging              XRPUSDT           92  29.3%     1.18     6.36   17.0%    2.12
+  ranging              BNBUSDT          196  25.0%     1.08     8.51   18.7%    2.18
+  ranging              SOLUSDT          190  23.7%     0.97     5.18   25.8%    2.14
+  ranging              BTCUSDT          193  21.8%     0.81     7.62   36.5%    2.20
+  ranging              ETHUSDT          190  22.6%     0.72     5.05   44.4%    2.21
+
+  Regime x TF
+----------------------------------------------------------------------------------------------------
+  Row                  Col           Trades      WR       PF   Sharpe       DD   AvgRR
+----------------------------------------------------------------------------------------------------
+  ranging              4h               276  24.3%     0.98     4.27   25.5%    2.14
+  ranging              1h               282  25.2%     0.90     7.87   32.6%    2.19
+  ranging              15m              303  22.4%     0.82    14.35   36.2%    2.19
+
+----------------------------------------------------------------------------------------------------
+
+─── 5C. DETECÇÃO DE OVERFITTING ───
+============================================================
+OVERFITTING DETECTOR REPORT
+============================================================
+Verdict: ROBUST
+Failed checks: 0/4
+
+  [PASS] walk_forward
+         metric=1.4079  threshold=0.85
+         IS PF=0.76, OOS PF=1.07, ratio=140.79%. PASS degradation= <= 15%
+
+  [PASS] monte_carlo
+         metric=0.2442  threshold=0.2
+         P(positive)=24.42%. PASS threshold=20%
+
+  [PASS] out_of_sample
+         metric=1.419  threshold=0.85
+         First half: WR=22.09%, PF=0.76. Second half: WR=25.75%, PF=1.07. PF ratio=141.90%, WR ratio=116.57%. PASS PF degradation > 15%
+
+  [PASS] trade_consistency
+         metric=0.0366  threshold=0.2
+         Early WR=22.09%, Late WR=25.75%, diff=3.66%. PASS WR divergence <= 20%
+
+============================================================
+
+─── 12. IA ANALYTICS ───
+==================================================
+  IA ANALYTICS — RELATÓRIO AUTOMÁTICO
+==================================================
+
+Class: bronze: WR=29.5% em 241 trades — melhor filtro individual.
+Class: ouro: WR=18.9% em 111 trades — pior filtro individual.
+
+Melhor ativo: XRPUSDT: PF=1.18, WR=29.3%, 92 trades.
+Pior ativo: ETHUSDT: PF=0.72, WR=22.6%, 190 trades.
+
+Melhor timeframe: 4h: PF=0.98, WR=24.3%, 276 trades.
+Pior timeframe: 15m: PF=0.82, WR=22.4%, 303 trades.
+
+Melhor setup: Dados insuficientes.
+
+Principais condições antes de perdas:
+  regime=ranging: 655 ocorrências (76.1% dos trades)
+  class=prata: 395 ocorrências (45.9% dos trades)
+  class=bronze: 170 ocorrências (19.7% dos trades)
+  class=ouro: 90 ocorrências (10.5% dos trades)
+
+Principais condições antes de ganhos:
+  regime=ranging: 206 ocorrências (100.0% dos wins)
+  class=prata: 114 ocorrências (55.3% dos wins)
+  class=bronze: 71 ocorrências (34.5% dos wins)
+  class=ouro: 21 ocorrências (10.2% dos wins)
+
+Nenhum filtro crítico identificado.
+
+Nenhum filtro excessivamente restritivo identificado.
+
+─── 13. DIAGNÓSTICO GERAL / BUGS ───
+  Nenhum bug crítico detectado.
+
+─── 14. RECOMENDAÇÕES PRIORIZADAS — PRÓXIMA VERSÃO ───
+  1. Revisar thresholds dos filtros com WR < 20% para aumentar PF
+  2. Aumentar RR mínimo para 2.5:1 para compensar WR baixo
+  3. Reduzir variância dos resultados com position sizing adaptativo
+  4. Priorizar timeframe 1h; considerar reduzir exposição em 15m
+  5. Alta prioridade: ouro tem WR abaixo do esperado — revisar critérios de classificação
+  6. Alta prioridade: Ranging tem WR muito baixo — reforçar filtro de regime ou aumentar structural_score mínimo para 60
+  7. Alta prioridade: Peso do ADX muito alto — reduzir threshold ou diminuir peso no scoring
+  8. Implementar análise de correlação entre ativos para diversificação
+  9. Criar sistema de gestão de risco dinâmico baseado em volatilidade
+
+─── MÉTRICAS VS METAS ───
+  Métrica              | Valor                | Meta                 | Status              
+  ----------------------------------------------------------------------------------------
+  Profit Factor >= 1.50 | 93.46%               |                      | PENDENTE            
+  Win Rate >= 40%      | 23.93%               |                      | PENDENTE            
+  Drawdown <= 10%      | 3.54%                |                      | OK                  
+  Sharpe >= 1.20       | -36.65%              |                      | PENDENTE            
+  Sortino >= 1.80      | -60.76%              |                      | PENDENTE            
+  Expectância > 0      | -0.00%               |                      | PENDENTE            
+  SQN >= 2.5           | -67.70%              |                      | PENDENTE            
+  Risco de Ruína < 1%  | 0.00%                |                      | OK                  
+  Prob. Lucro MC > 50% | 24.42%               |                      | PENDENTE            
+  Prob. PF > 1.0       | 25.02%               |                      | PENDENTE            
+  1.000+ operações     | 861.00               |                      | PENDENTE            
+  Walk-Forward Robust > 0.85 | 1.29                 |                      | OK                  
+
+  Metas validadas                3/12

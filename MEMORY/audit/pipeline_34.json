@@ -1,0 +1,4907 @@
+{
+  "cycle": 34,
+  "timestamp": "2026-07-11 20:13:45.297256+00:00",
+  "duration_ms": 163782.7365398407,
+  "total_assets": 50,
+  "approved_assets": 0,
+  "pipeline_steps": {
+    "Ativos monitorados": 50,
+    "Ativos processados": 50
+  },
+  "rejection_reasons": {
+    "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas": 4,
+    "Consenso multi-TF insuficiente (0.49 < 0.5)": 1,
+    "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista": 4,
+    "OBSERVACAO — Riscos identificados: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 45.10% | Conviccao: 44.30% | Risco: 42.41% | Expecta": 1,
+    "Consenso multi-TF insuficiente (0.40 < 0.5)": 2,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.64 < 0.7": 1,
+    "Consenso multi-TF insuficiente (0.36 < 0.5)": 1,
+    "Exaustao detectada (score=43): rsi_muito_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.40 | Probabilidade: 50.61% | Conviccao: 49.98% | Risco: 47.24% | Expecta": 1,
+    "REJEITADO — Contra-tese superior: Tese: 0.60 | Contra-Tese: 0.30 | Probabilidade: 63.71% | Conviccao: 59.48% | Risco: 44.23% | Expecta": 1,
+    "Consenso multi-TF insuficiente (0.33 < 0.5)": 1,
+    "Consenso multi-TF insuficiente (0.39 < 0.5)": 1,
+    "Consenso multi-TF insuficiente (0.42 < 0.5)": 2,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.28 < 0.7": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.49 | Contra-Tese: 0.40 | Probabilidade: 53.44% | Conviccao: 65.96% | Risco: 43.84% | Expecta": 1,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.19 < 0.7": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.30 | Probabilidade: 54.68% | Conviccao: 64.63% | Risco: 39.91% | Expecta": 1,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)": 6,
+    "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.30 | Probabilidade: 54.17% | Conviccao: 56.08% | Risco: 41.30% | Expecta": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.38 | Contra-Tese: 0.30 | Probabilidade: 50.89% | Conviccao: 59.09% | Risco: 36.62% | Expecta": 1,
+    "REJEITADO — Contra-tese superior: Tese: 0.46 | Contra-Tese: 0.30 | Probabilidade: 55.33% | Conviccao: 57.77% | Risco: 36.67% | Expecta": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.50 | Probabilidade: 45.88% | Conviccao: 50.11% | Risco: 45.25% | Expecta": 1,
+    "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista": 2,
+    "OBSERVACAO — Riscos identificados: Tese: 0.45 | Contra-Tese: 0.30 | Probabilidade: 55.22% | Conviccao: 37.36% | Risco: 44.42% | Expecta": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.50 | Probabilidade: 48.18% | Conviccao: 52.29% | Risco: 46.76% | Expecta": 1,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.16 < 0.7": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.50 | Probabilidade: 46.39% | Conviccao: 42.01% | Risco: 48.64% | Expecta": 1,
+    "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista": 1,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.07 < 0.7": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.41 | Contra-Tese: 0.30 | Probabilidade: 52.49% | Conviccao: 55.71% | Risco: 17.39% | Expecta": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.40 | Probabilidade: 52.19% | Conviccao: 55.52% | Risco: 41.06% | Expecta": 1,
+    "Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas": 1,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.46 < 0.7": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.42 | Contra-Tese: 0.45 | Probabilidade: 47.44% | Conviccao: 45.77% | Risco: 50.11% | Expecta": 1,
+    "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.43 < 0.7": 1,
+    "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.30 | Probabilidade: 53.79% | Conviccao: 50.99% | Risco: 30.56% | Expecta": 1
+  },
+  "top_candidates": [
+    {
+      "asset": "AAVEUSDT",
+      "quality": 0.5371,
+      "reason": "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    },
+    {
+      "asset": "4USDT",
+      "quality": 0.5279,
+      "reason": "Consenso multi-TF insuficiente (0.40 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    },
+    {
+      "asset": "9BITUSDT",
+      "quality": 0.527,
+      "reason": "Consenso multi-TF insuficiente (0.36 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    },
+    {
+      "asset": "114514USDT",
+      "quality": 0.5232,
+      "reason": "Consenso multi-TF insuficiente (0.49 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    },
+    {
+      "asset": "ABNBONUSDT",
+      "quality": 0.5188,
+      "reason": "Consenso multi-TF insuficiente (0.39 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    },
+    {
+      "asset": "AIAUSDT",
+      "quality": 0.5168,
+      "reason": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.50 | Probabilidade: 46.39% | Conviccao: 42.01% | Risco: 48.64% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    },
+    {
+      "asset": "ADIUSDT",
+      "quality": 0.5156,
+      "reason": "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.50 | Probabilidade: 48.18% | Conviccao: 52.29% | Risco: 46.76% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    },
+    {
+      "asset": "ACTUSDT",
+      "quality": 0.5081,
+      "reason": "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "expected": null,
+      "obtained": null,
+      "difference": null
+    }
+  ],
+  "approved_signals": [],
+  "indicators": {
+    "0GUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.005107289829512041,
+      "adx": 5.454545454545861,
+      "rsi": 39.53,
+      "rvol": 0.1662,
+      "volatility": 0.01892073481009054,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "114514USDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 188
+      },
+      "atr_percent": 0.12746847489888172,
+      "adx": 71.06945655332747,
+      "rsi": 33.52,
+      "rvol": 0.1979,
+      "volatility": 0.5503925961400062,
+      "regime": "trending_down",
+      "regime_confidence": 0.9
+    },
+    "1INCHUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.0067172120244746135,
+      "adx": 88.51963746223589,
+      "rsi": 90.8,
+      "rvol": 0.2403,
+      "volatility": 0.04968015641756294,
+      "regime": "trending_up",
+      "regime_confidence": 0.9
+    },
+    "2ZUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.0066871819150194824,
+      "adx": 59.99999999999982,
+      "rsi": 67.53,
+      "rvol": 0.2339,
+      "volatility": 0.025007482378603757,
+      "regime": "trending_up",
+      "regime_confidence": 0.9
+    },
+    "4USDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.011760921416018094,
+      "adx": 61.57635467980318,
+      "rsi": 70.42,
+      "rvol": 0.1366,
+      "volatility": 0.059708027514011795,
+      "regime": "trending_up",
+      "regime_confidence": 0.8333
+    },
+    "67USDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 238
+      },
+      "atr_percent": 0.028185328185328158,
+      "adx": 63.6986301369865,
+      "rsi": 38.31,
+      "rvol": 0.3253,
+      "volatility": 0.08616607946980567,
+      "regime": "trending_down",
+      "regime_confidence": 0.9
+    },
+    "9BITUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 189
+      },
+      "atr_percent": 0.0020911268647403245,
+      "adx": 78.26086956521654,
+      "rsi": 18.62,
+      "rvol": 0.2695,
+      "volatility": 0.01159495593415576,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AALONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 178
+      },
+      "atr_percent": 0.0011876484560569818,
+      "adx": 0.0,
+      "rsi": 46.67,
+      "rvol": 0.2472,
+      "volatility": 0.0018198201177333083,
+      "regime": "calm",
+      "regime_confidence": 0.5
+    },
+    "AAPLONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.003452501537459763,
+      "adx": 20.95999999999984,
+      "rsi": 48.56,
+      "rvol": 0.3258,
+      "volatility": 0.006729316011110391,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AAPLXUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.0038366521089166616,
+      "adx": 21.306376360807498,
+      "rsi": 51.35,
+      "rvol": 0.2426,
+      "volatility": 0.00923220836214333,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AAVEUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.013061063985169378,
+      "adx": 100.0,
+      "rsi": 89.83,
+      "rvol": 0.4144,
+      "volatility": 0.09635386153463311,
+      "regime": "reversal",
+      "regime_confidence": 0.7
+    },
+    "ABBVONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 184
+      },
+      "atr_percent": 0.0033872000090627527,
+      "adx": 20.90909090909111,
+      "rsi": 52.89,
+      "rvol": 0.2943,
+      "volatility": 0.005275018307392353,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ABNBONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.0038301439555992866,
+      "adx": 19.99999999999811,
+      "rsi": 56.22,
+      "rvol": 0.2007,
+      "volatility": 0.0037890654403290223,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "ABTONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.005200415431160335,
+      "adx": 21.568627450979083,
+      "rsi": 55.45,
+      "rvol": 0.2221,
+      "volatility": 0.004570456685374793,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACAUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.025423728813559355,
+      "adx": 44.15781487101677,
+      "rsi": 55.16,
+      "rvol": 0.2765,
+      "volatility": 0.05839627201656025,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACEUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.006292380186185516,
+      "adx": 38.129496402877436,
+      "rsi": 57.31,
+      "rvol": 0.2666,
+      "volatility": 0.02013213708829635,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACHRONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 130
+      },
+      "atr_percent": 0.007566394356856477,
+      "adx": 71.42857142856417,
+      "rsi": 44.8,
+      "rvol": 0.187,
+      "volatility": 0.00644250309452343,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACHUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.006235699784086884,
+      "adx": 69.9115044247792,
+      "rsi": 68.28,
+      "rvol": 0.2405,
+      "volatility": 0.02919715633306811,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACMUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.0072601167606407314,
+      "adx": 41.09589041095833,
+      "rsi": 55.12,
+      "rvol": 0.1637,
+      "volatility": 0.019169785833058804,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACNONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.005269945066661278,
+      "adx": 73.68421052631699,
+      "rsi": 62.41,
+      "rvol": 0.1502,
+      "volatility": 0.017517733486634202,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACNUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 74
+      },
+      "atr_percent": 0.008171013535820393,
+      "adx": 78.86792452830181,
+      "rsi": 60.54,
+      "rvol": 0.3876,
+      "volatility": 0.012063243747928129,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACSUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.008928571428571463,
+      "adx": 63.85542168674683,
+      "rsi": 57.14,
+      "rvol": 0.3003,
+      "volatility": 0.016143071931629133,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACTUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.008165059824765276,
+      "adx": 12.727272727273514,
+      "rsi": 38.93,
+      "rvol": 0.2964,
+      "volatility": 0.04385087082444461,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "ACUUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 173
+      },
+      "atr_percent": 0.008000306231817467,
+      "adx": 50.86705202312185,
+      "rsi": 54.33,
+      "rvol": 0.0904,
+      "volatility": 0.015338670436961393,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ACXUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.004026733500417703,
+      "adx": 20.48192771084385,
+      "rsi": 49.07,
+      "rvol": 0.1996,
+      "volatility": 0.01085535372968791,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ADAUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.008647929486113391,
+      "adx": 91.66666666666646,
+      "rsi": 79.75,
+      "rvol": 0.2053,
+      "volatility": 0.04744357335458879,
+      "regime": "trending_up",
+      "regime_confidence": 0.8333
+    },
+    "ADBEONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.0032511039077056762,
+      "adx": 6.666666666667363,
+      "rsi": 43.37,
+      "rvol": 0.3481,
+      "volatility": 0.007641717586431363,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "ADIONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 107
+      },
+      "atr_percent": 0.002473724547623256,
+      "adx": 40.59945504087046,
+      "rsi": 58.89,
+      "rvol": 0.1718,
+      "volatility": 0.005784203638181993,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ADIUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 102
+      },
+      "atr_percent": 0.007392458352192563,
+      "adx": 92.73882459723166,
+      "rsi": 76.25,
+      "rvol": 0.316,
+      "volatility": 0.04204511122792567,
+      "regime": "trending_up",
+      "regime_confidence": 0.9
+    },
+    "AEROUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.010022718161165288,
+      "adx": 22.0238095238097,
+      "rsi": 53.0,
+      "rvol": 0.1058,
+      "volatility": 0.026864413389940806,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AEVOUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.007590202405397472,
+      "adx": 1.7543859649121898,
+      "rsi": 43.62,
+      "rvol": 0.1394,
+      "volatility": 0.020245662074835337,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "AFCUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.01069372086646559,
+      "adx": 27.999999999999904,
+      "rsi": 51.95,
+      "rvol": 0.2142,
+      "volatility": 0.01948503179671726,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AGGONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 177
+      },
+      "atr_percent": 0.00035162238568752245,
+      "adx": 60.00000000000569,
+      "rsi": 55.56,
+      "rvol": 0.3845,
+      "volatility": 0.0004537963290832536,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AGIUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.005342624854819995,
+      "adx": 42.222222222223046,
+      "rsi": 52.08,
+      "rvol": 0.1851,
+      "volatility": 0.011633562835345583,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AGLDUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.014091035505701286,
+      "adx": 18.518518518518185,
+      "rsi": 36.16,
+      "rvol": 0.1594,
+      "volatility": 0.06204134439255182,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "AGTUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.015373528705260606,
+      "adx": 3.3232628398786734,
+      "rsi": 44.31,
+      "rvol": 0.2054,
+      "volatility": 0.054195160621389175,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "AIAUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.005621755386394828,
+      "adx": 60.97560975609695,
+      "rsi": 29.87,
+      "rvol": 0.2129,
+      "volatility": 0.03148878248994101,
+      "regime": "trending_down",
+      "regime_confidence": 0.9
+    },
+    "AIDOGEUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.012268512539711266,
+      "adx": 4.137931034482393,
+      "rsi": 58.17,
+      "rvol": 0.224,
+      "volatility": 0.037423975444473824,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "AINUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.017508521846916633,
+      "adx": 5.035971223021629,
+      "rsi": 47.11,
+      "rvol": 0.2403,
+      "volatility": 0.07156198027369197,
+      "regime": "ranging",
+      "regime_confidence": 0.6
+    },
+    "AIOTUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.009907167649165313,
+      "adx": 36.29427792915536,
+      "rsi": 42.03,
+      "rvol": 0.2318,
+      "volatility": 0.046450157972510904,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AIOUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.049065071054599854,
+      "adx": 50.37635907443536,
+      "rsi": 17.67,
+      "rvol": 0.0681,
+      "volatility": 0.3958254863164654,
+      "regime": "reversal",
+      "regime_confidence": 0.7
+    },
+    "AIUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 74
+      },
+      "atr_percent": 0.008609451385116791,
+      "adx": 40.25974025973971,
+      "rsi": 40.29,
+      "rvol": 0.1691,
+      "volatility": 0.03657577142321072,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AIXBTUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.010214467466375863,
+      "adx": 76.69902912621372,
+      "rsi": 20.0,
+      "rvol": 0.2254,
+      "volatility": 0.058698059590393974,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "AIXDROPUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250
+      },
+      "atr_percent": 0.017108377715783267,
+      "adx": 98.0152319409188,
+      "rsi": 17.35,
+      "rvol": 0.0634,
+      "volatility": 0.11051872252594004,
+      "regime": "reversal",
+      "regime_confidence": 0.7
+    },
+    "AIXUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.05232814972833091,
+      "adx": 51.04218948362915,
+      "rsi": 25.52,
+      "rvol": 0.2318,
+      "volatility": 0.2889458717778419,
+      "regime": "reversal",
+      "regime_confidence": 0.5
+    },
+    "AKEUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.0359752278894997,
+      "adx": 46.174142480211096,
+      "rsi": 59.62,
+      "rvol": 0.1812,
+      "volatility": 0.09180658695874447,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ALABONUSDT": {
+      "candles": {
+        "30m": 159,
+        "1h": 80,
+        "4h": 21
+      },
+      "atr_percent": 0.001929530201342269,
+      "adx": 44.398340248964004,
+      "rsi": 57.84,
+      "rvol": 0.2801,
+      "volatility": 0.007520859681431294,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ALBONUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 104
+      },
+      "atr_percent": 0.003855391936787296,
+      "adx": 98.18181818181469,
+      "rsi": 29.84,
+      "rvol": 0.2255,
+      "volatility": 0.01724435927553292,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ALCHUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.00710839990811403,
+      "adx": 79.35483870967741,
+      "rsi": 31.27,
+      "rvol": 0.2516,
+      "volatility": 0.03438509833696975,
+      "regime": "trending_down",
+      "regime_confidence": 0.9
+    },
+    "ALEOUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.014024617679970156,
+      "adx": 77.77777777777732,
+      "rsi": 74.02,
+      "rvol": 0.1103,
+      "volatility": 0.05586884834854441,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    }
+  },
+  "structures": {
+    "0GUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "114514USDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 1.0,
+      "bos": 0,
+      "choch": 1
+    },
+    "1INCHUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 0
+    },
+    "2ZUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "4USDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "67USDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "9BITUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "AALONUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "AAPLONUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "AAPLXUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 1.0,
+      "bos": 0,
+      "choch": 1
+    },
+    "AAVEUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ABBVONUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "ABNBONUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "ABTONUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 0
+    },
+    "ACAUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ACEUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ACHRONUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ACHUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ACMUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ACNONUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "ACNUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "ACSUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "ACTUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ACUUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "ACXUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "ADAUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ADBEONUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 0
+    },
+    "ADIONUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 0
+    },
+    "ADIUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "AEROUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "AEVOUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "AFCUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "AGGONUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "AGIUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 1.0,
+      "bos": 1,
+      "choch": 1
+    },
+    "AGLDUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "AGTUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "AIAUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "AIDOGEUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "AINUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "AIOTUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "AIOUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 0
+    },
+    "AIUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    },
+    "AIXBTUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 0
+    },
+    "AIXDROPUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "AIXUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "AKEUSDT": {
+      "trend": "StructureType.REVERSAL",
+      "strength": 0.5,
+      "bos": 1,
+      "choch": 0
+    },
+    "ALABONUSDT": {
+      "trend": "StructureType.RANGING",
+      "strength": 0.0,
+      "bos": 0,
+      "choch": 0
+    },
+    "ALBONUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ALCHUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    },
+    "ALEOUSDT": {
+      "trend": "StructureType.DOWNTREND",
+      "strength": 0.4,
+      "bos": 1,
+      "choch": 1
+    }
+  },
+  "smart_money": {
+    "2ZUSDT": {
+      "order_blocks": 0,
+      "fvgs": 33,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "67USDT": {
+      "order_blocks": 1,
+      "fvgs": 36,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "AAPLONUSDT": {
+      "order_blocks": 0,
+      "fvgs": 22,
+      "liquidity_sweeps": 1,
+      "mitigacoes": 0
+    },
+    "AAPLXUSDT": {
+      "order_blocks": 0,
+      "fvgs": 14,
+      "liquidity_sweeps": 1,
+      "mitigacoes": 0
+    },
+    "ACAUSDT": {
+      "order_blocks": 1,
+      "fvgs": 19,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ACEUSDT": {
+      "order_blocks": 1,
+      "fvgs": 27,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ACHRONUSDT": {
+      "order_blocks": 1,
+      "fvgs": 16,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ACHUSDT": {
+      "order_blocks": 1,
+      "fvgs": 31,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ACMUSDT": {
+      "order_blocks": 1,
+      "fvgs": 24,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ACNONUSDT": {
+      "order_blocks": 1,
+      "fvgs": 27,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ACNUSDT": {
+      "order_blocks": 1,
+      "fvgs": 12,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ACSUSDT": {
+      "order_blocks": 0,
+      "fvgs": 19,
+      "liquidity_sweeps": 1,
+      "mitigacoes": 0
+    },
+    "ADAUSDT": {
+      "order_blocks": 1,
+      "fvgs": 14,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ADIONUSDT": {
+      "order_blocks": 0,
+      "fvgs": 21,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ADIUSDT": {
+      "order_blocks": 1,
+      "fvgs": 19,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "AFCUSDT": {
+      "order_blocks": 1,
+      "fvgs": 44,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "AGGONUSDT": {
+      "order_blocks": 0,
+      "fvgs": 4,
+      "liquidity_sweeps": 2,
+      "mitigacoes": 0
+    },
+    "AGIUSDT": {
+      "order_blocks": 1,
+      "fvgs": 52,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "AGLDUSDT": {
+      "order_blocks": 1,
+      "fvgs": 42,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "AIAUSDT": {
+      "order_blocks": 0,
+      "fvgs": 23,
+      "liquidity_sweeps": 1,
+      "mitigacoes": 0
+    },
+    "AIOTUSDT": {
+      "order_blocks": 1,
+      "fvgs": 41,
+      "liquidity_sweeps": 1,
+      "mitigacoes": 0
+    },
+    "AIOUSDT": {
+      "order_blocks": 1,
+      "fvgs": 31,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "AIUSDT": {
+      "order_blocks": 0,
+      "fvgs": 32,
+      "liquidity_sweeps": 1,
+      "mitigacoes": 0
+    },
+    "AIXUSDT": {
+      "order_blocks": 1,
+      "fvgs": 11,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "AKEUSDT": {
+      "order_blocks": 1,
+      "fvgs": 47,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ALABONUSDT": {
+      "order_blocks": 0,
+      "fvgs": 28,
+      "liquidity_sweeps": 2,
+      "mitigacoes": 0
+    },
+    "ALBONUSDT": {
+      "order_blocks": 1,
+      "fvgs": 24,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ALCHUSDT": {
+      "order_blocks": 1,
+      "fvgs": 38,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    },
+    "ALEOUSDT": {
+      "order_blocks": 0,
+      "fvgs": 44,
+      "liquidity_sweeps": 1,
+      "mitigacoes": 0
+    }
+  },
+  "entry_zones": {
+    "0GUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "114514USDT": {
+      "zone_type": "below",
+      "score": 95.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "1INCHUSDT": {
+      "zone_type": "above",
+      "score": 36.6,
+      "distance": 0.0,
+      "approved": false
+    },
+    "2ZUSDT": {
+      "zone_type": "above",
+      "score": 63.9,
+      "distance": 0.0,
+      "approved": false
+    },
+    "4USDT": {
+      "zone_type": "above",
+      "score": 13.6,
+      "distance": 0.0,
+      "approved": false
+    },
+    "67USDT": {
+      "zone_type": "below",
+      "score": 53.7,
+      "distance": 0.0,
+      "approved": false
+    },
+    "9BITUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AALONUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AAPLONUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AAPLXUSDT": {
+      "zone_type": "inside",
+      "score": 67.9,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AAVEUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ABBVONUSDT": {
+      "zone_type": "below",
+      "score": 31.5,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ABNBONUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ABTONUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACAUSDT": {
+      "zone_type": "below",
+      "score": 80.6,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACEUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACHRONUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACHUSDT": {
+      "zone_type": "below",
+      "score": 11.4,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACMUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACNONUSDT": {
+      "zone_type": "above",
+      "score": 29.9,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACNUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACSUSDT": {
+      "zone_type": "inside",
+      "score": 34.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACTUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACUUSDT": {
+      "zone_type": "below",
+      "score": 76.6,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ACXUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ADAUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ADBEONUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ADIONUSDT": {
+      "zone_type": "inside",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ADIUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AEROUSDT": {
+      "zone_type": "below",
+      "score": 71.1,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AEVOUSDT": {
+      "zone_type": "above",
+      "score": 59.4,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AFCUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AGGONUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AGIUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AGLDUSDT": {
+      "zone_type": "below",
+      "score": 77.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AGTUSDT": {
+      "zone_type": "below",
+      "score": 25.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIAUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIDOGEUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AINUSDT": {
+      "zone_type": "below",
+      "score": 80.6,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIOTUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIOUSDT": {
+      "zone_type": "above",
+      "score": 88.7,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIUSDT": {
+      "zone_type": "below",
+      "score": 31.5,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIXBTUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIXDROPUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AIXUSDT": {
+      "zone_type": "below",
+      "score": 31.8,
+      "distance": 0.0,
+      "approved": false
+    },
+    "AKEUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ALABONUSDT": {
+      "zone_type": "above",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ALBONUSDT": {
+      "zone_type": "below",
+      "score": 0.0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ALCHUSDT": {
+      "zone_type": "above",
+      "score": 49.7,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ALEOUSDT": {
+      "zone_type": "above",
+      "score": 23.7,
+      "distance": 0.0,
+      "approved": false
+    }
+  },
+  "consensus": {
+    "0GUSDT": {
+      "consensus_score": 0.79,
+      "final_direction": "short",
+      "agreement_pct": 79.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "short",
+          "score": 0.79,
+          "weight": 1.0
+        }
+      ]
+    },
+    "114514USDT": {
+      "consensus_score": 0.49,
+      "final_direction": "long",
+      "agreement_pct": 49.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "long",
+          "score": 0.49,
+          "weight": 1.0
+        }
+      ]
+    },
+    "1INCHUSDT": {
+      "consensus_score": 0.42,
+      "final_direction": "short",
+      "agreement_pct": 42.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.42,
+          "weight": 1.0
+        }
+      ]
+    },
+    "2ZUSDT": {
+      "consensus_score": 0.75,
+      "final_direction": "long",
+      "agreement_pct": 75.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "long",
+          "score": 0.75,
+          "weight": 1.0
+        }
+      ]
+    },
+    "4USDT": {
+      "consensus_score": 0.4,
+      "final_direction": "long",
+      "agreement_pct": 40.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "long",
+          "score": 0.4,
+          "weight": 1.0
+        }
+      ]
+    },
+    "67USDT": {
+      "consensus_score": 0.85,
+      "final_direction": "short",
+      "agreement_pct": 85.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.85,
+          "weight": 1.0
+        }
+      ]
+    },
+    "9BITUSDT": {
+      "consensus_score": 0.36,
+      "final_direction": "short",
+      "agreement_pct": 36.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.36,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AALONUSDT": {
+      "consensus_score": 0.43,
+      "final_direction": "short",
+      "agreement_pct": 43.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "short",
+          "score": 0.43,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AAPLONUSDT": {
+      "consensus_score": 0.51,
+      "final_direction": "long",
+      "agreement_pct": 51.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "long",
+          "score": 0.51,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AAPLXUSDT": {
+      "consensus_score": 0.62,
+      "final_direction": "short",
+      "agreement_pct": 62.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "short",
+          "score": 0.62,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AAVEUSDT": {
+      "consensus_score": 0.44,
+      "final_direction": "short",
+      "agreement_pct": 44.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.44,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ABBVONUSDT": {
+      "consensus_score": 0.33,
+      "final_direction": "short",
+      "agreement_pct": 33.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.33,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ABNBONUSDT": {
+      "consensus_score": 0.39,
+      "final_direction": "short",
+      "agreement_pct": 39.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.39,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ABTONUSDT": {
+      "consensus_score": 0.42,
+      "final_direction": "short",
+      "agreement_pct": 42.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.42,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACAUSDT": {
+      "consensus_score": 0.65,
+      "final_direction": "short",
+      "agreement_pct": 65.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "short",
+          "score": 0.65,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACEUSDT": {
+      "consensus_score": 0.6,
+      "final_direction": "short",
+      "agreement_pct": 60.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.6,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACHRONUSDT": {
+      "consensus_score": 0.74,
+      "final_direction": "short",
+      "agreement_pct": 74.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "short",
+          "score": 0.74,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACHUSDT": {
+      "consensus_score": 0.62,
+      "final_direction": "long",
+      "agreement_pct": 62.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "long",
+          "score": 0.62,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACMUSDT": {
+      "consensus_score": 0.6,
+      "final_direction": "short",
+      "agreement_pct": 60.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.6,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACNONUSDT": {
+      "consensus_score": 0.57,
+      "final_direction": "long",
+      "agreement_pct": 56.99999999999999,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "long",
+          "score": 0.57,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACNUSDT": {
+      "consensus_score": 0.69,
+      "final_direction": "short",
+      "agreement_pct": 69.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.69,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACSUSDT": {
+      "consensus_score": 0.56,
+      "final_direction": "long",
+      "agreement_pct": 56.00000000000001,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "long",
+          "score": 0.56,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACTUSDT": {
+      "consensus_score": 0.7,
+      "final_direction": "short",
+      "agreement_pct": 70.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.7,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACUUSDT": {
+      "consensus_score": 0.33,
+      "final_direction": "short",
+      "agreement_pct": 33.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "short",
+          "score": 0.33,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ACXUSDT": {
+      "consensus_score": 0.4,
+      "final_direction": "short",
+      "agreement_pct": 40.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.4,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ADAUSDT": {
+      "consensus_score": 0.63,
+      "final_direction": "long",
+      "agreement_pct": 63.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "long",
+          "score": 0.63,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ADBEONUSDT": {
+      "consensus_score": 0.41,
+      "final_direction": "long",
+      "agreement_pct": 41.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "long",
+          "score": 0.41,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ADIONUSDT": {
+      "consensus_score": 0.56,
+      "final_direction": "long",
+      "agreement_pct": 56.00000000000001,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "long",
+          "score": 0.56,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ADIUSDT": {
+      "consensus_score": 0.86,
+      "final_direction": "long",
+      "agreement_pct": 86.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "long",
+          "score": 0.86,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AEROUSDT": {
+      "consensus_score": 0.42,
+      "final_direction": "short",
+      "agreement_pct": 42.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.42,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AEVOUSDT": {
+      "consensus_score": 0.45,
+      "final_direction": "long",
+      "agreement_pct": 45.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "long",
+          "score": 0.45,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AFCUSDT": {
+      "consensus_score": 0.58,
+      "final_direction": "short",
+      "agreement_pct": 57.99999999999999,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.58,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AGGONUSDT": {
+      "consensus_score": 0.7,
+      "final_direction": "long",
+      "agreement_pct": 70.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "long",
+          "score": 0.7,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AGIUSDT": {
+      "consensus_score": 0.62,
+      "final_direction": "short",
+      "agreement_pct": 62.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.62,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AGLDUSDT": {
+      "consensus_score": 0.72,
+      "final_direction": "short",
+      "agreement_pct": 72.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "short",
+          "score": 0.72,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AGTUSDT": {
+      "consensus_score": 0.74,
+      "final_direction": "short",
+      "agreement_pct": 74.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "short",
+          "score": 0.74,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIAUSDT": {
+      "consensus_score": 0.72,
+      "final_direction": "short",
+      "agreement_pct": 72.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "short",
+          "score": 0.72,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIDOGEUSDT": {
+      "consensus_score": 0.43,
+      "final_direction": "long",
+      "agreement_pct": 43.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "long",
+          "score": 0.43,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AINUSDT": {
+      "consensus_score": 0.74,
+      "final_direction": "short",
+      "agreement_pct": 74.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.74,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIOTUSDT": {
+      "consensus_score": 0.52,
+      "final_direction": "long",
+      "agreement_pct": 52.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "long",
+          "score": 0.52,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIOUSDT": {
+      "consensus_score": 0.74,
+      "final_direction": "long",
+      "agreement_pct": 74.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "long",
+          "score": 0.74,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIUSDT": {
+      "consensus_score": 0.66,
+      "final_direction": "short",
+      "agreement_pct": 66.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "short",
+          "score": 0.66,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIXBTUSDT": {
+      "consensus_score": 0.4,
+      "final_direction": "short",
+      "agreement_pct": 40.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.4,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIXDROPUSDT": {
+      "consensus_score": 0.48,
+      "final_direction": "short",
+      "agreement_pct": 48.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1h",
+          "dir": "short",
+          "score": 0.48,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AIXUSDT": {
+      "consensus_score": 0.7,
+      "final_direction": "short",
+      "agreement_pct": 70.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.7,
+          "weight": 1.0
+        }
+      ]
+    },
+    "AKEUSDT": {
+      "consensus_score": 0.66,
+      "final_direction": "short",
+      "agreement_pct": 66.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.66,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ALABONUSDT": {
+      "consensus_score": 0.58,
+      "final_direction": "long",
+      "agreement_pct": 57.99999999999999,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "long",
+          "score": 0.58,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ALBONUSDT": {
+      "consensus_score": 0.7,
+      "final_direction": "short",
+      "agreement_pct": 70.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "1d",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "1d",
+          "dir": "short",
+          "score": 0.7,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ALCHUSDT": {
+      "consensus_score": 0.53,
+      "final_direction": "short",
+      "agreement_pct": 53.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.53,
+          "weight": 1.0
+        }
+      ]
+    },
+    "ALEOUSDT": {
+      "consensus_score": 0.73,
+      "final_direction": "short",
+      "agreement_pct": 73.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "4h",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "4h",
+          "dir": "short",
+          "score": 0.73,
+          "weight": 1.0
+        }
+      ]
+    }
+  },
+  "quality_gates": {
+    "0GUSDT": {
+      "scores": {
+        "institutional_score": 0.4508,
+        "structural_score": 0.3184,
+        "market_score": 0.3709,
+        "momentum_score": 0.3687,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4877,
+        "confidence_score": 0.8038,
+        "quality_score": 0.4683,
+        "entry_score": 0.0,
+        "consensus_score": 0.79,
+        "conviction_score": 0.4865,
+        "flow_score": 0.43,
+        "follow_through": 0.0,
+        "timing_index": 0.605
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=37): rsi_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ]
+    },
+    "114514USDT": {
+      "scores": {
+        "institutional_score": 0.588,
+        "structural_score": 0.6183,
+        "market_score": 0.812,
+        "momentum_score": 0.5522,
+        "liquidity_score": 0.874,
+        "risk_score": 0.1138,
+        "confidence_score": 0.863,
+        "quality_score": 0.5232,
+        "entry_score": 0.9496033597760147,
+        "consensus_score": 0.49,
+        "conviction_score": 0.422,
+        "flow_score": 0.28,
+        "follow_through": 0.08,
+        "timing_index": 0.52
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.49 < 0.5)",
+        "Consenso multi-TF insuficiente (0.49 < 0.5)"
+      ]
+    },
+    "1INCHUSDT": {
+      "scores": {
+        "institutional_score": 0.5306,
+        "structural_score": 0.3182,
+        "market_score": 0.8919,
+        "momentum_score": 0.4071,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4555,
+        "confidence_score": 0.7954,
+        "quality_score": 0.4775,
+        "entry_score": 0.366336633663394,
+        "consensus_score": 0.42,
+        "conviction_score": 0.4036,
+        "flow_score": 0.25,
+        "follow_through": 0.4,
+        "timing_index": 0.436
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+        "Consenso multi-TF insuficiente (0.42 < 0.5)",
+        "Exaustao detectada (score=45): rsi_extremo_long, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=38): rsi_muito_alto, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ]
+    },
+    "2ZUSDT": {
+      "scores": {
+        "institutional_score": 0.4691,
+        "structural_score": 0.1183,
+        "market_score": 0.8749,
+        "momentum_score": 0.4068,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4401,
+        "confidence_score": 0.7218,
+        "quality_score": 0.4485,
+        "entry_score": 0.6386430678466163,
+        "consensus_score": 0.75,
+        "conviction_score": 0.4575,
+        "flow_score": 0.25,
+        "follow_through": 0.6,
+        "timing_index": 0.475
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 45.10% | Conviccao: 44.30% | Risco: 42.41% | Expecta"
+      ]
+    },
+    "4USDT": {
+      "scores": {
+        "institutional_score": 0.524,
+        "structural_score": 0.3185,
+        "market_score": 0.8733,
+        "momentum_score": 0.4107,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3546,
+        "confidence_score": 0.8521,
+        "quality_score": 0.5279,
+        "entry_score": 0.1360907271514301,
+        "consensus_score": 0.4,
+        "conviction_score": 0.6175,
+        "flow_score": 0.35,
+        "follow_through": 0.4,
+        "timing_index": 0.675
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.40 < 0.5)",
+        "Consenso multi-TF insuficiente (0.40 < 0.5)",
+        "Exaustao detectada (score=32): rsi_alto, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ]
+    },
+    "67USDT": {
+      "scores": {
+        "institutional_score": 0.4875,
+        "structural_score": 0.3183,
+        "market_score": 0.8297,
+        "momentum_score": 0.4251,
+        "liquidity_score": 0.874,
+        "risk_score": 0.0898,
+        "confidence_score": 0.7964,
+        "quality_score": 0.4477,
+        "entry_score": 0.6324200913242003,
+        "consensus_score": 0.85,
+        "conviction_score": 0.4285,
+        "flow_score": 0.2,
+        "follow_through": 0.05,
+        "timing_index": 0.46
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.38 | Contra-Tese: 0.40 | Probabilidade: 46.87% | Conviccao: 42.29% | Risco: 21.39% | Expecta"
+      ]
+    },
+    "9BITUSDT": {
+      "scores": {
+        "institutional_score": 0.5015,
+        "structural_score": 0.3191,
+        "market_score": 0.4276,
+        "momentum_score": 0.6439,
+        "liquidity_score": 0.874,
+        "risk_score": 0.548,
+        "confidence_score": 0.7508,
+        "quality_score": 0.527,
+        "entry_score": 0.0,
+        "consensus_score": 0.36,
+        "conviction_score": 0.6456,
+        "flow_score": 0.35,
+        "follow_through": 0.45,
+        "timing_index": 0.831
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.36 < 0.5)",
+        "Consenso multi-TF insuficiente (0.36 < 0.5)",
+        "Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ]
+    },
+    "AALONUSDT": {
+      "scores": {
+        "institutional_score": 0.4329,
+        "structural_score": 0.3183,
+        "market_score": 0.3315,
+        "momentum_score": 0.2507,
+        "liquidity_score": 0.874,
+        "risk_score": 0.566,
+        "confidence_score": 0.7826,
+        "quality_score": 0.4553,
+        "entry_score": 0.0,
+        "consensus_score": 0.43,
+        "conviction_score": 0.5145,
+        "flow_score": 0.35,
+        "follow_through": 0.53,
+        "timing_index": 0.68
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=43): rsi_muito_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Consenso multi-TF insuficiente (0.43 < 0.5)",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ]
+    },
+    "AAPLONUSDT": {
+      "scores": {
+        "institutional_score": 0.4277,
+        "structural_score": 0.1191,
+        "market_score": 0.3868,
+        "momentum_score": 0.6052,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5047,
+        "confidence_score": 0.6758,
+        "quality_score": 0.4241,
+        "entry_score": 0.6607727570399964,
+        "consensus_score": 0.51,
+        "conviction_score": 0.3847,
+        "flow_score": 0.2,
+        "follow_through": 0.2,
+        "timing_index": 0.647
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.37 | Contra-Tese: 0.40 | Probabilidade: 45.98% | Conviccao: 37.46% | Risco: 46.28% | Expecta"
+      ]
+    },
+    "AAPLXUSDT": {
+      "scores": {
+        "institutional_score": 0.4368,
+        "structural_score": 0.3187,
+        "market_score": 0.3895,
+        "momentum_score": 0.2771,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5131,
+        "confidence_score": 0.7471,
+        "quality_score": 0.4328,
+        "entry_score": 0.0,
+        "consensus_score": 0.62,
+        "conviction_score": 0.439,
+        "flow_score": 0.28,
+        "follow_through": 0.5,
+        "timing_index": 0.58
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.30 | Probabilidade: 53.94% | Conviccao: 47.87% | Risco: 42.79% | Expecta"
+      ]
+    },
+    "AAVEUSDT": {
+      "scores": {
+        "institutional_score": 0.5493,
+        "structural_score": 0.3183,
+        "market_score": 0.8763,
+        "momentum_score": 0.6136,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3286,
+        "confidence_score": 0.8231,
+        "quality_score": 0.5371,
+        "entry_score": 0.0,
+        "consensus_score": 0.44,
+        "conviction_score": 0.5805,
+        "flow_score": 0.35,
+        "follow_through": 0.35,
+        "timing_index": 0.63
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+        "Consenso multi-TF insuficiente (0.44 < 0.5)",
+        "Exaustao detectada (score=38): rsi_muito_alto, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=45): rsi_extremo_long, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ]
+    },
+    "ABBVONUSDT": {
+      "scores": {
+        "institutional_score": 0.4776,
+        "structural_score": 0.3194,
+        "market_score": 0.3338,
+        "momentum_score": 0.5932,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5221,
+        "confidence_score": 0.7537,
+        "quality_score": 0.4802,
+        "entry_score": 0.31521739130434057,
+        "consensus_score": 0.33,
+        "conviction_score": 0.482,
+        "flow_score": 0.38,
+        "follow_through": 0.28,
+        "timing_index": 0.62
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.33 < 0.5)",
+        "Consenso multi-TF insuficiente (0.33 < 0.5)"
+      ]
+    },
+    "ABNBONUSDT": {
+      "scores": {
+        "institutional_score": 0.5037,
+        "structural_score": 0.3685,
+        "market_score": 0.4073,
+        "momentum_score": 0.6311,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5172,
+        "confidence_score": 0.7303,
+        "quality_score": 0.5188,
+        "entry_score": 0.0,
+        "consensus_score": 0.39,
+        "conviction_score": 0.5061,
+        "flow_score": 0.5,
+        "follow_through": 0.15,
+        "timing_index": 0.686
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.39 < 0.5)",
+        "Consenso multi-TF insuficiente (0.39 < 0.5)"
+      ]
+    },
+    "ABTONUSDT": {
+      "scores": {
+        "institutional_score": 0.4984,
+        "structural_score": 0.3184,
+        "market_score": 0.3994,
+        "momentum_score": 0.6988,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4858,
+        "confidence_score": 0.7439,
+        "quality_score": 0.486,
+        "entry_score": 0.0,
+        "consensus_score": 0.42,
+        "conviction_score": 0.4855,
+        "flow_score": 0.3,
+        "follow_through": 0.25,
+        "timing_index": 0.63
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.42 < 0.5)",
+        "Consenso multi-TF insuficiente (0.42 < 0.5)"
+      ]
+    },
+    "ACAUSDT": {
+      "scores": {
+        "institutional_score": 0.4267,
+        "structural_score": 0.3189,
+        "market_score": 0.4103,
+        "momentum_score": 0.4696,
+        "liquidity_score": 0.874,
+        "risk_score": 0.0898,
+        "confidence_score": 0.7488,
+        "quality_score": 0.4486,
+        "entry_score": 0.7976190476190537,
+        "consensus_score": 0.65,
+        "conviction_score": 0.5555,
+        "flow_score": 0.38,
+        "follow_through": 0.63,
+        "timing_index": 0.58
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "REJEITADO — Contra-tese superior: Tese: 0.45 | Contra-Tese: 0.20 | Probabilidade: 59.23% | Conviccao: 63.17% | Risco: 13.39% | Expecta"
+      ]
+    },
+    "ACEUSDT": {
+      "scores": {
+        "institutional_score": 0.3906,
+        "structural_score": 0.1184,
+        "market_score": 0.414,
+        "momentum_score": 0.3737,
+        "liquidity_score": 0.874,
+        "risk_score": 0.448,
+        "confidence_score": 0.6694,
+        "quality_score": 0.4175,
+        "entry_score": 0.20091324200913419,
+        "consensus_score": 0.6,
+        "conviction_score": 0.4594,
+        "flow_score": 0.35,
+        "follow_through": 0.2,
+        "timing_index": 0.594
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.36 | Contra-Tese: 0.50 | Probabilidade: 41.35% | Conviccao: 41.62% | Risco: 46.88% | Expecta"
+      ]
+    },
+    "ACHRONUSDT": {
+      "scores": {
+        "institutional_score": 0.4728,
+        "structural_score": 0.3187,
+        "market_score": 0.4408,
+        "momentum_score": 0.5602,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4385,
+        "confidence_score": 0.68,
+        "quality_score": 0.4347,
+        "entry_score": 0.0,
+        "consensus_score": 0.74,
+        "conviction_score": 0.3927,
+        "flow_score": 0.2,
+        "follow_through": 0.05,
+        "timing_index": 0.502
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.41 | Contra-Tese: 0.40 | Probabilidade: 48.77% | Conviccao: 39.65% | Risco: 42.31% | Expecta"
+      ]
+    },
+    "ACHUSDT": {
+      "scores": {
+        "institutional_score": 0.4915,
+        "structural_score": 0.3684,
+        "market_score": 0.4523,
+        "momentum_score": 0.5777,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4691,
+        "confidence_score": 0.6693,
+        "quality_score": 0.4706,
+        "entry_score": 0.6020671834625111,
+        "consensus_score": 0.62,
+        "conviction_score": 0.5479,
+        "flow_score": 0.2,
+        "follow_through": 0.3,
+        "timing_index": 0.629
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.49 < 0.7"
+      ]
+    },
+    "ACMUSDT": {
+      "scores": {
+        "institutional_score": 0.4074,
+        "structural_score": 0.1182,
+        "market_score": 0.4462,
+        "momentum_score": 0.5127,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4286,
+        "confidence_score": 0.6006,
+        "quality_score": 0.4074,
+        "entry_score": 0.5429553264604808,
+        "consensus_score": 0.6,
+        "conviction_score": 0.4267,
+        "flow_score": 0.25,
+        "follow_through": 0.25,
+        "timing_index": 0.542
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "REJEITADO — Contra-tese superior: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 45.03% | Conviccao: 41.19% | Risco: 41.72% | Expecta"
+      ]
+    },
+    "ACNONUSDT": {
+      "scores": {
+        "institutional_score": 0.4018,
+        "structural_score": 0.1186,
+        "market_score": 0.3861,
+        "momentum_score": 0.5055,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4684,
+        "confidence_score": 0.6044,
+        "quality_score": 0.3867,
+        "entry_score": 0.17726396917146947,
+        "consensus_score": 0.57,
+        "conviction_score": 0.3681,
+        "flow_score": 0.2,
+        "follow_through": 0.0,
+        "timing_index": 0.481
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.33 | Contra-Tese: 0.50 | Probabilidade: 39.61% | Conviccao: 31.62% | Risco: 48.10% | Expecta"
+      ]
+    },
+    "ACNUSDT": {
+      "scores": {
+        "institutional_score": 0.4325,
+        "structural_score": 0.118,
+        "market_score": 0.4313,
+        "momentum_score": 0.6643,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4104,
+        "confidence_score": 0.665,
+        "quality_score": 0.4442,
+        "entry_score": 0.0,
+        "consensus_score": 0.69,
+        "conviction_score": 0.5664,
+        "flow_score": 0.3,
+        "follow_through": 0.43,
+        "timing_index": 0.549
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.38 | Contra-Tese: 0.30 | Probabilidade: 50.89% | Conviccao: 59.09% | Risco: 36.62% | Expecta"
+      ]
+    },
+    "ACSUSDT": {
+      "scores": {
+        "institutional_score": 0.4643,
+        "structural_score": 0.3686,
+        "market_score": 0.4526,
+        "momentum_score": 0.4748,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4152,
+        "confidence_score": 0.6045,
+        "quality_score": 0.4389,
+        "entry_score": 0.4276729559748549,
+        "consensus_score": 0.56,
+        "conviction_score": 0.44,
+        "flow_score": 0.2,
+        "follow_through": 0.0,
+        "timing_index": 0.6
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.40 | Probabilidade: 49.75% | Conviccao: 44.87% | Risco: 40.91% | Expecta"
+      ]
+    },
+    "ACTUSDT": {
+      "scores": {
+        "institutional_score": 0.4996,
+        "structural_score": 0.3186,
+        "market_score": 0.4028,
+        "momentum_score": 0.7012,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4265,
+        "confidence_score": 0.8056,
+        "quality_score": 0.5081,
+        "entry_score": 0.0,
+        "consensus_score": 0.7,
+        "conviction_score": 0.5188,
+        "flow_score": 0.35,
+        "follow_through": 0.3,
+        "timing_index": 0.738
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ]
+    },
+    "ACUUSDT": {
+      "scores": {
+        "institutional_score": 0.4843,
+        "structural_score": 0.3684,
+        "market_score": 0.4475,
+        "momentum_score": 0.5581,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4338,
+        "confidence_score": 0.6687,
+        "quality_score": 0.4905,
+        "entry_score": 0.7655502392344471,
+        "consensus_score": 0.33,
+        "conviction_score": 0.5597,
+        "flow_score": 0.3,
+        "follow_through": 0.3,
+        "timing_index": 0.747
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+        "Consenso multi-TF insuficiente (0.33 < 0.5)",
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista"
+      ]
+    },
+    "ACXUSDT": {
+      "scores": {
+        "institutional_score": 0.4992,
+        "structural_score": 0.3185,
+        "market_score": 0.3861,
+        "momentum_score": 0.7006,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5093,
+        "confidence_score": 0.7454,
+        "quality_score": 0.4647,
+        "entry_score": 0.0,
+        "consensus_score": 0.4,
+        "conviction_score": 0.3596,
+        "flow_score": 0.28,
+        "follow_through": 0.0,
+        "timing_index": 0.536
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.40 < 0.5)",
+        "Consenso multi-TF insuficiente (0.40 < 0.5)"
+      ]
+    },
+    "ADAUSDT": {
+      "scores": {
+        "institutional_score": 0.5212,
+        "structural_score": 0.3685,
+        "market_score": 0.8883,
+        "momentum_score": 0.2999,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4208,
+        "confidence_score": 0.7764,
+        "quality_score": 0.4916,
+        "entry_score": 0.0,
+        "consensus_score": 0.63,
+        "conviction_score": 0.5217,
+        "flow_score": 0.25,
+        "follow_through": 0.3,
+        "timing_index": 0.567
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.50 | Probabilidade: 45.88% | Conviccao: 50.11% | Risco: 45.25% | Expecta"
+      ]
+    },
+    "ADBEONUSDT": {
+      "scores": {
+        "institutional_score": 0.4735,
+        "structural_score": 0.3184,
+        "market_score": 0.3161,
+        "momentum_score": 0.5496,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5248,
+        "confidence_score": 0.8044,
+        "quality_score": 0.4544,
+        "entry_score": 0.0,
+        "consensus_score": 0.41,
+        "conviction_score": 0.4313,
+        "flow_score": 0.3,
+        "follow_through": 0.4,
+        "timing_index": 0.513
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+        "Consenso multi-TF insuficiente (0.41 < 0.5)",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ]
+    },
+    "ADIONUSDT": {
+      "scores": {
+        "institutional_score": 0.418,
+        "structural_score": 0.1184,
+        "market_score": 0.416,
+        "momentum_score": 0.5479,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5243,
+        "confidence_score": 0.6028,
+        "quality_score": 0.3969,
+        "entry_score": 0.7250909090909288,
+        "consensus_score": 0.56,
+        "conviction_score": 0.411,
+        "flow_score": 0.1,
+        "follow_through": 0.1,
+        "timing_index": 0.56
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.33 | Contra-Tese: 0.40 | Probabilidade: 43.99% | Conviccao: 39.10% | Risco: 47.46% | Expecta"
+      ]
+    },
+    "ADIUSDT": {
+      "scores": {
+        "institutional_score": 0.5528,
+        "structural_score": 0.3684,
+        "market_score": 0.8867,
+        "momentum_score": 0.4868,
+        "liquidity_score": 0.874,
+        "risk_score": 0.446,
+        "confidence_score": 0.7894,
+        "quality_score": 0.5156,
+        "entry_score": 0.0,
+        "consensus_score": 0.86,
+        "conviction_score": 0.532,
+        "flow_score": 0.3,
+        "follow_through": 0.6,
+        "timing_index": 0.52
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.50 | Probabilidade: 48.18% | Conviccao: 52.29% | Risco: 46.76% | Expecta"
+      ]
+    },
+    "AEROUSDT": {
+      "scores": {
+        "institutional_score": 0.4689,
+        "structural_score": 0.3185,
+        "market_score": 0.3781,
+        "momentum_score": 0.5872,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3893,
+        "confidence_score": 0.7449,
+        "quality_score": 0.4835,
+        "entry_score": 0.7106666666666565,
+        "consensus_score": 0.42,
+        "conviction_score": 0.4695,
+        "flow_score": 0.43,
+        "follow_through": 0.15,
+        "timing_index": 0.66
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Consenso multi-TF insuficiente (0.42 < 0.5)",
+        "Consenso multi-TF insuficiente (0.42 < 0.5)"
+      ]
+    },
+    "AEVOUSDT": {
+      "scores": {
+        "institutional_score": 0.4681,
+        "structural_score": 0.3186,
+        "market_score": 0.3781,
+        "momentum_score": 0.5079,
+        "liquidity_score": 0.874,
+        "risk_score": 0.438,
+        "confidence_score": 0.8063,
+        "quality_score": 0.4663,
+        "entry_score": 0.5942028985507175,
+        "consensus_score": 0.45,
+        "conviction_score": 0.45,
+        "flow_score": 0.3,
+        "follow_through": 0.3,
+        "timing_index": 0.65
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+        "Consenso multi-TF insuficiente (0.45 < 0.5)",
+        "Exaustao detectada (score=43): rsi_muito_alto, adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ]
+    },
+    "AFCUSDT": {
+      "scores": {
+        "institutional_score": 0.3943,
+        "structural_score": 0.1186,
+        "market_score": 0.3634,
+        "momentum_score": 0.5509,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3599,
+        "confidence_score": 0.6043,
+        "quality_score": 0.3698,
+        "entry_score": 0.22222222222222499,
+        "consensus_score": 0.58,
+        "conviction_score": 0.2846,
+        "flow_score": 0.1,
+        "follow_through": 0.2,
+        "timing_index": 0.546
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "REJEITADO — Contra-tese superior: Tese: 0.32 | Contra-Tese: 0.40 | Probabilidade: 43.49% | Conviccao: 26.21% | Risco: 37.59% | Expecta"
+      ]
+    },
+    "AGGONUSDT": {
+      "scores": {
+        "institutional_score": 0.4919,
+        "structural_score": 0.37,
+        "market_score": 0.3842,
+        "momentum_score": 0.5569,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5868,
+        "confidence_score": 0.685,
+        "quality_score": 0.4583,
+        "entry_score": 0.0,
+        "consensus_score": 0.7,
+        "conviction_score": 0.365,
+        "flow_score": 0.2,
+        "follow_through": 0.0,
+        "timing_index": 0.65
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.46 | Contra-Tese: 0.55 | Probabilidade: 45.35% | Conviccao: 33.68% | Risco: 57.21% | Expecta"
+      ]
+    },
+    "AGIUSDT": {
+      "scores": {
+        "institutional_score": 0.4361,
+        "structural_score": 0.3184,
+        "market_score": 0.4348,
+        "momentum_score": 0.2499,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4829,
+        "confidence_score": 0.7438,
+        "quality_score": 0.4168,
+        "entry_score": 0.06521739130435888,
+        "consensus_score": 0.62,
+        "conviction_score": 0.4209,
+        "flow_score": 0.23,
+        "follow_through": 0.3,
+        "timing_index": 0.499
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.40 | Contra-Tese: 0.40 | Probabilidade: 48.10% | Conviccao: 42.14% | Risco: 44.97% | Expecta"
+      ]
+    },
+    "AGLDUSDT": {
+      "scores": {
+        "institutional_score": 0.3941,
+        "structural_score": 0.3184,
+        "market_score": 0.342,
+        "momentum_score": 0.184,
+        "liquidity_score": 0.874,
+        "risk_score": 0.308,
+        "confidence_score": 0.7373,
+        "quality_score": 0.3535,
+        "entry_score": 0.7236842105263075,
+        "consensus_score": 0.72,
+        "conviction_score": 0.277,
+        "flow_score": 0.1,
+        "follow_through": 0.1,
+        "timing_index": 0.42
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "REJEITADO — Contra-tese superior: Tese: 0.34 | Contra-Tese: 0.40 | Probabilidade: 44.68% | Conviccao: 26.04% | Risco: 34.48% | Expecta"
+      ]
+    },
+    "AGTUSDT": {
+      "scores": {
+        "institutional_score": 0.453,
+        "structural_score": 0.3184,
+        "market_score": 0.3699,
+        "momentum_score": 0.5211,
+        "liquidity_score": 0.874,
+        "risk_score": 0.2823,
+        "confidence_score": 0.8041,
+        "quality_score": 0.4577,
+        "entry_score": 0.24999999999999867,
+        "consensus_score": 0.74,
+        "conviction_score": 0.5076,
+        "flow_score": 0.28,
+        "follow_through": 0.55,
+        "timing_index": 0.641
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=37): rsi_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ]
+    },
+    "AIAUSDT": {
+      "scores": {
+        "institutional_score": 0.558,
+        "structural_score": 0.3185,
+        "market_score": 0.8709,
+        "momentum_score": 0.5491,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4774,
+        "confidence_score": 0.8653,
+        "quality_score": 0.5168,
+        "entry_score": 0.0,
+        "consensus_score": 0.72,
+        "conviction_score": 0.4381,
+        "flow_score": 0.2,
+        "follow_through": 0.25,
+        "timing_index": 0.656
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.50 | Probabilidade: 46.39% | Conviccao: 42.01% | Risco: 48.64% | Expecta"
+      ]
+    },
+    "AIDOGEUSDT": {
+      "scores": {
+        "institutional_score": 0.4806,
+        "structural_score": 0.3189,
+        "market_score": 0.3886,
+        "momentum_score": 0.6409,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3444,
+        "confidence_score": 0.8087,
+        "quality_score": 0.4807,
+        "entry_score": 0.0,
+        "consensus_score": 0.43,
+        "conviction_score": 0.3976,
+        "flow_score": 0.43,
+        "follow_through": 0.45,
+        "timing_index": 0.591
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Consenso multi-TF insuficiente (0.43 < 0.5)",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista"
+      ]
+    },
+    "AINUSDT": {
+      "scores": {
+        "institutional_score": 0.4428,
+        "structural_score": 0.3683,
+        "market_score": 0.3719,
+        "momentum_score": 0.4449,
+        "liquidity_score": 0.874,
+        "risk_score": 0.2436,
+        "confidence_score": 0.7277,
+        "quality_score": 0.4299,
+        "entry_score": 0.80589970501475,
+        "consensus_score": 0.74,
+        "conviction_score": 0.4106,
+        "flow_score": 0.25,
+        "follow_through": 0.25,
+        "timing_index": 0.581
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=43): rsi_muito_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ]
+    },
+    "AIOTUSDT": {
+      "scores": {
+        "institutional_score": 0.4681,
+        "structural_score": 0.3186,
+        "market_score": 0.4304,
+        "momentum_score": 0.5264,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3917,
+        "confidence_score": 0.7462,
+        "quality_score": 0.4535,
+        "entry_score": 0.8345613791185837,
+        "consensus_score": 0.52,
+        "conviction_score": 0.4877,
+        "flow_score": 0.2,
+        "follow_through": 0.1,
+        "timing_index": 0.627
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.42 | Contra-Tese: 0.40 | Probabilidade: 49.25% | Conviccao: 49.40% | Risco: 39.50% | Expecta"
+      ]
+    },
+    "AIOUSDT": {
+      "scores": {
+        "institutional_score": 0.441,
+        "structural_score": 0.1183,
+        "market_score": 0.8171,
+        "momentum_score": 0.5478,
+        "liquidity_score": 0.874,
+        "risk_score": 0.0738,
+        "confidence_score": 0.6818,
+        "quality_score": 0.3938,
+        "entry_score": 0.9018292682926825,
+        "consensus_score": 0.74,
+        "conviction_score": 0.2815,
+        "flow_score": 0.1,
+        "follow_through": 0.15,
+        "timing_index": 0.44
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "REJEITADO — Contra-tese superior: Tese: 0.30 | Contra-Tese: 0.40 | Probabilidade: 42.14% | Conviccao: 25.22% | Risco: 20.43% | Expecta"
+      ]
+    },
+    "AIUSDT": {
+      "scores": {
+        "institutional_score": 0.4745,
+        "structural_score": 0.3684,
+        "market_score": 0.4381,
+        "momentum_score": 0.5543,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4216,
+        "confidence_score": 0.6028,
+        "quality_score": 0.444,
+        "entry_score": 0.0,
+        "consensus_score": 0.66,
+        "conviction_score": 0.4568,
+        "flow_score": 0.15,
+        "follow_through": 0.28,
+        "timing_index": 0.628
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.45 | Contra-Tese: 0.50 | Probabilidade: 46.81% | Conviccao: 44.09% | Risco: 45.30% | Expecta"
+      ]
+    },
+    "AIXBTUSDT": {
+      "scores": {
+        "institutional_score": 0.4791,
+        "structural_score": 0.3183,
+        "market_score": 0.4066,
+        "momentum_score": 0.63,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3855,
+        "confidence_score": 0.7435,
+        "quality_score": 0.4521,
+        "entry_score": 0.0,
+        "consensus_score": 0.4,
+        "conviction_score": 0.4609,
+        "flow_score": 0.15,
+        "follow_through": 0.18,
+        "timing_index": 0.619
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+        "Consenso multi-TF insuficiente (0.40 < 0.5)",
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_baixista"
+      ]
+    },
+    "AIXDROPUSDT": {
+      "scores": {
+        "institutional_score": 0.4718,
+        "structural_score": 0.3688,
+        "market_score": 0.8541,
+        "momentum_score": 0.1327,
+        "liquidity_score": 0.874,
+        "risk_score": 0.2516,
+        "confidence_score": 0.7528,
+        "quality_score": 0.4573,
+        "entry_score": 0.0,
+        "consensus_score": 0.48,
+        "conviction_score": 0.525,
+        "flow_score": 0.3,
+        "follow_through": 0.3,
+        "timing_index": 0.5
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas",
+        "Consenso multi-TF insuficiente (0.48 < 0.5)",
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_baixista",
+        "Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ]
+    },
+    "AIXUSDT": {
+      "scores": {
+        "institutional_score": 0.4746,
+        "structural_score": 0.3185,
+        "market_score": 0.8033,
+        "momentum_score": 0.3728,
+        "liquidity_score": 0.874,
+        "risk_score": 0.0898,
+        "confidence_score": 0.7849,
+        "quality_score": 0.4558,
+        "entry_score": 0.21868585320059963,
+        "consensus_score": 0.7,
+        "conviction_score": 0.518,
+        "flow_score": 0.35,
+        "follow_through": 0.4,
+        "timing_index": 0.38
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.06 < 0.7"
+      ]
+    },
+    "AKEUSDT": {
+      "scores": {
+        "institutional_score": 0.4264,
+        "structural_score": 0.3685,
+        "market_score": 0.3737,
+        "momentum_score": 0.5162,
+        "liquidity_score": 0.874,
+        "risk_score": 0.0938,
+        "confidence_score": 0.6033,
+        "quality_score": 0.4015,
+        "entry_score": 0.5261121856866535,
+        "consensus_score": 0.66,
+        "conviction_score": 0.3381,
+        "flow_score": 0.15,
+        "follow_through": 0.13,
+        "timing_index": 0.616
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.42 | Contra-Tese: 0.40 | Probabilidade: 49.34% | Conviccao: 34.48% | Risco: 21.63% | Expecta"
+      ]
+    },
+    "ALABONUSDT": {
+      "scores": {
+        "institutional_score": 0.3807,
+        "structural_score": 0.118,
+        "market_score": 0.3847,
+        "momentum_score": 0.3714,
+        "liquidity_score": 0.874,
+        "risk_score": 0.5352,
+        "confidence_score": 0.5317,
+        "quality_score": 0.3739,
+        "entry_score": 0.0,
+        "consensus_score": 0.58,
+        "conviction_score": 0.3915,
+        "flow_score": 0.2,
+        "follow_through": 0.43,
+        "timing_index": 0.5
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.34 | Contra-Tese: 0.45 | Probabilidade: 42.50% | Conviccao: 35.90% | Risco: 50.11% | Expecta"
+      ]
+    },
+    "ALBONUSDT": {
+      "scores": {
+        "institutional_score": 0.3922,
+        "structural_score": 0.1185,
+        "market_score": 0.4383,
+        "momentum_score": 0.3714,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4967,
+        "confidence_score": 0.6031,
+        "quality_score": 0.3851,
+        "entry_score": 0.09315866084423774,
+        "consensus_score": 0.7,
+        "conviction_score": 0.4075,
+        "flow_score": 0.2,
+        "follow_through": 0.15,
+        "timing_index": 0.5
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.33 | Contra-Tese: 0.50 | Probabilidade: 39.50% | Conviccao: 35.50% | Risco: 49.80% | Expecta"
+      ]
+    },
+    "ALCHUSDT": {
+      "scores": {
+        "institutional_score": 0.4894,
+        "structural_score": 0.1183,
+        "market_score": 0.8513,
+        "momentum_score": 0.5712,
+        "liquidity_score": 0.874,
+        "risk_score": 0.4316,
+        "confidence_score": 0.7216,
+        "quality_score": 0.4546,
+        "entry_score": 0.0,
+        "consensus_score": 0.53,
+        "conviction_score": 0.4387,
+        "flow_score": 0.2,
+        "follow_through": 0.23,
+        "timing_index": 0.472
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.34 | Contra-Tese: 0.50 | Probabilidade: 40.47% | Conviccao: 39.11% | Risco: 45.90% | Expecta"
+      ]
+    },
+    "ALEOUSDT": {
+      "scores": {
+        "institutional_score": 0.448,
+        "structural_score": 0.3186,
+        "market_score": 0.3915,
+        "momentum_score": 0.4871,
+        "liquidity_score": 0.874,
+        "risk_score": 0.3093,
+        "confidence_score": 0.7455,
+        "quality_score": 0.4455,
+        "entry_score": 0.2367021276595731,
+        "consensus_score": 0.73,
+        "conviction_score": 0.4709,
+        "flow_score": 0.28,
+        "follow_through": 0.3,
+        "timing_index": 0.599
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.30 | Probabilidade: 53.79% | Conviccao: 50.99% | Risco: 30.56% | Expecta"
+      ]
+    }
+  },
+  "final_decisions": {
+    "0GUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6469",
+      "primary_reason": "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=37): rsi_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "timestamp": "2026-07-11 20:16:24.836288+00:00",
+      "processing_time_ms": 70.6
+    },
+    "114514USDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6471",
+      "primary_reason": "Consenso multi-TF insuficiente (0.49 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.49 < 0.5)"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.49 < 0.5)",
+      "timestamp": "2026-07-11 20:16:25.311969+00:00",
+      "processing_time_ms": 475.6
+    },
+    "1INCHUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6478",
+      "primary_reason": "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.42 < 0.5)",
+        "Exaustao detectada (score=45): rsi_extremo_long, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=38): rsi_muito_alto, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "timestamp": "2026-07-11 20:16:25.314213+00:00",
+      "processing_time_ms": 2.1
+    },
+    "2ZUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6480",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 45.10% | Conviccao: 44.30% | Risco: 42.41% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 45.10% | Conviccao: 44.30% | Risco: 42.41% | Expecta",
+      "timestamp": "2026-07-11 20:16:25.724147+00:00",
+      "processing_time_ms": 409.9
+    },
+    "4USDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6483",
+      "primary_reason": "Consenso multi-TF insuficiente (0.40 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.40 < 0.5)",
+        "Exaustao detectada (score=32): rsi_alto, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.40 < 0.5)",
+      "timestamp": "2026-07-11 20:16:25.760576+00:00",
+      "processing_time_ms": 36.3
+    },
+    "67USDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6487",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.64 < 0.7",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.64 < 0.7",
+      "timestamp": "2026-07-11 20:16:25.961466+00:00",
+      "processing_time_ms": 200.8
+    },
+    "9BITUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6498",
+      "primary_reason": "Consenso multi-TF insuficiente (0.36 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.36 < 0.5)",
+        "Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.36 < 0.5)",
+      "timestamp": "2026-07-11 20:16:25.963933+00:00",
+      "processing_time_ms": 2.4
+    },
+    "AALONUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6496",
+      "primary_reason": "Exaustao detectada (score=43): rsi_muito_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.43 < 0.5)",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=43): rsi_muito_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "timestamp": "2026-07-11 20:16:25.968229+00:00",
+      "processing_time_ms": 4.2
+    },
+    "AAPLONUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6493",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.40 | Probabilidade: 50.61% | Conviccao: 49.98% | Risco: 47.24% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.40 | Probabilidade: 50.61% | Conviccao: 49.98% | Risco: 47.24% | Expecta",
+      "timestamp": "2026-07-11 20:16:26.122446+00:00",
+      "processing_time_ms": 154.2
+    },
+    "AAPLXUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6504",
+      "primary_reason": "REJEITADO — Contra-tese superior: Tese: 0.60 | Contra-Tese: 0.30 | Probabilidade: 63.71% | Conviccao: 59.48% | Risco: 44.23% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "REJEITADO — Contra-tese superior: Tese: 0.60 | Contra-Tese: 0.30 | Probabilidade: 63.71% | Conviccao: 59.48% | Risco: 44.23% | Expecta",
+      "timestamp": "2026-07-11 20:16:26.205329+00:00",
+      "processing_time_ms": 82.8
+    },
+    "AAVEUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6509",
+      "primary_reason": "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.44 < 0.5)",
+        "Exaustao detectada (score=38): rsi_muito_alto, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=45): rsi_extremo_long, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "timestamp": "2026-07-11 20:16:26.237392+00:00",
+      "processing_time_ms": 32.0
+    },
+    "ABBVONUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6510",
+      "primary_reason": "Consenso multi-TF insuficiente (0.33 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.33 < 0.5)"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.33 < 0.5)",
+      "timestamp": "2026-07-11 20:16:26.240680+00:00",
+      "processing_time_ms": 3.2
+    },
+    "ABNBONUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6521",
+      "primary_reason": "Consenso multi-TF insuficiente (0.39 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.39 < 0.5)"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.39 < 0.5)",
+      "timestamp": "2026-07-11 20:16:26.354674+00:00",
+      "processing_time_ms": 113.9
+    },
+    "ABTONUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6517",
+      "primary_reason": "Consenso multi-TF insuficiente (0.42 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.42 < 0.5)"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.42 < 0.5)",
+      "timestamp": "2026-07-11 20:16:26.500918+00:00",
+      "processing_time_ms": 146.2
+    },
+    "ACAUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6523",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.28 < 0.7",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.28 < 0.7",
+      "timestamp": "2026-07-11 20:16:26.711164+00:00",
+      "processing_time_ms": 210.2
+    },
+    "ACEUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6537",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.49 | Contra-Tese: 0.40 | Probabilidade: 53.44% | Conviccao: 65.96% | Risco: 43.84% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.49 | Contra-Tese: 0.40 | Probabilidade: 53.44% | Conviccao: 65.96% | Risco: 43.84% | Expecta",
+      "timestamp": "2026-07-11 20:16:26.997814+00:00",
+      "processing_time_ms": 286.5
+    },
+    "ACHRONUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6533",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.19 < 0.7",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.19 < 0.7",
+      "timestamp": "2026-07-11 20:16:27.071401+00:00",
+      "processing_time_ms": 73.2
+    },
+    "ACHUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6527",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.30 | Probabilidade: 54.68% | Conviccao: 64.63% | Risco: 39.91% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.30 | Probabilidade: 54.68% | Conviccao: 64.63% | Risco: 39.91% | Expecta",
+      "timestamp": "2026-07-11 20:16:27.108483+00:00",
+      "processing_time_ms": 37.0
+    },
+    "ACMUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6541",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "timestamp": "2026-07-11 20:16:27.193829+00:00",
+      "processing_time_ms": 85.2
+    },
+    "ACNONUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6543",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.30 | Probabilidade: 54.17% | Conviccao: 56.08% | Risco: 41.30% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.30 | Probabilidade: 54.17% | Conviccao: 56.08% | Risco: 41.30% | Expecta",
+      "timestamp": "2026-07-11 20:16:27.282136+00:00",
+      "processing_time_ms": 88.2
+    },
+    "ACNUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6549",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.38 | Contra-Tese: 0.30 | Probabilidade: 50.89% | Conviccao: 59.09% | Risco: 36.62% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.38 | Contra-Tese: 0.30 | Probabilidade: 50.89% | Conviccao: 59.09% | Risco: 36.62% | Expecta",
+      "timestamp": "2026-07-11 20:16:27.314664+00:00",
+      "processing_time_ms": 32.4
+    },
+    "ACSUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6555",
+      "primary_reason": "REJEITADO — Contra-tese superior: Tese: 0.46 | Contra-Tese: 0.30 | Probabilidade: 55.33% | Conviccao: 57.77% | Risco: 36.67% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "REJEITADO — Contra-tese superior: Tese: 0.46 | Contra-Tese: 0.30 | Probabilidade: 55.33% | Conviccao: 57.77% | Risco: 36.67% | Expecta",
+      "timestamp": "2026-07-11 20:16:27.412972+00:00",
+      "processing_time_ms": 98.2
+    },
+    "ACTUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6550",
+      "primary_reason": "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "timestamp": "2026-07-11 20:16:27.489496+00:00",
+      "processing_time_ms": 76.4
+    },
+    "ACUUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6559",
+      "primary_reason": "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.33 < 0.5)",
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "timestamp": "2026-07-11 20:16:27.526718+00:00",
+      "processing_time_ms": 37.1
+    },
+    "ACXUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6569",
+      "primary_reason": "Consenso multi-TF insuficiente (0.40 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.40 < 0.5)"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.40 < 0.5)",
+      "timestamp": "2026-07-11 20:16:27.563820+00:00",
+      "processing_time_ms": 37.0
+    },
+    "ADAUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6570",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.50 | Probabilidade: 45.88% | Conviccao: 50.11% | Risco: 45.25% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.50 | Probabilidade: 45.88% | Conviccao: 50.11% | Risco: 45.25% | Expecta",
+      "timestamp": "2026-07-11 20:16:27.602009+00:00",
+      "processing_time_ms": 38.1
+    },
+    "ADBEONUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6563",
+      "primary_reason": "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.41 < 0.5)",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+      "timestamp": "2026-07-11 20:16:27.635578+00:00",
+      "processing_time_ms": 33.5
+    },
+    "ADIONUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6577",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.45 | Contra-Tese: 0.30 | Probabilidade: 55.22% | Conviccao: 37.36% | Risco: 44.42% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.45 | Contra-Tese: 0.30 | Probabilidade: 55.22% | Conviccao: 37.36% | Risco: 44.42% | Expecta",
+      "timestamp": "2026-07-11 20:16:27.710308+00:00",
+      "processing_time_ms": 74.7
+    },
+    "ADIUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6582",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.50 | Probabilidade: 48.18% | Conviccao: 52.29% | Risco: 46.76% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.50 | Probabilidade: 48.18% | Conviccao: 52.29% | Risco: 46.76% | Expecta",
+      "timestamp": "2026-07-11 20:16:27.782134+00:00",
+      "processing_time_ms": 71.7
+    },
+    "AEROUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6578",
+      "primary_reason": "Consenso multi-TF insuficiente (0.42 < 0.5)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.42 < 0.5)"
+      ],
+      "final_decision": "Rejected: Consenso multi-TF insuficiente (0.42 < 0.5)",
+      "timestamp": "2026-07-11 20:16:27.821181+00:00",
+      "processing_time_ms": 38.9
+    },
+    "AEVOUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6599",
+      "primary_reason": "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.45 < 0.5)",
+        "Exaustao detectada (score=43): rsi_muito_alto, adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_baixista",
+      "timestamp": "2026-07-11 20:16:27.905163+00:00",
+      "processing_time_ms": 83.9
+    },
+    "AFCUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6593",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "timestamp": "2026-07-11 20:16:27.934358+00:00",
+      "processing_time_ms": 29.1
+    },
+    "AGGONUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6597",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "timestamp": "2026-07-11 20:16:27.988605+00:00",
+      "processing_time_ms": 54.1
+    },
+    "AGIUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6589",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "timestamp": "2026-07-11 20:16:28.026356+00:00",
+      "processing_time_ms": 37.6
+    },
+    "AGLDUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6603",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.16 < 0.7",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.16 < 0.7",
+      "timestamp": "2026-07-11 20:16:28.120406+00:00",
+      "processing_time_ms": 94.0
+    },
+    "AGTUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6611",
+      "primary_reason": "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=37): rsi_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "timestamp": "2026-07-11 20:16:28.213135+00:00",
+      "processing_time_ms": 92.6
+    },
+    "AIAUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6609",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.50 | Probabilidade: 46.39% | Conviccao: 42.01% | Risco: 48.64% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.44 | Contra-Tese: 0.50 | Probabilidade: 46.39% | Conviccao: 42.01% | Risco: 48.64% | Expecta",
+      "timestamp": "2026-07-11 20:16:28.324835+00:00",
+      "processing_time_ms": 111.6
+    },
+    "AIDOGEUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6617",
+      "primary_reason": "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.43 < 0.5)",
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+      "timestamp": "2026-07-11 20:16:28.328299+00:00",
+      "processing_time_ms": 3.3
+    },
+    "AINUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6622",
+      "primary_reason": "Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Exaustao detectada (score=25): adx_fraco_sem_tendencia, velas_alongadas_consecutivas",
+        "Exaustao detectada (score=43): rsi_muito_baixo, adx_fraco_sem_tendencia, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=33): adx_fraco_sem_tendencia, velas_alongadas_consecutivas, divergencia_altista",
+      "timestamp": "2026-07-11 20:16:28.331847+00:00",
+      "processing_time_ms": 3.5
+    },
+    "AIOTUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6620",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.07 < 0.7",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.07 < 0.7",
+      "timestamp": "2026-07-11 20:16:28.459941+00:00",
+      "processing_time_ms": 128.0
+    },
+    "AIOUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6626",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.41 | Contra-Tese: 0.30 | Probabilidade: 52.49% | Conviccao: 55.71% | Risco: 17.39% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.41 | Contra-Tese: 0.30 | Probabilidade: 52.49% | Conviccao: 55.71% | Risco: 17.39% | Expecta",
+      "timestamp": "2026-07-11 20:16:28.554971+00:00",
+      "processing_time_ms": 94.9
+    },
+    "AIUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6651",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.40 | Probabilidade: 52.19% | Conviccao: 55.52% | Risco: 41.06% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.47 | Contra-Tese: 0.40 | Probabilidade: 52.19% | Conviccao: 55.52% | Risco: 41.06% | Expecta",
+      "timestamp": "2026-07-11 20:16:28.616695+00:00",
+      "processing_time_ms": 61.6
+    },
+    "AIXBTUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6633",
+      "primary_reason": "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.40 < 0.5)",
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_baixista"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_altista",
+      "timestamp": "2026-07-11 20:16:28.618536+00:00",
+      "processing_time_ms": 1.8
+    },
+    "AIXDROPUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6662",
+      "primary_reason": "Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [
+        "Consenso multi-TF insuficiente (0.48 < 0.5)",
+        "Exaustao detectada (score=28): adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas, divergencia_baixista",
+        "Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas"
+      ],
+      "final_decision": "Rejected: Exaustao detectada (score=45): rsi_extremo_short, adx_muito_alto_possivel_exaustao, velas_alongadas_consecutivas",
+      "timestamp": "2026-07-11 20:16:28.619937+00:00",
+      "processing_time_ms": 1.3
+    },
+    "AIXUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6634",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.46 < 0.7",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.46 < 0.7",
+      "timestamp": "2026-07-11 20:16:28.641982+00:00",
+      "processing_time_ms": 22.0
+    },
+    "AKEUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6660",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "timestamp": "2026-07-11 20:16:28.671309+00:00",
+      "processing_time_ms": 29.2
+    },
+    "ALABONUSDT": {
+      "status": "REJECTED",
+      "direction": "long",
+      "trace_id": "SIG-20260711-6638",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.42 | Contra-Tese: 0.45 | Probabilidade: 47.44% | Conviccao: 45.77% | Risco: 50.11% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.42 | Contra-Tese: 0.45 | Probabilidade: 47.44% | Conviccao: 45.77% | Risco: 50.11% | Expecta",
+      "timestamp": "2026-07-11 20:16:28.697961+00:00",
+      "processing_time_ms": 26.6
+    },
+    "ALBONUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6644",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: Entry Zone FAIL (score 0.00 < 0.4)",
+      "timestamp": "2026-07-11 20:16:28.903050+00:00",
+      "processing_time_ms": 205.0
+    },
+    "ALCHUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6645",
+      "primary_reason": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.43 < 0.7",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "PRONTO BLOQUEADO — Hard gates bloquearam antes do Brain: RVOL 0.43 < 0.7",
+      "timestamp": "2026-07-11 20:16:28.979282+00:00",
+      "processing_time_ms": 76.1
+    },
+    "ALEOUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-6655",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.30 | Probabilidade: 53.79% | Conviccao: 50.99% | Risco: 30.56% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.43 | Contra-Tese: 0.30 | Probabilidade: 53.79% | Conviccao: 50.99% | Risco: 30.56% | Expecta",
+      "timestamp": "2026-07-11 20:16:28.990465+00:00",
+      "processing_time_ms": 11.1
+    }
+  },
+  "bugs": [],
+  "health": {
+    "api": 100,
+    "candles": 100.0,
+    "pipeline": 100.0,
+    "silent_drops": 0,
+    "rejected": 50,
+    "approved": 0,
+    "bugs": 0,
+    "health_score": 100,
+    "loop_status": "STOPPED",
+    "last_heartbeat_ago_s": 0,
+    "last_cycle_ago_s": 163,
+    "next_cycle_in_s": 59
+  },
+  "pipeline_audit": {
+    "0GUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "114514USDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "1INCHUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "2ZUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "4USDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "67USDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "9BITUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AALONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AAPLONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AAPLXUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AAVEUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ABBVONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ABNBONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ABTONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ACAUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACEUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACHRONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACHUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACMUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACNONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACNUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACSUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ACTUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ACUUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ACXUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ADAUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ADBEONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "ADIONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ADIUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AEROUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AEVOUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AFCUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AGGONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AGIUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AGLDUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AGTUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AIAUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AIDOGEUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AINUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AIOTUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AIOUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AIUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AIXBTUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AIXDROPUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "quality_gate",
+      "decisao_final"
+    ],
+    "AIXUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "AKEUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ALABONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ALBONUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ALCHUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ALEOUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ]
+  }
+}

@@ -22,7 +22,8 @@ class SignalData:
                  atr: float = 0.0, false_breakout_clear: bool = False,
                  traps_clear: bool = False, volume_above_avg: bool = False,
                  rvol_confirmed: bool = False, no_absorption: bool = False,
-                 no_rejection: bool = False, structure_valid: bool = False):
+                 no_rejection: bool = False, structure_valid: bool = False,
+                 approval_reasons: list = None, explanation: str = ""):
         self.pair = pair
         self.direction = direction
         self.entry_price = entry_price
@@ -50,6 +51,8 @@ class SignalData:
         self.no_absorption = no_absorption
         self.no_rejection = no_rejection
         self.structure_valid = structure_valid
+        self.approval_reasons = approval_reasons or []
+        self.explanation = explanation
 
     @property
     def order_side(self) -> OrderSide:
@@ -97,6 +100,8 @@ class SignalReceiver:
                 no_absorption=bool(data.get("no_absorption", False)),
                 no_rejection=bool(data.get("no_rejection", False)),
                 structure_valid=bool(data.get("structure_valid", False)),
+                approval_reasons=data.get("approval_reasons", []),
+                explanation=data.get("explanation", ""),
             )
             self._pending_signals.append(signal)
             for cb in self._callbacks:

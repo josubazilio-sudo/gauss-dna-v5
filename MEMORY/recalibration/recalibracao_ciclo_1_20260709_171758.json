@@ -1,0 +1,12 @@
+{
+  "cycle": 1,
+  "timestamp": "2026-07-09T20:17:58.948656+00:00",
+  "total_trades": 1,
+  "ajustes": [],
+  "pesos_resultantes": {
+    "tese_score": 0.6,
+    "contra_tese_score": 0.4,
+    "conviccao_min": 0.5,
+    "probabilidade_base": 0.5
+  }
+}

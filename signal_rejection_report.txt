@@ -1,0 +1,44 @@
+RELATÓRIO DE REJEIÇÃO DE SINAIS - DIAGNÓSTICO QUANTOS
+===================================================
+
+Este relatório resume os principais motivos pelos quais os sinais no sistema QuantOS podem não estar sendo aprovados. O sistema utiliza um motor de 'Quality Gate' de dois estágios para garantir a robustez institucional das operações.
+
+---
+
+ESTÁGIO 1: FILTROS HARD (Eliminatórios)
+---------------------------------------
+Qualquer falha aqui resulta em REJEIÇÃO IMEDIATA. Verifique se o ativo atende:
+
+1. Padrões Institucionais: Mínimo 1 padrão detectado.
+2. RVOL (Relative Volume): O ativo deve ter volume relativo acima de 0.5x.
+3. Spread: Deve ser menor que 0.01.
+4. ADX (Força da Tendência): Mínimo de 15.
+5. Força Estrutural: Deve estar acima de 0.15.
+6. ATR (Volatilidade):
+   - Não pode ser maior que 8% (0.08).
+   - Não pode ser menor que 0.05% (0.0005).
+7. Zona de Entrada: O ativo deve estar dentro de uma zona de entrada aprovada (Order Block ou FVG).
+
+---
+
+ESTÁGIO 2: RANKING E CLASSIFICAÇÃO
+----------------------------------
+Se passar nos filtros hard, o ativo é ranqueado. Se os scores forem muito baixos, ele pode ser classificado como "REPROVADO":
+
+1. Quality Score: Mínimo 0.40 (40%)
+2. Confidence Score: Mínimo 0.25 (25%)
+3. Entry Score: Mínimo 0.30 (30%)
+4. Conviction Score: Mínimo 0.45 (45%)
+5. Consensus Score: Mínimo 0.50 (50%)
+
+---
+
+DICA PARA DIAGNÓSTICO:
+----------------------
+O sistema envia para o Telegram um diagnóstico detalhado a cada ciclo. Procure pela mensagem "VALIDAÇÃO DE FILTROS". Lá, cada filtro aparece com:
+- ✅ (PASS) para aprovado.
+- ❌ (FAIL) para reprovado.
+
+Se o motivo for "Zona de entrada não aprovada", o ativo pode estar longe demais dos Order Blocks ou FVGs (verifique a distância em ATRs).
+
+Se precisar ajustar a sensibilidade, as variáveis de ambiente (como `QUANTOS_DEBUG`) podem ser alteradas para reduzir a rigidez do filtro durante testes.

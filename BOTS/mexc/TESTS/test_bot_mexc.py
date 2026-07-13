@@ -301,6 +301,13 @@ class TestEmergencyAndRecovery(unittest.TestCase):
 
 
 class TestBotEngine(unittest.TestCase):
+    def test_public_balance_property(self):
+        bus = EventBus()
+        cfg = BotConfig(dry_run=True, pairs=["BTCUSDT"])
+        bot = BotEngine(cfg, bus)
+
+        self.assertIsInstance(bot.balance, Balance)
+
     def test_full_bot_flow(self):
         bus = EventBus()
         cfg = BotConfig(dry_run=True, pairs=["BTCUSDT"])

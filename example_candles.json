@@ -1,0 +1,10 @@
+[
+    {"timestamp": "2023-07-05T10:00:00Z", "open": 100, "high": 102, "low": 98, "close": 101},
+    {"timestamp": "2023-07-05T10:01:00Z", "open": 101, "high": 103, "low": 99, "close": 102},
+    {"timestamp": "2023-07-05T10:02:00Z", "open": 102, "high": 104, "low": 100, "close": 103},
+    {"timestamp": "2023-07-05T10:03:00Z", "open": 103, "high": 105, "low": 101, "close": 104},
+    {"timestamp": "2023-07-05T10:04:00Z", "open": 104, "high": 106, "low": 102, "close": 105},
+    {"timestamp": "2023-07-05T10:05:00Z", "open": 105, "high": 107, "low": 103, "close": 106},
+    {"timestamp": "2023-07-05T10:06:00Z", "open": 106, "high": 108, "low": 104, "close": 107},
+    {"timestamp": "2023-07-05T10:07:00Z", "open": 107, "high": 109, "low": 105, "close": 108}
+]

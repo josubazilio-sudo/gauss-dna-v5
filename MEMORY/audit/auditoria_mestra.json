@@ -1,0 +1,161 @@
+{
+  "timestamp": "2026-07-08T00:32:46.105427+00:00",
+  "sections": {
+    "inicializacao": {
+      "ScannerEngine": true,
+      "MarketEngine": true,
+      "EventBus": true,
+      "DecisionEngine": true,
+      "DiagnosticEngine": true,
+      "Settings": true,
+      "Provider": true
+    },
+    "scanner": {
+      "cycle_time_s": 0.24,
+      "avg_per_asset_s": 0.04,
+      "assets_analyzed": 6,
+      "total_patterns": 244,
+      "total_decisions": 6,
+      "approved_count": 0,
+      "rejected_count": 6
+    },
+    "blockers": {
+      "Trend desfavoravel (ranging)": {
+        "count": 4,
+        "percent": 66.7
+      },
+      "Trend desfavoravel (trending_up)": {
+        "count": 2,
+        "percent": 33.3
+      }
+    },
+    "near_misses": [
+      {
+        "trace_id": "SIG-20260708-0004",
+        "timeframe": "1d",
+        "quality": 0.6581,
+        "confidence": 0.8641,
+        "entry_score": 0.1128,
+        "reject_reason": "Trend desfavoravel (trending_up)",
+        "filter_ratio": 0.0,
+        "passed_filters": 0,
+        "total_filters": 10
+      },
+      {
+        "trace_id": "SIG-20260708-0003",
+        "timeframe": "4h",
+        "quality": 0.6341,
+        "confidence": 0.8617,
+        "entry_score": 0.7262,
+        "reject_reason": "Trend desfavoravel (trending_up)",
+        "filter_ratio": 0.0,
+        "passed_filters": 0,
+        "total_filters": 10
+      },
+      {
+        "trace_id": "SIG-20260708-0005",
+        "timeframe": "1h",
+        "quality": 0.5864,
+        "confidence": 0.7452,
+        "entry_score": 0.4909,
+        "reject_reason": "Trend desfavoravel (ranging)",
+        "filter_ratio": 0.0,
+        "passed_filters": 0,
+        "total_filters": 10
+      },
+      {
+        "trace_id": "SIG-20260708-0006",
+        "timeframe": "4h",
+        "quality": 0.5706,
+        "confidence": 0.7452,
+        "entry_score": 0.6417,
+        "reject_reason": "Trend desfavoravel (ranging)",
+        "filter_ratio": 0.0,
+        "passed_filters": 0,
+        "total_filters": 10
+      },
+      {
+        "trace_id": "SIG-20260708-0001",
+        "timeframe": "1h",
+        "quality": 0.563,
+        "confidence": 0.7448,
+        "entry_score": 0.683,
+        "reject_reason": "Trend desfavoravel (ranging)",
+        "filter_ratio": 0.0,
+        "passed_filters": 0,
+        "total_filters": 10
+      },
+      {
+        "trace_id": "SIG-20260708-0002",
+        "timeframe": "4h",
+        "quality": 0.5326,
+        "confidence": 0.6674,
+        "entry_score": 0.5132,
+        "reject_reason": "Trend desfavoravel (ranging)",
+        "filter_ratio": 0.0,
+        "passed_filters": 0,
+        "total_filters": 10
+      }
+    ],
+    "paper_trading": {
+      "exists": false,
+      "reason_missing": "Nenhum sinal aprovado pelo self-audit neste ciclo"
+    },
+    "audit": {
+      "path": "MEMORY/audit/audit.json",
+      "total_entries": 9052,
+      "last_entry": {
+        "ativo": "DOGEUSDT",
+        "passed": true,
+        "reasons": [
+          "entry 0.00 abaixo do ideal 0.3",
+          "conviction 0.00 abaixo do ideal 0.45",
+          "consensus 0.00 abaixo do ideal 0.5"
+        ],
+        "gate_summary": "APROVADO — bronze | Quality:0.57 | Confidence:0.75 | Conviction:0.00 | Entry:0.00 | Consensus:0.00 | Tier:bronze",
+        "hora": "2026-07-08 00:32:46.340348+00:00"
+      }
+    },
+    "monitoring": {
+      "event_bus": "Disponivel e publishers registrados",
+      "watchdog": "Disponivel em main.py (WatchdogIntegration)",
+      "health_monitor": "Disponivel em main.py (HealthMonitor)",
+      "diagnostic_engine": "Disponivel em main.py (DiagnosticEngine)",
+      "note": "MonitorEngine como classe separada nao existe. Monitoramento via Watchdog + HealthMonitor + EventBus + DiagnosticEngine"
+    },
+    "discovery": {
+      "mode": "AUTO",
+      "provider": "MockDataProvider",
+      "symbols": [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+        "BNBUSDT",
+        "ADAUSDT",
+        "DOGEUSDT"
+      ],
+      "origin": "Mock hardcoded list (mock.py:107-110)",
+      "mexc_api": "NOT_CONSULTED",
+      "cache": "Internal dict"
+    },
+    "repeticao": {
+      "total_symbols": 6,
+      "analyzed_per_cycle": 6,
+      "repeated": 6,
+      "new": 0,
+      "cause": "Mock provider has only 6 hardcoded symbols"
+    },
+    "cobertura": {
+      "rotacao_automatica": "NAO IMPLEMENTADA",
+      "duplicidade_mesmo_ciclo": "NAO HA (garantido pelo loop linear)",
+      "disponiveis": 6,
+      "analisados": 6,
+      "cobertura_pct": 100.0,
+      "tempo_medio_por_ativo_s": 0.04
+    },
+    "consistencia": {
+      "inconsistencies_found": 0,
+      "details": []
+    }
+  }
+}

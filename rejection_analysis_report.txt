@@ -1,0 +1,27 @@
+RELATÓRIO DE DIAGNÓSTICO: MOTIVO DA NÃO APROVAÇÃO DE SINAIS
+==========================================================
+
+Após análise dos logs de auditoria (`rejected.json`), identificamos que a causa raiz da não aprovação dos sinais atuais é a detecção de "Mercado Lateral".
+
+1. MOTIVO PRINCIPAL: "lateral_market"
+--------------------------------------
+O sistema `ConfluenceEngine` está classificando o mercado (ativos ADA, ETH, SOL) como lateral nas timeframes em observação. 
+
+2. POR QUE ISSO BLOQUEIA?
+--------------------------
+Conforme a lógica atual em `scanner_engine.py`:
+```python
+if confluence.is_lateral_market:
+    log.info("ScannerEngine: %s %s — lateral market, skipping", pair, tf)
+    continue
+```
+Esta verificação ocorre ANTES da aplicação do `DecisionEngine` (V6.0). Se o mercado é considerado lateral, o sinal é descartado preventivamente para evitar "falsos positivos" em mercados sem tendência clara.
+
+3. RECOMENDAÇÃO TÉCNICA (DNA FLEX ARCHITECT)
+--------------------------------------------
+- Verificar se o `ADX` está abaixo do threshold mínimo configurado.
+- Revisar a sensibilidade do `ConfluenceEngine` (pode estar excessivamente rígido).
+- Validar se as configurações de tempo (timeframes) estão capturando a tendência correta do mercado atual.
+
+CONCLUSÃO:
+O sistema está funcionando conforme projetado, protegendo a banca contra operações em mercados sem direção (lateralizados). Não se trata de um erro de código, mas sim de uma decisão estratégica do motor de confluência.

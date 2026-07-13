@@ -1,0 +1,143 @@
+{
+  "cycle": 58,
+  "timestamp": "2026-07-11 12:52:44.858460+00:00",
+  "duration_ms": 11182.765007019043,
+  "total_assets": 1,
+  "approved_assets": 0,
+  "pipeline_steps": {
+    "Ativos monitorados": 1,
+    "Ativos processados": 1
+  },
+  "rejection_reasons": {
+    "OBSERVACAO — Riscos identificados: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 44.89% | Conviccao: 32.24% | Risco: 48.34% | Expecta": 1
+  },
+  "top_candidates": [],
+  "approved_signals": [],
+  "indicators": {
+    "BTCUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr_percent": 0.002011351967911292,
+      "adx": 62.62746027981927,
+      "rsi": 55.55,
+      "rvol": 0.9154,
+      "volatility": 0.00846600734898278,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    }
+  },
+  "structures": {
+    "BTCUSDT": {
+      "trend": "StructureType.UPTREND",
+      "strength": 0.4,
+      "bos": 0,
+      "choch": 1
+    }
+  },
+  "smart_money": {
+    "BTCUSDT": {
+      "order_blocks": 0,
+      "fvgs": 10,
+      "liquidity_sweeps": 0,
+      "mitigacoes": 0
+    }
+  },
+  "entry_zones": {
+    "BTCUSDT": {
+      "zone_type": "inside",
+      "score": 90.4,
+      "distance": 0.0,
+      "approved": false
+    }
+  },
+  "consensus": {
+    "BTCUSDT": {
+      "consensus_score": 0.6,
+      "final_direction": "short",
+      "agreement_pct": 60.0,
+      "classification": "REJEITADO",
+      "dominant_timeframe": "30m",
+      "dissenting": [],
+      "votes": [
+        {
+          "tf": "30m",
+          "dir": "short",
+          "score": 0.6,
+          "weight": 1.0
+        }
+      ]
+    }
+  },
+  "quality_gates": {
+    "BTCUSDT": {
+      "scores": {
+        "institutional_score": 0.4459,
+        "structural_score": 0.1186,
+        "market_score": 0.4331,
+        "momentum_score": 0.6631,
+        "liquidity_score": 0.916,
+        "risk_score": 0.539,
+        "confidence_score": 0.6048,
+        "quality_score": 0.4084,
+        "entry_score": 0.0,
+        "consensus_score": 0.6,
+        "conviction_score": 0.3809,
+        "flow_score": 0.1,
+        "follow_through": 0.0,
+        "timing_index": 0.509
+      },
+      "passed": false,
+      "rejection_reasons": [
+        "OBSERVACAO — Riscos identificados: Tese: 0.34 | Contra-Tese: 0.50 | Probabilidade: 40.36% | Conviccao: 33.27% | Risco: 52.34% | Expecta"
+      ]
+    }
+  },
+  "final_decisions": {
+    "BTCUSDT": {
+      "status": "REJECTED",
+      "direction": "short",
+      "trace_id": "SIG-20260711-0213",
+      "primary_reason": "OBSERVACAO — Riscos identificados: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 44.89% | Conviccao: 32.24% | Risco: 48.34% | Expecta",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "OBSERVACAO — Riscos identificados: Tese: 0.35 | Contra-Tese: 0.40 | Probabilidade: 44.89% | Conviccao: 32.24% | Risco: 48.34% | Expecta",
+      "timestamp": "2026-07-11 12:52:56.037353+00:00",
+      "processing_time_ms": 410.0
+    }
+  },
+  "bugs": [],
+  "health": {
+    "api": 100,
+    "candles": 100.0,
+    "pipeline": 100.0,
+    "silent_drops": 0,
+    "rejected": 1,
+    "approved": 0,
+    "bugs": 0,
+    "health_score": 100,
+    "loop_status": "STOPPED",
+    "last_heartbeat_ago_s": 0,
+    "last_cycle_ago_s": 11,
+    "next_cycle_in_s": 59
+  },
+  "pipeline_audit": {
+    "BTCUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "quality_gate",
+      "estrutura",
+      "smart_money",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ]
+  }
+}

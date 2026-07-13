@@ -132,7 +132,12 @@ def detect_order_blocks(candles: List[Candle], tf: str) -> List[Pattern]:
                 confidence=0.75,
                 strength=min(body_curr / body_prev, 3.0) / 3.0,
                 description=f"Order Block bullish em {curr.high:.2f}",
-                metadata={"index": i, "body_ratio": body_curr / body_prev if body_prev > 0 else 1.0},
+                metadata={
+                    "index": i,
+                    "body_ratio": body_curr / body_prev if body_prev > 0 else 1.0,
+                    "upper": curr.high,
+                    "lower": curr.low,
+                },
             ))
         bearish_move = next_.close < curr.low and body_curr > body_prev * 1.5
         if bearish_move and curr.close > curr.open:
@@ -144,7 +149,12 @@ def detect_order_blocks(candles: List[Candle], tf: str) -> List[Pattern]:
                 confidence=0.75,
                 strength=min(body_curr / body_prev, 3.0) / 3.0,
                 description=f"Order Block bearish em {curr.low:.2f}",
-                metadata={"index": i, "body_ratio": body_curr / body_prev if body_prev > 0 else 1.0},
+                metadata={
+                    "index": i,
+                    "body_ratio": body_curr / body_prev if body_prev > 0 else 1.0,
+                    "upper": curr.high,
+                    "lower": curr.low,
+                },
             ))
     return patterns
 
@@ -162,26 +172,38 @@ def detect_fvg(candles: List[Candle], tf: str) -> List[Pattern]:
             if gap_bps >= FVG_MIN_GAP_BPS:
                 patterns.append(Pattern(
                     type=PatternType.FVG,
-                    direction=SignalDirection.LONG,
+                    direction=SignalDirection.SHORT,
                     timeframe=tf,
                     price=(prev.low + nxt.high) / 2,
                     confidence=0.70,
                     strength=min(gap_bps / 50, 1.0),
-                    description=f"FVG bullish: {nxt.high:.2f} - {prev.low:.2f} ({gap_bps:.1f}bps)",
-                    metadata={"gap_top": prev.low, "gap_bottom": nxt.high, "gap_bps": gap_bps},
+                    description=f"FVG bearish: {nxt.high:.2f} - {prev.low:.2f} ({gap_bps:.1f}bps)",
+                    metadata={
+                        "upper": prev.low,
+                        "lower": nxt.high,
+                        "gap_top": prev.low,
+                        "gap_bottom": nxt.high,
+                        "gap_bps": gap_bps,
+                    },
                 ))
         if prev.high < nxt.low:
             gap_bps = ((nxt.low - prev.high) / prev.high) * 10000
             if gap_bps >= FVG_MIN_GAP_BPS:
                 patterns.append(Pattern(
                     type=PatternType.FVG,
-                    direction=SignalDirection.SHORT,
+                    direction=SignalDirection.LONG,
                     timeframe=tf,
                     price=(prev.high + nxt.low) / 2,
                     confidence=0.70,
                     strength=min(gap_bps / 50, 1.0),
-                    description=f"FVG bearish: {prev.high:.2f} - {nxt.low:.2f} ({gap_bps:.1f}bps)",
-                    metadata={"gap_top": prev.high, "gap_bottom": nxt.low, "gap_bps": gap_bps},
+                    description=f"FVG bullish: {prev.high:.2f} - {nxt.low:.2f} ({gap_bps:.1f}bps)",
+                    metadata={
+                        "upper": nxt.low,
+                        "lower": prev.high,
+                        "gap_top": prev.high,
+                        "gap_bottom": nxt.low,
+                        "gap_bps": gap_bps,
+                    },
                 ))
     return patterns
 

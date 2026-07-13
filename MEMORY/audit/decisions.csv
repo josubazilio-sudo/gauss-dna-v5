@@ -1,0 +1,183 @@
+cycle,pair,status,primary_reason,final_decision,quality_score,confidence_score
+1,ADAUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.613,0.788
+1,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.553,0.6659
+1,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5823,0.8612
+1,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5319,0.7405
+1,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5205,0.7428
+1,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.603,0.7859
+10,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+10,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+10,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+10,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+10,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+10,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+11,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+11,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+11,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+11,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+11,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+11,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+12,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+12,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+12,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+12,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+12,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+12,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+13,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+13,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+13,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+13,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+13,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+13,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+14,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+14,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+14,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+14,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+14,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+14,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+15,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+15,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+15,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+15,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+15,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+15,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+16,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+16,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+16,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+16,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+16,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+16,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+17,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+17,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+17,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+17,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+17,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+17,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+18,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+18,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+18,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+18,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+18,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+18,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+19,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+19,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+19,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+19,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+19,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+19,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+2,ADAUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.613,0.788
+2,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.553,0.6659
+2,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5823,0.8612
+2,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5319,0.7405
+2,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5205,0.7428
+2,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.603,0.7859
+20,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+20,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+20,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+20,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+20,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+20,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+21,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+21,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+21,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+21,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+21,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+21,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+22,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+22,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+22,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+22,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+22,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+22,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+23,0GUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4754,0.8042
+23,114514USDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5199,0.7217
+23,1INCHUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.474,0.7426
+23,1R0RUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5555,0.8473
+23,2ZUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.54,0.8225
+23,3ULLUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5836,0.7452
+23,4USDT,APPROVED,,Approved by Quality Gate,0.5065,0.7753
+23,67USDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5062,0.8623
+23,9BITUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4934,0.6006
+23,A8USDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5151,0.8627
+23,AALONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4967,0.7421
+23,AAOIONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4664,0.7363
+23,AAPLONUSDT,APPROVED,,Approved by Quality Gate,0.4936,0.7453
+23,AAPLXUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4926,0.8058
+23,AASTUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4887,0.742
+23,AAVEUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.463,0.7785
+23,ABBCUSDT,REJECTED,Nenhum sinal,Rejected: no signals generated,0,
+23,ABBVONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4609,0.6702
+23,ABELUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4539,0.6754
+23,ABEYUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5164,0.7265
+23,ABNBONUSDT,APPROVED,,Approved by Quality Gate,0.4861,0.7467
+23,ABTONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4956,0.7379
+23,ABUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4574,0.82
+23,ACAUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4654,0.7471
+23,ACEUSDT,APPROVED,,Approved by Quality Gate,0.5567,0.8499
+23,ACHRONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4648,0.6006
+23,ACHUSDT,APPROVED,,Approved by Quality Gate,0.4613,0.6004
+23,ACMUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4693,0.7374
+23,ACNONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5203,0.6697
+23,ACNUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.514,0.7456
+23,ACSUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4861,0.6704
+23,ACTUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.461,0.6626
+23,ACUUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4684,0.6939
+23,ACXUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4799,0.6624
+23,ADAUSDT,APPROVED,,Approved by Quality Gate,0.5492,0.8341
+23,ADBEONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4802,0.7464
+23,ADIONUSDT,APPROVED,,Approved by Quality Gate,0.4884,0.663
+23,ADIUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5019,0.7837
+23,ADOUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.527,0.8231
+23,ADXUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5635,0.8607
+23,AEROBUDUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4636,0.7431
+23,AEROUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5296,0.822
+23,AEVOUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5505,0.8438
+23,AFCUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4741,0.8022
+23,AGGONUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5144,0.7533
+23,AGIUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.5601,0.7955
+23,AGLDUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4777,0.7277
+23,AGROUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.491,0.7439
+23,AGRSUSDT,REJECTED,Entry Zone Score Too Low,Rejected by Entry Zone Score Too Low,0.4983,0.6021
+23,AGTUSDT,REJECTED,Nenhum sinal,Rejected: no signals generated,0,
+3,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+3,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+3,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+3,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+3,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+3,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+4,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+4,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+4,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+4,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+4,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+4,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+5,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+5,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+5,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+5,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+5,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+5,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+6,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+6,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+6,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+6,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+6,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+6,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+7,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+7,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+7,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+7,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+7,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+7,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+8,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+8,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+8,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+8,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+8,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+8,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411
+9,ADAUSDT,REJECTED,RVOL 0.49x abaixo do minimo 0.5x,Rejected by RVOL 0.49x abaixo do minimo 0.5x,0.5171,0.6761
+9,BNBUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.592,0.7416
+9,BTCUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5073,0.744
+9,DOGEUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6075,0.8621
+9,ETHUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.6026,0.5997
+9,SOLUSDT,REJECTED,Zona de entrada nao aprovada,Rejected by Zona de entrada nao aprovada,0.5401,0.7411

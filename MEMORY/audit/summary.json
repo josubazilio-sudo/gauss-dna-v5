@@ -1,0 +1,18 @@
+{
+  "total_cycles": 59,
+  "total_assets_analyzed": 11400,
+  "total_signals_approved": 6,
+  "total_signals_rejected": 11394,
+  "total_silent_drops": 21,
+  "total_bugs": 0,
+  "avg_processing_time_ms": 39174.3,
+  "avg_quality": 0.3777,
+  "avg_consensus": 0.378,
+  "avg_confidence": 0.4871,
+  "avg_entry_score": 16.581,
+  "profit_factor": null,
+  "win_rate": null,
+  "drawdown": null,
+  "last_cycle": 19,
+  "last_update": "2026-07-13 02:39:28.069637+00:00"
+}

@@ -67,7 +67,7 @@ class ExecutionEngine:
         if not self._rm.can_open_position(bal, entry_price, spread):
             return ExecutionResult(False, error="Risk check failed")
 
-        order = self._om.create_market_order(pair, side, quantity, signal_id)
+        order = self._om.create_market_order(pair, side, quantity, signal_id, entry_price=entry_price)
         if not order:
             return ExecutionResult(False, error="Order creation failed")
 

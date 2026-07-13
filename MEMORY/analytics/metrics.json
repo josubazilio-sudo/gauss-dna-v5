@@ -1,0 +1,12 @@
+{
+  "status": "no_trades",
+  "total_trades": 0,
+  "lucro_diario": {},
+  "lucro_semanal": {},
+  "lucro_mensal": {},
+  "max_win_streak": 0,
+  "max_loss_streak": 0,
+  "duracao_media_horas": null,
+  "win_rate_por_ativo": {},
+  "win_rate_por_timeframe": {}
+}

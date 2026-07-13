@@ -1,0 +1,424 @@
+{
+  "cycle": 613,
+  "timestamp": "2026-07-11 01:52:34.303615+00:00",
+  "duration_ms": 489.10975456237793,
+  "total_assets": 6,
+  "approved_assets": 0,
+  "pipeline_steps": {
+    "Ativos monitorados": 6,
+    "Ativos processados": 6
+  },
+  "rejection_reasons": {
+    "Nenhum sinal": 6
+  },
+  "top_candidates": [],
+  "approved_signals": [],
+  "indicators": {
+    "ADAUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr": 0.0019136222607054954,
+      "adx": 57.1142925605267,
+      "rsi": 76.98,
+      "rvol": 2.0128,
+      "volatility": 0.013957694004243421,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "BNBUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr": 0.004334487043282671,
+      "adx": 100.0,
+      "rsi": 93.43,
+      "rvol": 1.4564,
+      "volatility": 0.04886993887996581,
+      "regime": "trending_up",
+      "regime_confidence": 0.9
+    },
+    "BTCUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr": 0.003965571180873146,
+      "adx": 67.43488022426781,
+      "rsi": 71.0,
+      "rvol": 1.0174,
+      "volatility": 0.03028163396576069,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "DOGEUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr": 0.003155249757266963,
+      "adx": 77.09730846752181,
+      "rsi": 13.81,
+      "rvol": 1.5452,
+      "volatility": 0.03532411482802449,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "ETHUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr": 0.0029613061411724807,
+      "adx": 73.28937091604726,
+      "rsi": 16.64,
+      "rvol": 0.3882,
+      "volatility": 0.02468322093932876,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    },
+    "SOLUSDT": {
+      "candles": {
+        "30m": 200,
+        "1h": 250,
+        "4h": 250,
+        "1d": 250
+      },
+      "atr": 0.001810437885470591,
+      "adx": 34.109639763817114,
+      "rsi": 32.58,
+      "rvol": 2.0901,
+      "volatility": 0.016700489165222883,
+      "regime": "ranging",
+      "regime_confidence": 0.3
+    }
+  },
+  "structures": {
+    "ADAUSDT": {
+      "trend": "neutral",
+      "strength": 0.6667,
+      "bos": 0,
+      "choch": 0
+    },
+    "BNBUSDT": {
+      "trend": "bullish",
+      "strength": 1.0,
+      "bos": 0,
+      "choch": 0
+    },
+    "BTCUSDT": {
+      "trend": "neutral",
+      "strength": 1.0,
+      "bos": 0,
+      "choch": 0
+    },
+    "DOGEUSDT": {
+      "trend": "neutral",
+      "strength": 1.0,
+      "bos": 0,
+      "choch": 0
+    },
+    "ETHUSDT": {
+      "trend": "neutral",
+      "strength": 0.6667,
+      "bos": 0,
+      "choch": 0
+    },
+    "SOLUSDT": {
+      "trend": "neutral",
+      "strength": 0.9264,
+      "bos": 0,
+      "choch": 0
+    }
+  },
+  "smart_money": {},
+  "entry_zones": {
+    "ADAUSDT": {
+      "zone_type": "none",
+      "score": 0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "BNBUSDT": {
+      "zone_type": "none",
+      "score": 0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "BTCUSDT": {
+      "zone_type": "none",
+      "score": 0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "DOGEUSDT": {
+      "zone_type": "none",
+      "score": 0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "ETHUSDT": {
+      "zone_type": "none",
+      "score": 0,
+      "distance": 0.0,
+      "approved": false
+    },
+    "SOLUSDT": {
+      "zone_type": "none",
+      "score": 0,
+      "distance": 0.0,
+      "approved": false
+    }
+  },
+  "consensus": {
+    "ADAUSDT": {
+      "consensus_score": 0,
+      "final_direction": "none",
+      "classification": "Sem dados",
+      "votes": []
+    },
+    "BNBUSDT": {
+      "consensus_score": 0,
+      "final_direction": "none",
+      "classification": "Sem dados",
+      "votes": []
+    },
+    "BTCUSDT": {
+      "consensus_score": 0,
+      "final_direction": "none",
+      "classification": "Sem dados",
+      "votes": []
+    },
+    "DOGEUSDT": {
+      "consensus_score": 0,
+      "final_direction": "none",
+      "classification": "Sem dados",
+      "votes": []
+    },
+    "ETHUSDT": {
+      "consensus_score": 0,
+      "final_direction": "none",
+      "classification": "Sem dados",
+      "votes": []
+    },
+    "SOLUSDT": {
+      "consensus_score": 0,
+      "final_direction": "none",
+      "classification": "Sem dados",
+      "votes": []
+    }
+  },
+  "quality_gates": {},
+  "final_decisions": {
+    "ADAUSDT": {
+      "status": "REJECTED",
+      "direction": "",
+      "trace_id": "",
+      "primary_reason": "Nenhum sinal",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "Rejected: no signals generated",
+      "timestamp": "2026-07-11 01:52:34.373523+00:00",
+      "processing_time_ms": 55.9
+    },
+    "BNBUSDT": {
+      "status": "REJECTED",
+      "direction": "",
+      "trace_id": "",
+      "primary_reason": "Nenhum sinal",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "Rejected: no signals generated",
+      "timestamp": "2026-07-11 01:52:34.415818+00:00",
+      "processing_time_ms": 42.2
+    },
+    "BTCUSDT": {
+      "status": "REJECTED",
+      "direction": "",
+      "trace_id": "",
+      "primary_reason": "Nenhum sinal",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "Rejected: no signals generated",
+      "timestamp": "2026-07-11 01:52:34.448083+00:00",
+      "processing_time_ms": 32.2
+    },
+    "DOGEUSDT": {
+      "status": "REJECTED",
+      "direction": "",
+      "trace_id": "",
+      "primary_reason": "Nenhum sinal",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "Rejected: no signals generated",
+      "timestamp": "2026-07-11 01:52:34.487384+00:00",
+      "processing_time_ms": 39.2
+    },
+    "ETHUSDT": {
+      "status": "REJECTED",
+      "direction": "",
+      "trace_id": "",
+      "primary_reason": "Nenhum sinal",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "Rejected: no signals generated",
+      "timestamp": "2026-07-11 01:52:34.560620+00:00",
+      "processing_time_ms": 73.2
+    },
+    "SOLUSDT": {
+      "status": "REJECTED",
+      "direction": "",
+      "trace_id": "",
+      "primary_reason": "Nenhum sinal",
+      "expected": null,
+      "obtained": null,
+      "difference": null,
+      "secondary_reasons": [],
+      "final_decision": "Rejected: no signals generated",
+      "timestamp": "2026-07-11 01:52:34.790129+00:00",
+      "processing_time_ms": 229.4
+    }
+  },
+  "bugs": [
+    {
+      "module": "DiagnosticEngine",
+      "function": "detect_silent_drops",
+      "last_stage": "decisao_final",
+      "probable_cause": "Ativo ADAUSDT desapareceu do pipeline. Etapas concluidas: carregamento, api, candles, indicadores, estrutura, entry_zone, consensus, decisao_final. Esperado: carregamento, api, candles, indicadores, estrutura, smart_money, entry_zone, consensus, quality_gate, decisao_final",
+      "timestamp": "2026-07-11 01:52:34.790167+00:00"
+    },
+    {
+      "module": "DiagnosticEngine",
+      "function": "detect_silent_drops",
+      "last_stage": "decisao_final",
+      "probable_cause": "Ativo BNBUSDT desapareceu do pipeline. Etapas concluidas: carregamento, api, candles, indicadores, estrutura, entry_zone, consensus, decisao_final. Esperado: carregamento, api, candles, indicadores, estrutura, smart_money, entry_zone, consensus, quality_gate, decisao_final",
+      "timestamp": "2026-07-11 01:52:34.790509+00:00"
+    },
+    {
+      "module": "DiagnosticEngine",
+      "function": "detect_silent_drops",
+      "last_stage": "decisao_final",
+      "probable_cause": "Ativo BTCUSDT desapareceu do pipeline. Etapas concluidas: carregamento, api, candles, indicadores, estrutura, entry_zone, consensus, decisao_final. Esperado: carregamento, api, candles, indicadores, estrutura, smart_money, entry_zone, consensus, quality_gate, decisao_final",
+      "timestamp": "2026-07-11 01:52:34.791439+00:00"
+    },
+    {
+      "module": "DiagnosticEngine",
+      "function": "detect_silent_drops",
+      "last_stage": "decisao_final",
+      "probable_cause": "Ativo DOGEUSDT desapareceu do pipeline. Etapas concluidas: carregamento, api, candles, indicadores, estrutura, entry_zone, consensus, decisao_final. Esperado: carregamento, api, candles, indicadores, estrutura, smart_money, entry_zone, consensus, quality_gate, decisao_final",
+      "timestamp": "2026-07-11 01:52:34.791811+00:00"
+    },
+    {
+      "module": "DiagnosticEngine",
+      "function": "detect_silent_drops",
+      "last_stage": "decisao_final",
+      "probable_cause": "Ativo ETHUSDT desapareceu do pipeline. Etapas concluidas: carregamento, api, candles, indicadores, estrutura, entry_zone, consensus, decisao_final. Esperado: carregamento, api, candles, indicadores, estrutura, smart_money, entry_zone, consensus, quality_gate, decisao_final",
+      "timestamp": "2026-07-11 01:52:34.792140+00:00"
+    },
+    {
+      "module": "DiagnosticEngine",
+      "function": "detect_silent_drops",
+      "last_stage": "decisao_final",
+      "probable_cause": "Ativo SOLUSDT desapareceu do pipeline. Etapas concluidas: carregamento, api, candles, indicadores, estrutura, entry_zone, consensus, decisao_final. Esperado: carregamento, api, candles, indicadores, estrutura, smart_money, entry_zone, consensus, quality_gate, decisao_final",
+      "timestamp": "2026-07-11 01:52:34.792452+00:00"
+    }
+  ],
+  "health": {
+    "api": 100,
+    "candles": 0.0,
+    "pipeline": 0.0,
+    "silent_drops": 0,
+    "rejected": 6,
+    "approved": 0,
+    "bugs": 6,
+    "health_score": 10.0,
+    "loop_status": "STOPPED",
+    "last_heartbeat_ago_s": 0,
+    "last_cycle_ago_s": 0,
+    "next_cycle_in_s": 59
+  },
+  "pipeline_audit": {
+    "ADAUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "BNBUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "BTCUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "DOGEUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "ETHUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ],
+    "SOLUSDT": [
+      "carregamento",
+      "api",
+      "candles",
+      "indicadores",
+      "estrutura",
+      "entry_zone",
+      "consensus",
+      "decisao_final"
+    ]
+  }
+}

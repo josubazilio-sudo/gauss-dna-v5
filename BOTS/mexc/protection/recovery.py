@@ -8,6 +8,7 @@ from ..bot_types import BotStatus, ConnectionStatus, Order, OrderStatus
 from ..exchange.connector import ExchangeConnector
 from ..trading.order_manager import OrderManager
 from ..trading.position_manager import BotPositionManager
+from CORE.execution.mode_manager import ExecutionModeManager
 
 log = logging.getLogger(__name__)
 
@@ -45,12 +46,12 @@ class RecoveryEngine:
             return False
 
     def sync_orders(self) -> None:
+        mode = ExecutionModeManager()
         log.info("RecoveryEngine: syncing open orders...")
         self._om.sync_open_orders()
 
-        # Check for orphan orders (orders that exist on exchange but not in order manager)
         for pair in self._config.pairs:
-            if self._config.dry_run:
+            if not mode.is_live():
                 continue
             try:
                 ex_orders = self._exchange.get_open_orders(pair)
@@ -81,6 +82,10 @@ class RecoveryEngine:
                     self._om.create_stop_order(pos.pair, side, pos.quantity, pos.stop_loss, reduce_only=True)
 
     def handle_disconnect(self) -> None:
+        mode = ExecutionModeManager()
+        if not mode.is_live():
+            log.info("RecoveryEngine: modo %s — reconexao ignorada", mode.mode_name)
+            return
         log.warning("RecoveryEngine: connection lost. Initiating automatic reconnect loop...")
         for attempt in range(self._config.reconnection_attempts):
             log.info("RecoveryEngine: reconnection attempt %d/%d...", attempt + 1, self._config.reconnection_attempts)

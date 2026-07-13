@@ -24,6 +24,7 @@ class Settings:
             self.env = Environment()
             self.constants = Constants()
             self._config: Dict[str, Any] = {}
+            self._config['PRODUCTION_VALIDATION'] = True
             self._initialized = True
 
     def get(self, key: str, default: Any = None) -> Any:

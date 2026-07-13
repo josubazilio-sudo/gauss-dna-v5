@@ -34,10 +34,10 @@ class EmergencyProtection:
         if not positions:
             return False
 
-        # Calculate absolute drawdown from unrealized PnL
+        # Calculate drawdown from negative unrealized PnL only
         unrealized_pnl = sum(p.unrealized_pnl for p in positions)
         if total_balance > 0:
-            dd_pct = abs(unrealized_pnl) / total_balance
+            dd_pct = max(0, -unrealized_pnl) / total_balance
             if dd_pct >= self._config.emergency_stop_loss_pct:
                 log.critical("EmergencyProtection: DRAWDOWN %.2f%% EXCEEDS LIMIT %.2f%%. TRIGGERING EMERGENCY SHUTDOWN!",
                              dd_pct * 100, self._config.emergency_stop_loss_pct * 100)

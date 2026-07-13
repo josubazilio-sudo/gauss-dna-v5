@@ -1,0 +1,19 @@
+{
+    "institutional": {
+        "structural": 0.2,
+        "market": 0.2,
+        "momentum": 0.2,
+        "liquidity": 0.15,
+        "risk": 0.15,
+        "confidence": 0.1
+    },
+    "quality_score": {
+        "institutional": 0.2998,
+        "structural": 0.1977,
+        "market": 0.1005,
+        "momentum": 0.0988,
+        "liquidity": 0.1038,
+        "risk": 0.0988,
+        "confidence": 0.1005
+    }
+}

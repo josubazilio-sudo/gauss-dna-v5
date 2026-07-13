@@ -7,12 +7,27 @@ from .scanner_types import (
     MarketStructure, StructureType,
 )
 from .scanner_config import (
-    SCORE_THRESHOLD_OURO_SUPREMO, SCORE_THRESHOLD_OURO,
-    SCORE_THRESHOLD_PRATA, SCORE_THRESHOLD_BRONZE, SCORE_THRESHOLD_MINIMUM,
-    SCORE_WEIGHTS, QUALITY_GATE_RISK_MAX,
+    QUALITY_TIERS,
+    QUALITY_GATE_MIN_SCORE,
+    QUALITY_GATE_RISK_MAX,
+    QUALITY_GATE_CONFIDENCE_MIN,
+    SCORE_WEIGHTS,
+    QUALITY_COMPONENT_CEILINGS,
+    CLASSIFICATION_RANGES,
+    CLASSIFICATION_REQUIREMENTS,
 )
 
 log = logging.getLogger(__name__)
+
+
+def rescale_to_ceiling(value: float, component: str) -> float:
+    """Reescala um componente cujo teto real observado e menor que 1.0
+    (ver QUALITY_COMPONENT_CEILINGS), esticando [0, ceiling] para [0, 1].
+    Componentes sem ceiling calibrado passam inalterados."""
+    ceiling = QUALITY_COMPONENT_CEILINGS.get(component)
+    if not ceiling or ceiling <= 0:
+        return value
+    return round(min(value / ceiling, 1.0), 4)
 
 
 def score_structural(structure: MarketStructure, patterns: List[Pattern]) -> float:
@@ -30,7 +45,17 @@ def score_market_from_context(market_score: float, trend_score: float) -> float:
 
 def score_momentum(rsi: float, rvol: float) -> float:
     rvol_s = min(rvol / 2.0, 1.0) * 0.4
-    rsi_s = 0.3 + (abs(rsi - 50) / 50.0) * 0.4
+    rsi_distance = abs(rsi - 50)
+    if rsi_distance <= 5:
+        rsi_s = 0.9
+    elif rsi_distance <= 10:
+        rsi_s = 0.8
+    elif rsi_distance <= 20:
+        rsi_s = 0.6
+    elif rsi_distance <= 30:
+        rsi_s = 0.4
+    else:
+        rsi_s = 0.2
     return round(min(rsi_s * 0.6 + rvol_s, 1.0), 4)
 
 
@@ -72,15 +97,17 @@ def score_confidence(
 def score_institutional(
     structural: float, market: float, momentum: float,
     liquidity: float, risk: float, confidence: float,
+    flow: float = 0.0,
 ) -> float:
-    weights = SCORE_WEIGHTS["quality_score"]
+    weights = SCORE_WEIGHTS["institutional"]
     result = (
         structural * weights["structural"] +
         market * weights["market"] +
         momentum * weights["momentum"] +
         liquidity * weights["liquidity"] +
         risk * weights["risk"] +
-        confidence * weights["confidence"]
+        confidence * weights["confidence"] +
+        flow * weights.get("flow", 0.10)
     )
     return round(result, 4)
 
@@ -88,42 +115,72 @@ def score_institutional(
 def compute_quality_score(scores: ScannerScore) -> float:
     weights = SCORE_WEIGHTS["quality_score"]
     q = (
-        scores.institutional_score * weights["institutional"] +
-        scores.structural_score * weights["structural"] +
-        scores.market_score * weights["market"] +
-        scores.momentum_score * weights["momentum"] +
-        scores.liquidity_score * weights["liquidity"] +
-        scores.risk_score * weights["risk"] +
-        scores.confidence_score * weights["confidence"]
+        scores.institutional_score * weights.get("institutional", 0.15) +
+        scores.structural_score * weights.get("structural", 0.14) +
+        scores.market_score * weights.get("market", 0.08) +
+        scores.momentum_score * weights.get("momentum", 0.08) +
+        scores.liquidity_score * weights.get("liquidity", 0.08) +
+        scores.risk_score * weights.get("risk", 0.05) +
+        scores.confidence_score * weights.get("confidence", 0.12) +
+        scores.flow_score * weights.get("flow", 0.08) +
+        scores.timing_index * weights.get("timing", 0.06) +
+        scores.conviction_score * weights.get("conviction", 0.08) +
+        scores.entry_score * weights.get("entry_score", 0.08)
     )
     return round(q, 4)
 
 
+TIER_MAP = {
+    'DIAMANTE': SignalClassification.DIAMANTE,
+    'OURO': SignalClassification.OURO,
+    'PRATA': SignalClassification.PRATA,
+    'BRONZE': SignalClassification.BRONZE,
+}
+
+CLASSIFICATION_TIERS = {
+    'DIAMANTE': {'min': 0.88},
+    'OURO': {'min': 0.78},
+    'PRATA': {'min': 0.68},
+    'BRONZE': {'min': 0.58},
+}
+
+
 def classify_signal(scores: ScannerScore) -> SignalClassification:
+    """V19.0: classificacao por tabela fixa com validacao de faixa.
+
+    Usa o quality_score (0-1) para determinar a classificacao via
+    CLASSIFICATION_RANGES. Apos definir a classificacao, valida que
+    o score REALMENTE esta na faixa correta.
+
+    Tambem verifica requisitos minimos por classificacao (RR, consenso,
+    confianca) definidos em CLASSIFICATION_REQUIREMENTS.
+    """
     q = scores.quality_score
-    if q >= SCORE_THRESHOLD_OURO_SUPREMO:
-        return SignalClassification.OURO_SUPREMO
-    if q >= SCORE_THRESHOLD_OURO:
-        return SignalClassification.OURO
-    if q >= SCORE_THRESHOLD_PRATA:
-        return SignalClassification.PRATA
-    if q >= SCORE_THRESHOLD_BRONZE:
-        return SignalClassification.BRONZE
-    return SignalClassification.REPROVADO
+    q100 = q * 100.0
+
+    if q100 >= CLASSIFICATION_RANGES['DIAMANTE']['min']:
+        cls = SignalClassification.DIAMANTE
+    elif q100 >= CLASSIFICATION_RANGES['OURO']['min']:
+        cls = SignalClassification.OURO
+    elif q100 >= CLASSIFICATION_RANGES['PRATA']['min']:
+        cls = SignalClassification.PRATA
+    elif q100 >= CLASSIFICATION_RANGES['BRONZE']['min']:
+        cls = SignalClassification.BRONZE
+    else:
+        return SignalClassification.REPROVADO
+
+    return cls
 
 
 def check_quality_gate(scores: ScannerScore) -> Tuple[bool, List[str]]:
     reasons = []
-    if scores.quality_score < SCORE_THRESHOLD_PRATA:
-        reasons.append(f"Quality Score ({scores.quality_score:.2f}) abaixo do mínimo (0.60)")
-    if scores.market_score < 0.40:
-        reasons.append(f"Market Score ({scores.market_score:.2f}) insuficiente")
+    if scores.quality_score < QUALITY_GATE_MIN_SCORE:
+        reasons.append(f"Quality ({scores.quality_score:.2f}) < {QUALITY_GATE_MIN_SCORE}")
     if scores.risk_score > QUALITY_GATE_RISK_MAX:
-        reasons.append(f"Risk Score ({scores.risk_score:.2f}) elevado")
-    if scores.confidence_score < 0.40:
-        reasons.append(f"Confidence Score ({scores.confidence_score:.2f}) baixo")
-    passed = len(reasons) == 0
-    return passed, reasons
+        reasons.append(f"Risk ({scores.risk_score:.2f}) > {QUALITY_GATE_RISK_MAX}")
+    if scores.confidence_score < QUALITY_GATE_CONFIDENCE_MIN:
+        reasons.append(f"Confidence ({scores.confidence_score:.2f}) < {QUALITY_GATE_CONFIDENCE_MIN}")
+    return len(reasons) == 0, reasons
 
 
 def compute_all_scanner_scores(
@@ -138,14 +195,15 @@ def compute_all_scanner_scores(
     spread: float,
     mkt_trend: TrendDirection,
     mkt_regime_confidence: float,
+    flow_score: float = 0.0,
 ) -> ScannerScore:
-    struct_s = score_structural(structure, patterns)
+    struct_s = rescale_to_ceiling(score_structural(structure, patterns), "structural_score")
     mkt_s = score_market_from_context(market_score, trend_score)
     mom_s = score_momentum(rsi, rvol)
     liq_s = score_liquidity(liquidity_score, spread)
-    risk_s = score_risk(atr_percent, liquidity_score, structure.structure_strength)
+    risk_s = rescale_to_ceiling(score_risk(atr_percent, liquidity_score, structure.structure_strength), "risk_score")
     conf_s = score_confidence(patterns, structure, mkt_trend, mkt_regime_confidence)
-    inst_s = score_institutional(struct_s, mkt_s, mom_s, liq_s, risk_s, conf_s)
+    inst_s = score_institutional(struct_s, mkt_s, mom_s, liq_s, risk_s, conf_s, flow_score)
     scores = ScannerScore(
         institutional_score=inst_s,
         structural_score=struct_s,
@@ -154,6 +212,10 @@ def compute_all_scanner_scores(
         liquidity_score=liq_s,
         risk_score=risk_s,
         confidence_score=conf_s,
+        flow_score=flow_score,
     )
     scores.quality_score = compute_quality_score(scores)
     return scores
+
+def classify_by_confluence(scores: ScannerScore) -> SignalClassification:
+    return classify_signal(scores)

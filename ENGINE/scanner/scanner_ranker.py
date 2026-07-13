@@ -21,6 +21,16 @@ def filter_top(signals: List[Signal], max_count: int = MAX_CANDIDATES_PER_CYCLE)
 
 
 def pipeline(signals: List[Signal]) -> List[Signal]:
-    filtered = filter_by_threshold(signals)
-    ranked = rank_signals(filtered)
+    """Rankeia e limita os candidatos do ciclo — nao aplica gate de qualidade.
+
+    filter_by_threshold() nao e chamado aqui de proposito: o mesmo
+    QUALITY_GATE_MIN_SCORE ja e verificado pelo Gate 11 do DecisionEngine
+    (ENGINE/decision/decision_engine.py). Filtrar aqui tambem descartava o
+    sinal de report.signals ANTES de chegar no DecisionEngine, fazendo o
+    pipeline reportar "Nenhum sinal" (opaco, sem motivo) em vez do motivo
+    real da rejeicao, e pulando o registro de diagnostico dos estagios
+    smart_money/quality_gate mesmo quando o sinal foi construido com
+    sucesso. O DecisionEngine e a unica fonte de verdade para este gate.
+    """
+    ranked = rank_signals(signals)
     return filter_top(ranked)

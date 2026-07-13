@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 
 class SignalClassification(Enum):
-    OURO_SUPREMO = "ouro_supremo"
+    DIAMANTE = "diamante"
     OURO = "ouro"
     PRATA = "prata"
     BRONZE = "bronze"
@@ -103,6 +103,12 @@ class ScannerScore:
     risk_score: float = 0.0
     confidence_score: float = 0.0
     quality_score: float = 0.0
+    entry_score: float = 0.0
+    consensus_score: float = 0.0
+    conviction_score: float = 0.0
+    flow_score: float = 0.0
+    follow_through: float = 0.0
+    timing_index: float = 0.0
 
     def to_dict(self) -> Dict[str, float]:
         return {
@@ -114,6 +120,12 @@ class ScannerScore:
             "risk_score": self.risk_score,
             "confidence_score": self.confidence_score,
             "quality_score": self.quality_score,
+            "entry_score": self.entry_score,
+            "consensus_score": self.consensus_score,
+            "conviction_score": self.conviction_score,
+            "flow_score": self.flow_score,
+            "follow_through": self.follow_through,
+            "timing_index": self.timing_index,
         }
 
 
@@ -137,12 +149,49 @@ class Signal:
     rejection_reasons: List[str]
     confidence: float
     quality: float
+    penalty_reasons: List[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=lambda: datetime.now())
     market_context: Optional[Dict[str, Any]] = None
+    rvol: float = 0.0
+    adx: float = 0.0
+    regime: str = "unknown"
+    entry_type: str = "a_mercado"
+    atr_value: float = 0.0
+    volume: float = 0.0
+    ema50: float = 0.0
+    ema200: float = 0.0
+    vwap: float = 0.0
+    structure_strength: float = 0.0
+    false_breakout_clear: bool = False
+    traps_clear: bool = False
+    volume_above_avg: bool = False
+    rvol_confirmed: bool = False
+    no_absorption: bool = True
+    no_rejection: bool = True
+    structure_valid: bool = False
+    signal_id: str = ""
+    explanation: str = ""
+    entry_zone: str = ""
+    order_block_distance: float = 0.0
+    fvg_distance: float = 0.0
+    validity: str = ""
+    entry_details: Optional["EntryDetails"] = None
+    kalman_direction: str = "UNKNOWN"
+    kalman_confidence: float = 0.0
+    kalman_trend_state: str = "ranging"
+    kalman_tendency: float = 0.0
+    classification_label: str = "reprovado"
+
+    @property
+    def approved(self) -> bool:
+        return len(self.rejection_reasons) == 0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "signal_id": self.signal_id,
+            "timestamp": self.timestamp.isoformat(),
             "ticker": self.ticker,
+            "pair": self.ticker,
             "timeframe": self.timeframe,
             "direction": self.direction.value,
             "entry_price": self.entry_price,
@@ -151,16 +200,45 @@ class Signal:
             "take_profit_2": self.take_profit_2,
             "risk_reward": self.risk_reward,
             "scores": self.scores.to_dict(),
-            "classification": self.classification.value,
+            "classification": self.classification.value if self.classification else None,
             "patterns": [p.type.value for p in self.patterns],
-            "structure": self.structure.to_dict(),
+            "structure": self.structure.to_dict() if self.structure else None,
             "setup": self.setup,
             "context": self.context,
             "confidence": self.confidence,
             "quality": self.quality,
             "approval_reasons": self.approval_reasons,
             "rejection_reasons": self.rejection_reasons,
-            "timestamp": self.timestamp.isoformat(),
+            "penalty_reasons": self.penalty_reasons,
+            "regime": self.regime,
+            "entry_type": self.entry_type,
+            "entry_zone": self.entry_zone,
+            "order_block_distance": self.order_block_distance,
+            "fvg_distance": self.fvg_distance,
+            "validity": self.validity,
+            "approved": self.approved,
+            "rvol": self.rvol,
+            "adx": self.adx,
+            "atr": self.atr_value,
+            "volume": self.volume,
+            "ema50": self.ema50,
+            "ema200": self.ema200,
+            "vwap": self.vwap,
+            "structure_strength": self.structure_strength,
+            "market_context": self.market_context,
+            "explanation": self.explanation,
+            "kalman_direction": self.kalman_direction,
+            "kalman_confidence": self.kalman_confidence,
+            "kalman_trend_state": self.kalman_trend_state,
+            "kalman_tendency": self.kalman_tendency,
+            "classification_label": self.classification_label,
+            "false_breakout_clear": self.false_breakout_clear,
+            "traps_clear": self.traps_clear,
+            "volume_above_avg": self.volume_above_avg,
+            "rvol_confirmed": self.rvol_confirmed,
+            "no_absorption": self.no_absorption,
+            "no_rejection": self.no_rejection,
+            "structure_valid": self.structure_valid,
         }
 
 
@@ -184,3 +262,96 @@ class ScanReport:
             "errors": self.errors,
             "duration_ms": self.duration_ms,
         }
+
+@dataclass
+class EntryDetails:
+    entry_zone: "EntryZone"
+    score: float
+    is_valid: bool = True
+    approved: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "entry_zone": asdict(self.entry_zone),
+            "score": self.score,
+            "is_valid": self.is_valid,
+            "approved": self.approved
+        }
+
+@dataclass
+class EntryZone:
+    upper_limit: float
+    lower_limit: float
+    ideal_price: float
+    score: float
+    status: str
+
+
+@dataclass(frozen=True)
+class SignalCandidate:
+    trace_id: str
+    symbol: str
+    timeframe: str
+    patterns: List[Pattern]
+    structure: MarketStructure
+    scores: ScannerScore
+    rvol: float
+    adx: float
+    atr: float
+    spread: float
+    volume: float
+    current_price: float
+    direction: SignalDirection
+    lateral_market_score: float
+    entry_details: Optional[EntryDetails] = None
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+@dataclass
+class Penalty:
+    reason: str
+    weight: float
+    source: str
+
+@dataclass(frozen=True)
+class SignalDecision:
+    trace_id: str
+    symbol: str
+    timeframe: str
+    direction: str
+    approved: bool
+    reject_reason: Optional[str]
+    entry_price: float
+    stop_loss: float
+    tp1: float
+    tp2: float
+    entry_zone_valid: bool
+    entry_score: float
+    quality: float
+    confidence: float
+    risk: float
+    consensus: float
+    conviction: float
+    institutional_score: float
+    structural_score: float
+    market_score: float
+    liquidity_score: float
+    trend: str
+    trend_ok: bool
+    structure_ok: bool
+    market_ok: bool
+    volume_ok: bool
+    rvol_ok: bool
+    spread_ok: bool
+    adx_ok: bool
+    atr_ok: bool
+    patterns_ok: bool
+    bos: bool
+    choch: bool
+    fvg: bool
+    liquidity_sweep: bool
+    selected_order_block: Dict[str, Any]
+    timestamp: datetime
+    engine_version: str
+
+
+

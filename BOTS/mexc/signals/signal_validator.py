@@ -127,9 +127,6 @@ class SignalValidator:
             reasons.append("Invalid take profit 1")
         if signal.confidence < self._config.min_confidence:
             reasons.append(f"Confidence {signal.confidence:.2f} < min {self._config.min_confidence}")
-        if signal.pair not in self._config.pairs:
-            reasons.append(f"Pair {signal.pair} not in configured pairs")
-
         # ============================================================
         # DECISÃO FINAL
         # ============================================================

@@ -1,0 +1,83 @@
+==================================
+  RELATÓRIO FINAL — QUANTOS V2.0
+==================================
+Gerado em: 2026-07-06 02:55:45 UTC
+Período: Últimos 12 meses (simulado)
+
+─── 1. RESUMO GERAL ───
+  Total de operações             178
+  Win Rate                       18.5%
+  Profit Factor                  0.84
+  Drawdown Máximo                2.64%
+  Expectância                    -0.0001
+  Sharpe Ratio                   -1.03
+  Sortino Ratio                  -1.74
+  Média de RR                    2.12:1
+  Lucro Bruto                    $596.47
+  Prejuízo Bruto                 $708.30
+  P/L Líquido                    $-111.84
+
+─── 2. ESTATÍSTICAS POR ATIVO ───
+  Ativo                | Trades               | Wins                 | Win Rate             | Avg RR              
+  --------------------------------------------------------------------------------------------------------------
+  BNBUSDT              | 47                   | 10                   | 21.3%                | 2.18                
+  BTCUSDT              | 46                   | 5                    | 10.9%                | 2.18                
+  ETHUSDT              | 36                   | 3                    | 8.3%                 | 2.08                
+  SOLUSDT              | 42                   | 12                   | 28.6%                | 2.03                
+  XRPUSDT              | 7                    | 3                    | 42.9%                | 1.93                
+
+─── 3. ESTATÍSTICAS POR TIMEFRAME ───
+  Timeframe            | Trades               | Wins                 | Win Rate            
+  ----------------------------------------------------------------------------------------
+  15m                  | 61                   | 9                    | 14.8%               
+  1h                   | 39                   | 8                    | 20.5%               
+  4h                   | 78                   | 16                   | 20.5%               
+
+─── 4. ESTATÍSTICAS POR CLASSE ───
+  Classe               | Trades               | Wins                 | Win Rate            
+  ----------------------------------------------------------------------------------------
+  ouro                 | 16                   | 3                    | 18.8%               
+  prata                | 103                  | 22                   | 21.4%               
+  bronze               | 58                   | 7                    | 12.1%               
+  reprovado            | 1                    | 1                    | 100.0%              
+
+─── 5. ESTATÍSTICAS POR REGIME ───
+  Regime               | Trades               | Wins                 | Win Rate            
+  ----------------------------------------------------------------------------------------
+  ranging              | 178                  | 33                   | 18.5%               
+
+─── 6. EVOLUÇÃO MENSAL ───
+  Mês                  | P&L ($)             
+  --------------------------------------------
+  2026-07              | $-111.84            
+
+─── 7. PRINCIPAIS CAUSAS DAS PERDAS ───
+  Causa                | Ocorrências         
+  --------------------------------------------
+  regime=ranging       | 145                 
+  class=prata          | 81                  
+  class=bronze         | 51                  
+  class=ouro           | 13                  
+
+─── 8. PRINCIPAIS CAUSAS DOS GANHOS ───
+  Causa                | Ocorrências         
+  --------------------------------------------
+  regime=ranging       | 33                  
+  class=prata          | 22                  
+  class=bronze         | 7                   
+  class=ouro           | 3                   
+  class=reprovado      | 1                   
+
+─── 9. SUGESTÕES DE MELHORIA (AUTO-CALIBRAÇÃO) ───
+  Feature              | Wins                 | Total                | Win Rate             | Sugestão            
+  --------------------------------------------------------------------------------------------------------------
+  Regime: ranging      | 33                   | 178                  | 18.5%                | Ranging tem baixo WR — reforçar filtro de regime
+
+─── 11. RECOMENDAÇÕES PARA V3.0 ───
+  * Implementar backtest com dados reais via API MEXC
+  * Criar sistema de walk-forward optimization
+  * Adicionar análise de correlação entre ativos
+  * Implementar machine learning para detecção de padrões
+  * Criar sistema de gestão de risco dinâmico baseado em volatilidade
+  * Adicionar suporte a futuros com alavancagem variável
+  * Implementar reinforcement learning para otimização de parâmetros

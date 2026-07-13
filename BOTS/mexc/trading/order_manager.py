@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 from ..bot_config import BotConfig
 from ..bot_types import Order, OrderSide, OrderStatus, OrderType, TimeInForce
 from ..exchange.connector import ExchangeConnector
+from CORE.execution.mode_manager import ExecutionModeManager
 
 log = logging.getLogger(__name__)
 
@@ -16,6 +17,21 @@ class OrderManager:
         self._exchange = exchange
         self._orders: Dict[str, Order] = {}
         self._pending_cancels: set = set()
+
+    def _should_dry_run(self) -> bool:
+        """Gate de seguranca: uma ordem so pode ser real se dry_run=False
+        E o modo de execucao ativo for LIVE. Qualquer dessincronia entre
+        BotConfig.dry_run e QUANTOS_MODE forca DRY RUN por seguranca."""
+        if self._should_dry_run():
+            return True
+        if not ExecutionModeManager().can_trade():
+            log.error(
+                "OrderManager: dry_run=False mas modo de execucao (%s) nao permite ordens reais "
+                "— forcando DRY RUN por seguranca",
+                ExecutionModeManager().mode_name,
+            )
+            return True
+        return False
 
     def all_orders(self) -> List[Order]:
         return list(self._orders.values())
@@ -33,7 +49,8 @@ class OrderManager:
         return [o for o in self._orders.values() if o.pair == pair and o.is_open()]
 
     def create_market_order(self, pair: str, side: OrderSide, quantity: float,
-                            signal_id: Optional[str] = None, reduce_only: bool = False) -> Optional[Order]:
+                            signal_id: Optional[str] = None, reduce_only: bool = False,
+                            entry_price: float = 0.0) -> Optional[Order]:
         order_id = self._generate_id()
         order = Order(
             id=order_id,
@@ -47,10 +64,10 @@ class OrderManager:
             signal_id=signal_id,
             reduce_only=reduce_only,
         )
-        if self._config.dry_run:
+        if self._should_dry_run():
             order.status = OrderStatus.FILLED
             order.filled_quantity = quantity
-            order.average_fill_price = self._get_mock_price(pair)
+            order.average_fill_price = entry_price if entry_price > 0 else self._get_mock_price(pair)
             self._orders[order_id] = order
             log.info("OrderManager: DRY RUN market %s %s %s", side.value, quantity, pair)
             return order
@@ -78,7 +95,7 @@ class OrderManager:
             time_in_force=tif,
             reduce_only=reduce_only,
         )
-        if self._config.dry_run:
+        if self._should_dry_run():
             order.status = OrderStatus.FILLED
             order.filled_quantity = quantity
             order.average_fill_price = price
@@ -109,7 +126,7 @@ class OrderManager:
             signal_id=signal_id,
             reduce_only=reduce_only,
         )
-        if self._config.dry_run:
+        if self._should_dry_run():
             order.status = OrderStatus.OPEN
             self._orders[order_id] = order
             log.info("OrderManager: DRY RUN stop %s %s %s @ %.2f", side.value, quantity, pair, stop_price)
@@ -125,7 +142,7 @@ class OrderManager:
         order = self._orders.get(order_id)
         if not order or order.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
             return False
-        if self._config.dry_run:
+        if self._should_dry_run():
             order.status = OrderStatus.CANCELLED
             order.updated_at = datetime.now(timezone.utc)
             log.info("OrderManager: DRY RUN cancelled %s", order_id)
@@ -161,7 +178,7 @@ class OrderManager:
 
     def sync_open_orders(self) -> None:
         for order in self.get_open_orders():
-            if self._config.dry_run:
+            if self._should_dry_run():
                 continue
             status_data = self._exchange.get_order_status(order.pair, order.exchange_id)
             if status_data:
@@ -191,7 +208,8 @@ class OrderManager:
         return f"mexc_{uuid.uuid4().hex[:16]}"
 
     def _get_mock_price(self, pair: str) -> float:
-        return {}.get(pair, 100.0)
+        prices = {"BTCUSDT": 65000.0, "ETHUSDT": 3500.0, "SOLUSDT": 145.0}
+        return prices.get(pair, 100.0)
 
     def _map_status(self, status: str) -> OrderStatus:
         mapping = {

@@ -1,0 +1,9 @@
+{
+  "capital_inicial": 200.0,
+  "capital_atual": 200.0,
+  "rentabilidade_pct": 0.0,
+  "drawdown": 0.0,
+  "curva_diaria": [],
+  "curva_semanal": [],
+  "curva_mensal": []
+}

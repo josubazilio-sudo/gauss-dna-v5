@@ -1,0 +1,35 @@
+{
+  "cycle": 4,
+  "pairs": 300,
+  "total_seconds": 56.71,
+  "stages": {
+    "candles": {
+      "count": 300,
+      "total_s": 491.146,
+      "avg_ms": 1637.15,
+      "p95_ms": 1988.02,
+      "max_ms": 2274.61
+    },
+    "indicadores": {
+      "count": 300,
+      "total_s": 2.291,
+      "avg_ms": 7.64,
+      "p95_ms": 11.06,
+      "max_ms": 56.57
+    },
+    "scanner": {
+      "count": 300,
+      "total_s": 24.237,
+      "avg_ms": 80.79,
+      "p95_ms": 181.72,
+      "max_ms": 285.06
+    },
+    "decisao_risco": {
+      "count": 178,
+      "total_s": 0.219,
+      "avg_ms": 1.23,
+      "p95_ms": 2.9,
+      "max_ms": 17.6
+    }
+  }
+}

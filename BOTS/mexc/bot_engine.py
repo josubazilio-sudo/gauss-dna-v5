@@ -6,13 +6,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from CORE.events.event_bus import EventBus
 from CORE.events.events import Event, EventTypes
+from CORE.execution.mode_manager import ExecutionModeManager
 from ENGINE.market.market_engine import MarketEngine
 from ENGINE.scanner.scanner_engine import ScannerEngine
-from ENGINE.backtest.backtest_engine import BacktestEngine
-from AI.learning.learning_engine import LearningEngine
-from AI.evolution.optimizer import EvolutionEngine
-from AI.validation.decision_validator import DecisionValidator
-from CORE.memory.memory_engine import MemoryEngine
+
 from .bot_config import BotConfig
 from BOTS.mexc.bot_types import (
     Balance, BotEvent, BotStatus, ConnectionInfo, ConnectionStatus, DailyStats, MonitoringSnapshot,
@@ -40,13 +37,11 @@ log = logging.getLogger(__name__)
 
 class BotEngine:
     def __init__(self, config: Optional[BotConfig] = None, event_bus: Optional[EventBus] = None,
-                 market_engine: Optional[MarketEngine] = None, scanner_engine: Optional[ScannerEngine] = None,
-                 backtest_engine: Optional[BacktestEngine] = None):
+                 market_engine: Optional[MarketEngine] = None, scanner_engine: Optional[ScannerEngine] = None):
         self._config = config or BotConfig()
         self._bus = event_bus or EventBus()
         self._market = market_engine or MarketEngine()
         self._scanner = scanner_engine or ScannerEngine()
-        self._backtest = backtest_engine or BacktestEngine()
 
         # Initialize modular architecture
         self._exchange = ExchangeConnector(self._config)
@@ -79,10 +74,15 @@ class BotEngine:
         # Wire up receivers and callbacks
         self._receiver.register_callback(self._on_signal_received)
         self._bus.subscribe(EventTypes.SIGNAL_GENERATED, self._on_scanner_signal_generated)
+        self._bus.subscribe(EventTypes.DECISION_MADE, self._on_decision_made)
 
     @property
     def status(self) -> BotStatus:
         return self._status
+
+    @property
+    def balance(self) -> Balance:
+        return self._balance
 
     @property
     def exchange(self) -> ExchangeConnector:
@@ -117,7 +117,7 @@ class BotEngine:
         return self._ep
 
     @property
-    def recovery_engine(self) -> self:
+    def recovery_engine(self) -> RecoveryEngine:
         return self._recovery
 
     @property
@@ -127,23 +127,32 @@ class BotEngine:
     def start(self) -> bool:
         if self._running:
             return True
-        log.info("BotEngine: starting MEXC Bot...")
+
+        mode = ExecutionModeManager()
+        mode.show_startup_banner("MEXC")
+
+        log.info("BotEngine: starting MEXC Bot in %s mode...", mode.mode_name)
         self._status = BotStatus.RUNNING
         self._running = True
 
-        # Initial connection
-        self._exchange.connect(self._config.mexc_api_key, self._config.mexc_api_secret)
+        if mode.should_authenticate():
+            self._exchange.connect(self._config.mexc_api_key, self._config.mexc_api_secret)
+            if not self._exchange.is_connected:
+                log.critical("BotEngine: autenticacao falhou no modo LIVE — abortando")
+                self._status = BotStatus.ERROR
+                self._running = False
+                return False
+        else:
+            log.info("BotEngine: modo %s — autenticacao ignorada", mode.mode_name)
 
-        # Initialize risk starting balance
         self._update_balance()
         self._rm.initialize_day(self._balance.total)
 
-        # Start processing thread
         self._thread = threading.Thread(target=self._run_loop, name="MEXC_Bot_Thread", daemon=True)
         self._thread.start()
 
         self._bus.publish(Event(type=EventTypes.ENGINE_START, data={"exchange": "MEXC"}))
-        log.info("BotEngine: MEXC Bot started successfully")
+        log.info("BotEngine: MEXC Bot started successfully in %s mode", mode.mode_name)
         return True
 
     def stop(self) -> None:
@@ -223,9 +232,12 @@ class BotEngine:
                     self._recovery.sync_positions()
                     last_sync = now
 
-                # Connection check/heartbeat
+                # Connection check/heartbeat (only in LIVE mode)
                 if now - last_heartbeat >= self._config.heartbeat_interval_seconds:
-                    if not self._exchange.is_connected:
+                    mode = ExecutionModeManager()
+                    if not mode.is_live():
+                        self._status = BotStatus.RUNNING
+                    elif not self._exchange.is_connected:
                         self._status = BotStatus.RECOVERING
                         self._recovery.handle_disconnect()
                         if self._exchange.is_connected:
@@ -244,7 +256,8 @@ class BotEngine:
                 time.sleep(2)
 
     def _update_balance(self) -> None:
-        if self._config.dry_run:
+        mode = ExecutionModeManager()
+        if not mode.is_live():
             self._balance = Balance(total=10000.0, free=10000.0, used=0.0)
         else:
             try:
@@ -307,15 +320,36 @@ class BotEngine:
         log.info("BotEngine: received scanner event: %s", event.type)
         self._receiver.receive_signal(event.data)
 
+    def _on_decision_made(self, event: Event) -> None:
+        if self._status != BotStatus.RUNNING:
+            return
+        data = event.data
+        if not isinstance(data, dict) or not data.get("approved", False):
+            return
+        log.info("BotEngine: received approved decision for %s", data.get("pair", "N/A"))
+        self._receiver.receive_signal(data)
+
     def _on_signal_received(self, signal: SignalData) -> None:
         if self._status != BotStatus.RUNNING:
             return
 
+        # 0. Skip if pair already has an active position
+        existing = [p for p in self._pm.all_positions() if p.pair == signal.pair and p.quantity > 0]
+        if existing:
+            log.info("BotEngine v4.0: skipping %s %s — active position already exists", signal.pair, signal.order_side.value)
+            return
+
         # 1. Validation phase (Baseline v4.0 — full institutional gate)
         market_ctx = self._market.get_market_context(signal.pair) if hasattr(self._market, 'get_market_context') else None
+        
+        # QUALITY GATE DEFINITIVO
+        if signal.classification == "reprovado":
+             log.warning("BotEngine: signal rejected: Classification is REPROVADO")
+             return
+
         approval, reasons = self._validator.validate(signal, signal.entry_price, market_ctx)
         if approval != SignalApproval.APPROVED:
-            log.warning("BotEngine v4.0: signal rejected (%d reasons): %s", len(reasons), "; ".join(reasons))
+            log.warning("BotEngine: signal rejected (%d reasons): %s", len(reasons), "; ".join(reasons))
             return
 
         # 2. Market Intelligence regime check
@@ -323,16 +357,9 @@ class BotEngine:
             log.warning("BotEngine v4.0: signal rejected by Market Intelligence regime filter (%s)", signal.regime)
             return
 
-        # 3. Backtest check
-        bt_stats = self._backtest.last_result()
-        if bt_stats and bt_stats.win_rate < self._config.min_confidence:
-            log.warning("BotEngine v4.0: signal rejected by Backtest (Win Rate %.2f < %.2f)",
-                        bt_stats.win_rate, self._config.min_confidence)
-            return
-
-        # 4. Risk / Position sizing
+        # 3. Risk / Position sizing with quality-based sizing
         balance = self._balance.total
-        qty = self._rm.calculate_position_size(balance, signal.entry_price, signal.stop_loss)
+        qty = self._rm.calculate_position_size(balance, signal.entry_price, signal.stop_loss, quality_score=signal.score)
         if qty <= 0:
             log.warning("BotEngine v4.0: position size = 0 for %s", signal.pair)
             return

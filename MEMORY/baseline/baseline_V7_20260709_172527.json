@@ -1,0 +1,25 @@
+{
+  "version": "V7",
+  "timestamp": "2026-07-09T17:25:27.527996",
+  "metrics": {
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "expectancy": 0.0,
+    "max_drawdown": 0.0,
+    "sharpe_ratio": 0.0,
+    "sortino_ratio": 0.0,
+    "calmar_ratio": 0.0,
+    "avg_rr": 0.0,
+    "net_pnl": 0.0,
+    "gross_profit": 0.0,
+    "gross_loss": 0.0,
+    "avg_trade_duration_h": 0.0
+  },
+  "by_setup": {},
+  "by_regime": {},
+  "by_timeframe": {},
+  "by_asset": {}
+}
