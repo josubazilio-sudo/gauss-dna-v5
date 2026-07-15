@@ -52,7 +52,32 @@ from CORE.trading.paper_trading import PaperTradingEngine
 from ENGINE.common.trade_registry import TradeRegistry
 from ENGINE.signals.signal_tracker import SignalTracker
 from ENGINE.analytics.trade_analytics import TradeAnalytics
-from ENGINE.scanner.scanner_config import RR_MIN_RR
+from ENGINE.scanner.scanner_config import RR_MIN_RR, HARD_MIN_RVOL, HARD_MIN_ADX, CONSENSUS_MINIMUM_SCORE
+from ENGINE.scanner.scanner_config import LEVERAGE_MAX_USER
+from ENGINE.auditor.institutional_math_auditor import InstitutionalMathAuditor
+from ENGINE.diagnostic.fast_diagnostic import (
+    DiagnosticBaseline, build_fast_diagnostic, format_fast_diagnostic_log,
+)
+from ENGINE.diagnostic.rfc_v25_6_diagnostic import (
+    build_v25_6_diagnostic, format_v25_6_report,
+)
+from ENGINE.exchange.execution_validator import (
+    ExchangeExecutionValidator, ExchangeSymbolInfo, ExecutionValidationResult,
+)
+from ENGINE.scanner.scanner_config import (
+    ENABLE_EXECUTION_VALIDATOR, EXECUTION_VALIDATION_TOLERANCE,
+    AUTO_ROUND_PRICES, AUTO_ROUND_QUANTITY, BLOCK_INVALID_EXECUTION,
+    EXECUTION_SLIPPAGE_RATE, EXECUTION_FUNDING_RATE_EST,
+)
+from ENGINE.watchlist.watchlist_manager import WatchlistManager, WATCHLIST_PRIORITY_BONUS
+from ENGINE.scanner.scanner_config import WATCHLIST_PATH
+from ENGINE.analytics.rejection_analytics import RejectionAnalytics, _classify_gate
+from ENGINE.analytics.baseline_monitor import (
+    BaselineRegistry, BaselineAnalyzer, BaselineReporter, CycleSnapshot,
+)
+from ENGINE.scanner.scanner_config import (
+    ENABLE_REJECTION_ANALYTICS, REJECTION_ANALYTICS_EXPORT_DIR,
+)
 
 from logging import StreamHandler, FileHandler
 
@@ -66,7 +91,9 @@ logging.basicConfig(
 )
 log = logging.getLogger("QuantOS")
 
-# V18.5: Log dedicado para sinais bloqueados
+from CORE.config.settings import settings
+log.info(f"Configuração carregada: modo={settings.mode}, qualidade_min={settings.min_quality_score}")
+
 _blocked_log = logging.getLogger("BLOCKED_SIGNALS")
 _blocked_log.setLevel(logging.WARNING)
 _blocked_handler = logging.FileHandler("BLOCKED_SIGNALS.log", mode="a", encoding="utf-8")
@@ -148,6 +175,28 @@ def _run_health_check_sync(health: HealthMonitor):
         loop.close()
 
 
+def _build_default_symbol_info(symbol: str) -> ExchangeSymbolInfo:
+    return ExchangeSymbolInfo(
+        symbol=symbol,
+        tick_size=0.001,
+        step_size=0.001,
+        min_qty=0.001,
+        max_qty=1000000.0,
+        min_notional=5.0,
+        max_notional=0.0,
+        price_precision=3,
+        qty_precision=3,
+        min_leverage=1,
+        max_leverage=125,
+        is_active=True,
+        is_futures=True,
+        contract_status="TRADING",
+        maintenance_margin_rate=0.005,
+        taker_fee_rate=0.0006,
+        maker_fee_rate=0.0002,
+    )
+
+
 def _publish_validation_blocked(publisher: Publisher, data: Dict, reason: str) -> None:
     publisher.decision_rejected({
         "pair": data.get("symbol", "?"),
@@ -188,7 +237,12 @@ class QuantOSApp:
         self._paper = PaperTradingEngine()
         self._trade_registry = TradeRegistry()
         self._signal_tracker = SignalTracker()
+        self._watchlist = WatchlistManager(path=WATCHLIST_PATH or None)
         self._trade_analytics = TradeAnalytics()
+        self._rejection_analytics = RejectionAnalytics(
+            export_dir=REJECTION_ANALYTICS_EXPORT_DIR or None,
+        )
+        self._rejection_analytics.set_enabled(ENABLE_REJECTION_ANALYTICS)
         self._running = False
         self._scan_count = 0
         self._last_heartbeat: float = 0.0
@@ -197,6 +251,13 @@ class QuantOSApp:
         # SOMENTE para priorizar a ordem de varredura do proximo ciclo —
         # nao alimenta Decision Engine, gates, thresholds ou scoring.
         self._priority_cache: Dict[str, Dict] = {}
+        # RFC V25.5: Fast Diagnostic — baseline movel + streak de ciclos
+        # sem sinal aprovado, usados para detectar anomalias entre ciclos.
+        self._diag_baseline = DiagnosticBaseline()
+        self._baseline_registry = BaselineRegistry()
+        self._baseline_analyzer = BaselineAnalyzer()
+        self._baseline_reporter = BaselineReporter(self._baseline_analyzer)
+        self._zero_signal_streak = 0
         self._symbols = self._discover_symbols()
         self._config.pairs = list(self._symbols)
 
@@ -214,12 +275,26 @@ class QuantOSApp:
         import os as _os2
         log.info("PID:              %d", _os2.getpid())
         log.info("Inicio:           %s", datetime.now(timezone.utc).isoformat())
+        git_commit = ""
         try:
             git_commit = _os.popen("git rev-parse --short HEAD 2>nul").read().strip()
             if git_commit:
                 log.info("Git Commit:       %s", git_commit)
         except Exception:
             pass
+        # RFC V25.3 (temporario): fingerprint de instancia para rastreabilidade
+        # de origem dos sinais no Telegram — remover ou mover so para o log
+        # apos a auditoria concluir.
+        import socket as _socket
+        _hostname = _socket.gethostname()
+        _build_ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+        self._fingerprint = {
+            "server": _hostname,
+            "pid": _os2.getpid(),
+            "build": f"{git_commit or 'unknown'}-{_build_ts}",
+        }
+        log.info("Servidor:         %s", _hostname)
+        log.info("Fingerprint:      %s", self._fingerprint["build"])
         try:
             _basedir = _os2.path.dirname(_os2.path.abspath(__file__))
             _core_files = [
@@ -324,6 +399,7 @@ class QuantOSApp:
                 self._diag.start_cycle(self._scan_count)
                 self._decision_diag.start_cycle(self._scan_count)
                 self._profiler.start_cycle(self._scan_count)
+                self._rejection_analytics.start_cycle(self._scan_count)
                 self._diag.record_step("Ativos monitorados", len(self._symbols))
                 start_time = time.time()
                 log.info("--- Ciclo de scan #%d ---", self._scan_count)
@@ -360,6 +436,16 @@ class QuantOSApp:
                         vip_pairs=SCANNER_VIP_PAIRS,
                         recently_approved_pairs=recently_approved,
                     )
+                    # RFC V23: Watchlist Prioritária — coloca moedas da
+                    # watchlist no início da fila (após reordenação por
+                    # priority_score), sem remover nem duplicar pares.
+                    _wl_count = self._watchlist.count_in_list(scan_order)
+                    if _wl_count > 0:
+                        scan_order = self._watchlist.reorder_scan_queue(scan_order)
+                        log.info(
+                            "WATCHLIST: %d moedas prioritárias posicionadas no início da fila",
+                            _wl_count,
+                        )
                 except Exception as e:
                     log.warning("PriorityScore: falha ao reordenar scanner, usando ordem padrao: %s", e)
                     scan_order = list(self._symbols)
@@ -385,6 +471,20 @@ class QuantOSApp:
                 log.info(
                     "Fetch+scan paralelo (%d workers): %d/%d pares em %.1fs",
                     SCAN_MAX_WORKERS, len(results), len(self._symbols), time.time() - fetch_start,
+                )
+
+                _wl_scan_count = self._watchlist.count_in_list(results)
+                _wl_log = logging.getLogger("WATCHLIST")
+                _wl_log.setLevel(logging.INFO)
+                if not _wl_log.handlers:
+                    _wl_handler = logging.StreamHandler()
+                    _wl_handler.setFormatter(logging.Formatter(
+                        "%(asctime)s [%(name)s] %(message)s"
+                    ))
+                    _wl_log.handlers = [_wl_handler]
+                _wl_log.info(
+                    "MOEDAS PRIORITÁRIAS: %d escaneadas | Total watchlist: %d",
+                    _wl_scan_count, len(self._watchlist.ordered),
                 )
 
                 for pair in scan_order:
@@ -415,6 +515,116 @@ class QuantOSApp:
                 report = self._diag.end_cycle((time.time() - start_time) * 1000)
                 diag_report = self._decision_diag.end_cycle()
                 self._profiler.end_cycle(len(self._symbols))
+                try:
+                    rejection_summary = self._rejection_analytics.end_cycle()
+                    for _line in self._rejection_analytics.get_last_cycle_report_text().split("\n"):
+                        log.info("ANALYTICS| %s", _line)
+                except Exception as e:
+                    log.warning("RejectionAnalytics: erro ao finalizar ciclo: %s", e)
+                    rejection_summary = None
+
+                try:
+                    _recs = self._rejection_analytics.cycle_records
+                    _qual = [r.quality for r in _recs if r.quality]
+                    _conf = [r.confidence for r in _recs if r.confidence]
+                    _cons = [r.consensus for r in _recs if r.consensus]
+                    _snap = CycleSnapshot(
+                        cycle=self._scan_count,
+                        timestamp=time.time(),
+                        total_analyzed=rejection_summary.get("total_analyzed", 0),
+                        total_approved=rejection_summary.get("total_approved", 0),
+                        total_rejected=rejection_summary.get("total_rejected", 0),
+                        approval_rate=rejection_summary.get("approval_rate", 0.0),
+                        avg_quality=round(sum(_qual) / max(len(_qual), 1), 4) if _qual else 0.0,
+                        avg_confidence=round(sum(_conf) / max(len(_conf), 1), 4) if _conf else 0.0,
+                        avg_consensus=round(sum(_cons) / max(len(_cons), 1), 4) if _cons else 0.0,
+                        avg_rr=0.0,
+                        gate_percentages=rejection_summary.get("gate_percentages", {}),
+                        gate_counts=rejection_summary.get("gate_counts", {}),
+                    )
+                    self._baseline_registry.record_cycle(_snap)
+                except Exception as e:
+                    log.warning("BaselineRegistry: erro ao registrar ciclo: %s", e)
+
+                try:
+                    _now = time.time()
+                    if _now - self._baseline_registry.last_30min_report >= 1800:
+                        self._baseline_registry.last_30min_report = _now
+                        _report = self._baseline_reporter.build_30min_report(self._baseline_registry)
+                        for _line in self._baseline_reporter.format_30min_log(_report).split("\n"):
+                            log.info("30MIN| %s", _line)
+                        self._telegram.send_diagnostic(
+                            self._baseline_reporter.format_30min_telegram(_report)
+                        )
+                        _impacts = self._baseline_analyzer.pending_impacts(
+                            self._baseline_registry
+                        )
+                        for _v in _impacts:
+                            _c = _v["change"]
+                            _i = _v["impact"]
+                            _c.validated = True
+                            _c.impact = _i.get("classification", "desconhecida")
+                            _c.impact_data = _i
+                            _msg = self._baseline_reporter.build_change_report(_c, _i)
+                            log.info("CHANGE_VALIDATION| %s", _msg.replace("\n", " | "))
+                            self._telegram.send_diagnostic(_msg)
+                except Exception as e:
+                    log.warning("30MIN: erro ao gerar relatorio: %s", e)
+
+                # ============================================================
+                # RFC V25.5: Diagnostico Rapido Inteligente (Fast Diagnostic)
+                # Le apenas dados ja calculados (rejection_summary, health,
+                # cycle_records) — nao recalcula nenhum indicador.
+                # ============================================================
+                try:
+                    if rejection_summary is not None:
+                        if rejection_summary.get("total_approved", 0) > 0:
+                            self._zero_signal_streak = 0
+                        else:
+                            self._zero_signal_streak += 1
+
+                        _records = self._rejection_analytics.cycle_records
+                        _adx_vals = [r.adx for r in _records if r.adx]
+                        _avg_adx = sum(_adx_vals) / len(_adx_vals) if _adx_vals else 0.0
+                        _regimes = [r.regime for r in _records if r.regime]
+                        _regime_mode = max(set(_regimes), key=_regimes.count) if _regimes else ""
+                        _health = (report.health if report else {}) or {}
+                        _silent_drops = _health.get("silent_drops", 0)
+                        _total_assets = report.total_assets if report else 0
+                        _silent_drop_pct = (
+                            _silent_drops / _total_assets * 100 if _total_assets > 0 else 0.0
+                        )
+
+                        fast_diag = build_fast_diagnostic(
+                            rejection_summary, self._diag_baseline,
+                            self._zero_signal_streak,
+                            avg_adx=_avg_adx, regime_mode=_regime_mode,
+                            silent_drop_pct=_silent_drop_pct,
+                        )
+                        for _line in format_fast_diagnostic_log(fast_diag).split("\n"):
+                            log.info("FASTDIAG| %s", _line)
+                        self._diag_baseline.update(
+                            rejection_summary.get("gate_percentages", {}) or {},
+                            rejection_summary.get("approval_rate", 0.0),
+                        )
+                        if fast_diag.alerta_imediato:
+                            self._telegram.send_diagnostic(fast_diag.alerta_imediato)
+
+                        try:
+                            from dataclasses import asdict
+                            _cycle_dicts = [asdict(r) for r in self._rejection_analytics.cycle_records]
+                            _all_dicts = [asdict(r) for r in self._rejection_analytics.records]
+                            v25_6 = build_v25_6_diagnostic(
+                                rejection_summary, _cycle_dicts,
+                                _cycle_dicts,
+                                self._diag_baseline, _all_dicts,
+                            )
+                            for _line in format_v25_6_report(v25_6).split("\n"):
+                                log.info("V25_6| %s", _line)
+                        except Exception as e2:
+                            log.warning("RFC_V25_6: erro ao gerar diagnostico: %s", e2)
+                except Exception as e:
+                    log.warning("FastDiagnostic: erro ao gerar diagnostico rapido: %s", e)
                 if report:
                     try:
                         advanced = build_advanced_report(report)
@@ -643,13 +853,35 @@ class QuantOSApp:
         for sig in report.signals:
             if len(sig.rejection_reasons) > 0:
                 _dir = sig.direction.value if hasattr(sig.direction, 'value') else str(sig.direction)
+                # RFC V25.6: classificacao real por motivo (nao mais um binario
+                # Exaustao/Consenso que jogava RVOL/Entry Zone/BOS-CHoCH dentro
+                # de "Consenso"). O motivo primario (mesmo usado por
+                # audit.log_blocker abaixo) define o gate do registro.
                 for _rr in sig.rejection_reasons:
-                    _scanner_filter = "Exaustao" if "exaustao" in _rr.lower() else "Consenso"
                     self._decision_diag.record_filter_rejection(
-                        filter_name=_scanner_filter, asset=pair,
+                        filter_name=_classify_gate(_rr), asset=pair,
                         timeframe=sig.timeframe, direction=_dir,
                         details=_rr,
                     )
+                _gate = _classify_gate(sig.rejection_reasons[0])
+                self._rejection_analytics.record_rejection(
+                    gate=_gate, symbol=pair,
+                    timeframe=sig.timeframe, direction=_dir,
+                    found_value=0.0, expected_value=0.0,
+                    rvol=sig.rvol or 0.0,
+                    adx=sig.adx or 0.0,
+                    quality=sig.quality or 0.0,
+                    confidence=sig.confidence or 0.0,
+                    consensus=sig.scores.consensus_score if sig.scores else 0.0,
+                    entry_score=sig.scores.entry_score if sig.scores else 0.0,
+                    structure=sig.structure_strength or 0.0,
+                    liquidity=sig.scores.liquidity_score if sig.scores else 0.0,
+                    flow=sig.scores.flow_score if sig.scores else 0.0,
+                    trend=str(sig.structure.structure_type) if hasattr(sig.structure, 'structure_type') else "",
+                    regime=sig.regime or "",
+                    atr=sig.atr_value or 0.0,
+                    reject_reason="; ".join(sig.rejection_reasons),
+                )
                 audit.log_blocker(sig.rejection_reasons[0], pair)
                 continue
 
@@ -688,6 +920,21 @@ class QuantOSApp:
             if sd.approved:
                 approved_this_pair.append(sd)
                 self._funnel["aprovados"] = self._funnel.get("aprovados", 0) + 1
+                self._rejection_analytics.record_approval(
+                    symbol=pair, timeframe=sig.timeframe,
+                    direction=sd.direction,
+                    overall_score=(sd.quality * 0.5 + sd.consensus * 0.3 + sd.entry_score * 0.2) if sd.quality > 0 else 0.0,
+                    quality=sd.quality, confidence=sd.confidence,
+                    consensus=sd.consensus,
+                    entry_score=sd.entry_score,
+                    rvol=sig.rvol or 0.0, adx=sig.adx or 0.0,
+                    atr=sig.atr_value or 0.0,
+                    structure=sd.structural_score or 0.0,
+                    liquidity=sd.liquidity_score or 0.0,
+                    flow=sd.institutional_score or 0.0,
+                    trend=sd.trend or "",
+                    regime=sig.regime or "",
+                )
             else:
                 reject = (sd.reject_reason or "").lower()
                 if "rvol" in reject:
@@ -715,9 +962,9 @@ class QuantOSApp:
 
                 _rej_val, _rej_th = 0.0, 0.0
                 if "rvol" in reject:
-                    _rej_val, _rej_th = sd.rvol or 0.0, 0.70
+                    _rej_val, _rej_th = sig.rvol or 0.0, HARD_MIN_RVOL
                 elif "adx" in reject:
-                    _rej_val, _rej_th = sd.adx or 0.0, 25.0
+                    _rej_val, _rej_th = sig.adx or 0.0, HARD_MIN_ADX
                 elif "bos" in reject or "choch" in reject:
                     _rej_val, _rej_th = 0.0, 0.0
                 elif "estrutur" in reject:
@@ -727,7 +974,7 @@ class QuantOSApp:
                 elif "quality" in reject:
                     _rej_val, _rej_th = sd.quality or 0.0, 0.60
                 elif "consensus" in reject:
-                    _rej_val, _rej_th = sd.consensus or 0.0, 0.70
+                    _rej_val, _rej_th = sd.consensus or 0.0, CONSENSUS_MINIMUM_SCORE
                 elif "confidence" in reject or "confian" in reject:
                     _rej_val, _rej_th = sd.confidence or 0.0, 0.75
                 elif "descalibracao" in reject:
@@ -746,6 +993,25 @@ class QuantOSApp:
                     details=sd.reject_reason or "",
                 )
                 self._decision_diag.increment_rejected()
+                _gate_name = _classify_gate(sd.reject_reason) if callable(__builtins__.get("_classify_gate")) else sd.reject_reason or "Desconhecido"
+                self._rejection_analytics.record_rejection(
+                    gate=sd.reject_reason or "Desconhecido",
+                    symbol=pair, timeframe=sig.timeframe,
+                    direction=sd.direction,
+                    found_value=_rej_val, expected_value=_rej_th,
+                    overall_score=(sd.quality * 0.5 + sd.consensus * 0.3 + sd.entry_score * 0.2) if sd.quality > 0 else 0.0,
+                    quality=sd.quality, confidence=sd.confidence,
+                    consensus=sd.consensus,
+                    entry_score=sd.entry_score,
+                    rvol=sig.rvol or 0.0, adx=sig.adx or 0.0,
+                    atr=sig.atr_value or 0.0,
+                    structure=sd.structural_score or 0.0,
+                    liquidity=sd.liquidity_score or 0.0,
+                    flow=sd.institutional_score or 0.0,
+                    trend=sd.trend or "",
+                    regime=sig.regime or "",
+                    reject_reason=sd.reject_reason or "",
+                )
                 audit.log_blocker(sd.reject_reason, pair)
                 log.info("DecisionEngine: %s %s — %s", pair, sig.timeframe, sd.reject_reason)
             self._diag.record_quality_gate(pair, sig.scores.to_dict() if sig.scores else {},
@@ -760,11 +1026,22 @@ class QuantOSApp:
         # diferentes e podiam apontar para timeframes distintos do mesmo
         # ativo no mesmo ciclo).
         cycle_result = CycleSignalResult(pair=pair, all_decisions=all_decisions, approved_signals=approved_this_pair)
+        _wl_bonus_cycle = WATCHLIST_PRIORITY_BONUS * 0.001
         if approved_this_pair:
-            cycle_result.best_signal = max(approved_this_pair, key=_cycle_rank)
+            cycle_result.best_signal = max(
+                approved_this_pair,
+                key=lambda sd: _cycle_rank(sd) + (
+                    _wl_bonus_cycle if self._watchlist.is_watchlist(sd.symbol) else 0.0
+                ),
+            )
             cycle_result.best_is_approved = True
         elif all_decisions:
-            cycle_result.best_signal = max(all_decisions, key=_cycle_rank)
+            cycle_result.best_signal = max(
+                all_decisions,
+                key=lambda sd: _cycle_rank(sd) + (
+                    _wl_bonus_cycle if self._watchlist.is_watchlist(sd.symbol) else 0.0
+                ),
+            )
             cycle_result.best_is_approved = False
 
         # Envio ao Telegram: so o melhor sinal aprovado do ciclo (RFC_RECALIBRACAO_
@@ -805,6 +1082,7 @@ class QuantOSApp:
                     )
 
             data = best_sd.to_dict()
+            data["_watchlist_priority"] = self._watchlist.is_watchlist(best_sd.symbol)
             data["message_type"] = "update"
             if res.action == "new":
                 data["message_type"] = "new"
@@ -815,6 +1093,7 @@ class QuantOSApp:
             data["update_label"] = res.update_label
             data["cycle_id"] = self._scan_count
             data["engine_version"] = "V18.4"
+            data["fingerprint"] = self._fingerprint  # RFC V25.3 (temporario)
 
 
             # ============================================================
@@ -881,12 +1160,12 @@ class QuantOSApp:
                 validation_errors.append("LONG + Kalman DOWN — REJEITADO")
             if not is_long and kalman_up:
                 validation_errors.append("SHORT + Kalman UP — REJEITADO")
-            if overall_tier == "OURO" and overall_val < 70:
-                validation_errors.append(f"OURO com indice {overall_val} < 70 — REJEITADO")
-            if overall_tier == "PLATINA" and overall_val < 80:
-                validation_errors.append(f"PLATINA com indice {overall_val} < 80 — REJEITADO")
-            if overall_tier == "DIAMANTE" and overall_val < 90:
-                validation_errors.append(f"DIAMANTE com indice {overall_val} < 90 — REJEITADO")
+            if overall_tier == "OURO" and overall_val < 65:
+                validation_errors.append(f"OURO com indice {overall_val} < 65 — REJEITADO")
+            if overall_tier == "PLATINA" and overall_val < 75:
+                validation_errors.append(f"PLATINA com indice {overall_val} < 75 — REJEITADO")
+            if overall_tier == "DIAMANTE" and overall_val < 85:
+                validation_errors.append(f"DIAMANTE com indice {overall_val} < 85 — REJEITADO")
             if regime_check in ("ranging", "lateral"):
                 exp_level = data.get("expectancy_level", "")
                 has_breakout = data.get("main_reason", "") and ("BOS" in data.get("main_reason", "") or "CHOCH" in data.get("main_reason", ""))
@@ -901,26 +1180,33 @@ class QuantOSApp:
                 if overall_val >= 50:
                     validation_errors.append(f"Overall Score {overall_val} >= 50 mas sem classificacao — REJEITADO")
 
-            # V18.4: Coherence Score < 60 = bloquear
+            # V18.4: Coherence Score < 50 = bloquear
             cs = data.get("coherence_score", {})
-            if isinstance(cs, dict) and cs.get("coherence_score", 100) < 60:
-                validation_errors.append(f"Coherence Score {cs.get('coherence_score', 0)} < 60 — REJEITADO")
+            if isinstance(cs, dict) and cs.get("coherence_score", 100) < 50:
+                validation_errors.append(f"Coherence Score {cs.get('coherence_score', 0)} < 50 — REJEITADO")
 
-            # V18.4: Weighted Vote < 70% = bloquear
+            # V18.4: Weighted Vote < 55% = bloquear
             wv = data.get("weighted_vote", {})
             if isinstance(wv, dict) and not wv.get("approved", True):
                 validation_errors.append(
-                    f"Votacao Ponderada {wv.get('concordance_pct', 0)}% < 70% — REJEITADO"
+                    f"Votacao Ponderada {wv.get('concordance_pct', 0)}% < 55% — REJEITADO"
                 )
+
+            # V25 Hard Gate Estrutural: Conflito MTF sempre reprova
+            is_mtf_conflict = data.get("mtf_conflict", False)
+            if is_mtf_conflict:
+                validation_errors.append("Conflito MTF entre timeframes — REJEITADO")
 
             data["final_validation_errors"] = validation_errors
 
             if validation_errors:
                 for _ve in validation_errors:
-                    _fv_gate = "Classificacao" if "OURO" in _ve or "PLATINA" in _ve or "DIAMANTE" in _ve or "Classificacao" in _ve else "Coherence" if "Coherence" in _ve else "Weighted Vote" if "Votacao" in _ve else "Kalman" if "Kalman" in _ve else "Lateral" if "lateral" in _ve.lower() else "Final Validation"
+                    _fv_gate = "Classificacao" if "OURO" in _ve or "PLATINA" in _ve or "DIAMANTE" in _ve or "Classificacao" in _ve else "Coherence" if "Coherence" in _ve else "Weighted Vote" if "Votacao" in _ve else "Kalman" if "Kalman" in _ve else "MTF Conflict" if "Conflito MTF" in _ve else "Lateral" if "lateral" in _ve.lower() else "Final Validation"
                     _fv_val, _fv_th = 0.0, 0.0
                     if "Kalman" in _ve:
                         _fv_val, _fv_th = 0.0, 0.0
+                    elif "Conflito MTF" in _ve:
+                        _fv_val, _fv_th = 1.0, 0.0
                     elif "OURO" in _ve:
                         _fv_val, _fv_th = data.get("overall_score_value", 0), 70.0
                     elif "PLATINA" in _ve:
@@ -946,6 +1232,17 @@ class QuantOSApp:
                         details=_ve,
                     )
                     self._decision_diag.increment_rejected()
+                    self._rejection_analytics.record_rejection(
+                        gate=_fv_gate, symbol=pair,
+                        timeframe=data.get("timeframe", ""),
+                        direction=data.get("direction", ""),
+                        found_value=_fv_val, expected_value=_fv_th,
+                        overall_score=data.get("overall_score_value", 0.0),
+                        quality=data.get("quality_score", 0.0),
+                        confidence=data.get("confidence_score", 0.0),
+                        consensus=data.get("consensus_score", 0.0),
+                        reject_reason=_ve,
+                    )
 
                 # V18.5 Item 6: BLOCKED_SIGNALS.log
                 _bsym = data.get("symbol", "?")
@@ -960,6 +1257,8 @@ class QuantOSApp:
                 for _ve in validation_errors:
                     if "Kalman" in _ve:
                         _bgates.append("GATE12")
+                    elif "Conflito MTF" in _ve:
+                        _bgates.append("MTF_CONFLICT")
                     elif "OURO" in _ve or "PLATINA" in _ve or "DIAMANTE" in _ve:
                         _bgates.append("CLASSIFICATION")
                     elif "lateral" in _ve.lower():
@@ -997,7 +1296,73 @@ class QuantOSApp:
             )
             data["quantity"] = real_quantity
             data["balance"] = real_balance
-            data["leverage"] = self._config.leverage if hasattr(self._config, 'leverage') else 1.0
+            data["leverage"] = self._config.leverage
+
+            # ============================================================
+            # RFC V21: Institutional Math Auditor
+            # ============================================================
+            _audit_result = InstitutionalMathAuditor.audit(
+                entry_price=best_sd.entry_price,
+                stop_loss=best_sd.stop_loss,
+                take_profit_1=best_sd.take_profit_1,
+                quantity=real_quantity,
+                balance=real_balance,
+                leverage=data["leverage"],
+                risk_reward_expected=best_sd.risk_reward,
+                account_capital=ACCOUNT_SIZE,
+                max_leverage=LEVERAGE_MAX_USER,
+            )
+            _audit_result.log_report()
+            if not _audit_result.overall:
+                _blocked_log.warning(
+                    "MATH_VALIDATION_FAILED | %s TF=%s | motivo=%s",
+                    best_sd.symbol, best_sd.timeframe,
+                    _audit_result.hard_fail_reason,
+                )
+                log.warning(
+                    "MATH AUDIT BLOCKED: %s — %s",
+                    best_sd.symbol, _audit_result.hard_fail_reason,
+                )
+                data["_validation_blocked"] = True
+                data["hard_fail_reason"] = _audit_result.hard_fail_reason
+
+            # ============================================================
+            # RFC V22: Exchange Execution Validator
+            # ============================================================
+            if ENABLE_EXECUTION_VALIDATOR and not data.get("_validation_blocked", False):
+                _sym_info = _build_default_symbol_info(best_sd.symbol)
+                _exec_val = ExchangeExecutionValidator(
+                    symbol_info=_sym_info,
+                    auto_round_prices=AUTO_ROUND_PRICES,
+                    auto_round_quantity=AUTO_ROUND_QUANTITY,
+                    block_invalid=BLOCK_INVALID_EXECUTION,
+                    tolerance=EXECUTION_VALIDATION_TOLERANCE,
+                    slippage_rate=EXECUTION_SLIPPAGE_RATE,
+                    funding_rate_estimate=EXECUTION_FUNDING_RATE_EST,
+                )
+                _exec_result = _exec_val.validate(
+                    entry_price=best_sd.entry_price,
+                    stop_loss=best_sd.stop_loss,
+                    take_profit_1=best_sd.take_profit_1,
+                    take_profit_2=best_sd.take_profit_2,
+                    quantity=real_quantity,
+                    balance=real_balance,
+                    leverage=data["leverage"],
+                    direction=best_sd.direction,
+                )
+                _exec_result.log_report()
+                if not _exec_result.overall:
+                    _blocked_log.warning(
+                        "EXCHANGE_VALIDATION_FAILED | %s TF=%s | motivo=%s",
+                        best_sd.symbol, best_sd.timeframe,
+                        _exec_result.hard_fail_reason,
+                    )
+                    log.warning(
+                        "EXECUTION VALIDATOR BLOCKED: %s — %s",
+                        best_sd.symbol, _exec_result.hard_fail_reason,
+                    )
+                    data["_validation_blocked"] = True
+                    data["hard_fail_reason"] = _exec_result.hard_fail_reason
 
             data["audit"] = {
                 "signal_id": best_sd.signal_id or best_sd.trace_id,
@@ -1086,6 +1451,15 @@ class QuantOSApp:
             if not all_decisions:
                 best_sig = max(report.signals, key=lambda s: s.scores.quality_score if s.scores else 0.0)
                 motivo_primario, motivos_secundarios, decisao_final = _resumir_motivos_sem_sinal(report.signals)
+                # RFC V25.6: o loop "for sig in report.signals" acima ja
+                # registrou (com o gate correto via _classify_gate) cada
+                # motivo de todo sinal com rejection_reasons — o mesmo
+                # universo que _resumir_motivos_sem_sinal le. Recontar aqui
+                # sob o rotulo generico "Scanner" duplicava essas contagens
+                # (Consenso/RVOL/Estrutura apareciam infladas). So registrar
+                # aqui quando NENHUM sinal teve rejection_reasons (ex.:
+                # excecao no Decision Engine) — informacao genuinamente nova.
+                _scanner_ja_registrou = any(s.rejection_reasons for s in report.signals)
                 for _sr in motivos_secundarios + [motivo_primario]:
                     self._decision_diag.record_filter_rejection(
                         filter_name="Scanner", asset=pair,
@@ -1094,6 +1468,14 @@ class QuantOSApp:
                         details=_sr,
                     )
                     self._decision_diag.increment_rejected()
+                    if not _scanner_ja_registrou:
+                        self._rejection_analytics.record_rejection(
+                            gate=_classify_gate(_sr), symbol=pair,
+                            timeframe=best_sig.timeframe if hasattr(best_sig, 'timeframe') else "",
+                            direction=best_sig.direction.value if hasattr(best_sig.direction, 'value') else str(best_sig.direction) if hasattr(best_sig, 'direction') else "",
+                            found_value=0.0, expected_value=0.0,
+                            reject_reason=_sr,
+                        )
                 entry_score = best_sig.scores.entry_score if best_sig.scores else 0.0
                 consensus_score = best_sig.scores.consensus_score if best_sig.scores else 0.0
                 self._diag.record_entry_zone(
@@ -1264,6 +1646,13 @@ class QuantOSApp:
                 details="Scanner nao gerou sinais para este ativo",
             )
             self._decision_diag.increment_rejected()
+            self._rejection_analytics.record_rejection(
+                gate="Sem Sinal", symbol=pair,
+                timeframe="",
+                direction="",
+                found_value=0.0, expected_value=0.0,
+                reject_reason="Scanner nao gerou sinais para este ativo",
+            )
             self._diag.record_structure(pair, {
                 "trend": str(market_ctx.trend.value) if hasattr(market_ctx.trend, "value") else str(market_ctx.trend),
                 "strength": market_ctx.trend_strength,
