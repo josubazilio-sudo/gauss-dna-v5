@@ -765,12 +765,16 @@ def compute_exaustao(
         if last_range < 0.5:
             ex += 12; reasons.append("volume_climax_vela_pequena")
 
-    # 4. Velas alongadas consecutivas (2+ velas com range > 2x ATR)
+    # 4. Velas alongadas consecutivas (2+ velas com range > 2.5x ATR)
+    # c_range e atr_percent precisam estar na mesma escala (fracao, nao %) —
+    # bug corrigido na RFC V25.4: c_range vinha multiplicado por 100 e
+    # comparado contra atr_percent (fracao), tornando o threshold ~100x menor
+    # que o pretendido e disparando esse fator em quase toda vela.
     if atr_percent > 0 and len(highs) >= 3 and len(lows) >= 3:
         big_candles = 0
         for i in range(-3, 0):
             if i >= -len(highs) and i >= -len(lows):
-                c_range = (highs[i] - lows[i]) / current_price * 100 if current_price > 0 else 0
+                c_range = (highs[i] - lows[i]) / current_price if current_price > 0 else 0
                 if c_range > atr_percent * 2.5:
                     big_candles += 1
         if big_candles >= 2:
@@ -791,6 +795,6 @@ def compute_exaustao(
 
     penalty = min(0, max(-25, -ex))
     ex_score = max(0.0, min(100.0, float(ex)))
-    bloquear = ex >= 25
+    bloquear = ex >= 50
 
     return ExaustaoData(score=ex_score, penalty=penalty, reasons=reasons, bloquear=bloquear)

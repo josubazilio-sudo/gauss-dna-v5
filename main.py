@@ -57,6 +57,7 @@ from ENGINE.scanner.scanner_config import LEVERAGE_MAX_USER
 from ENGINE.auditor.institutional_math_auditor import InstitutionalMathAuditor
 from ENGINE.diagnostic.fast_diagnostic import (
     DiagnosticBaseline, build_fast_diagnostic, format_fast_diagnostic_log,
+    format_detailed_diagnostic,
 )
 from ENGINE.diagnostic.rfc_v25_6_diagnostic import (
     build_v25_6_diagnostic, format_v25_6_report,
@@ -609,6 +610,9 @@ class QuantOSApp:
                         )
                         if fast_diag.alerta_imediato:
                             self._telegram.send_diagnostic(fast_diag.alerta_imediato)
+                        self._telegram.send_diagnostic(
+                            format_detailed_diagnostic(rejection_summary)
+                        )
 
                         try:
                             from dataclasses import asdict
