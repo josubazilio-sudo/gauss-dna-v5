@@ -284,6 +284,120 @@ def test_penalty_details_no_penalties():
     assert len(details) == 0
 
 
+# --- V18.6: TREND HARD GATE — MA50/MA200 --------------------------------------
+
+def test_trend_gate_long_aligned_passes():
+    """LONG: price > MA50, price > MA200, MA50 > MA200 -> passa."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.LONG,
+        entry_price=110.0,
+        ema50=105.0, ema200=100.0,
+    ))
+    assert sd.trend_gate_ok is not False
+    assert "REJECT_LONG_ABOVE_TREND" not in (sd.reject_reason or "")
+
+
+def test_trend_gate_long_price_below_ma50_rejects():
+    """LONG: price < MA50 -> REJECT_LONG_ABOVE_TREND."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.LONG,
+        entry_price=95.0,
+        ema50=105.0, ema200=100.0,
+    ))
+    assert sd.approved is False
+    assert "REJECT_LONG_ABOVE_TREND" in sd.reject_reason
+
+
+def test_trend_gate_long_price_below_ma200_rejects():
+    """LONG: price < MA200 -> REJECT_LONG_ABOVE_TREND."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.LONG,
+        entry_price=95.0,
+        ema50=110.0, ema200=100.0,
+    ))
+    assert sd.approved is False
+    assert "REJECT_LONG_ABOVE_TREND" in sd.reject_reason
+
+
+def test_trend_gate_long_ma50_below_ma200_rejects():
+    """LONG: MA50 < MA200 -> REJECT_LONG_ABOVE_TREND."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.LONG,
+        entry_price=110.0,
+        ema50=95.0, ema200=100.0,
+    ))
+    assert sd.approved is False
+    assert "REJECT_LONG_ABOVE_TREND" in sd.reject_reason
+
+
+def test_trend_gate_short_aligned_passes():
+    """SHORT: price < MA50, price < MA200, MA50 < MA200 -> passa."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.SHORT,
+        entry_price=90.0,
+        ema50=95.0, ema200=100.0,
+    ))
+    assert sd.trend_gate_ok is not False
+    assert "REJECT_SHORT_AGAINST_TREND" not in (sd.reject_reason or "")
+
+
+def test_trend_gate_short_price_above_ma50_rejects():
+    """SHORT: price > MA50 -> REJECT_SHORT_AGAINST_TREND."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.SHORT,
+        entry_price=105.0,
+        ema50=95.0, ema200=100.0,
+    ))
+    assert sd.approved is False
+    assert "REJECT_SHORT_AGAINST_TREND" in sd.reject_reason
+
+
+def test_trend_gate_short_price_above_ma200_rejects():
+    """SHORT: price > MA200 -> REJECT_SHORT_AGAINST_TREND."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.SHORT,
+        entry_price=105.0,
+        ema50=90.0, ema200=100.0,
+    ))
+    assert sd.approved is False
+    assert "REJECT_SHORT_AGAINST_TREND" in sd.reject_reason
+
+
+def test_trend_gate_short_ma50_above_ma200_rejects():
+    """SHORT: MA50 > MA200 -> REJECT_SHORT_AGAINST_TREND."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.SHORT,
+        entry_price=85.0,
+        ema50=100.0, ema200=95.0,
+    ))
+    assert sd.approved is False
+    assert "REJECT_SHORT_AGAINST_TREND" in sd.reject_reason
+
+
+def test_trend_gate_no_ma_data_skips():
+    """Sem dados de MA (valores 0), gate nao bloqueia."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.LONG,
+        entry_price=100.0,
+        ema50=0.0, ema200=0.0,
+    ))
+    assert "REJECT_LONG_ABOVE_TREND" not in (sd.reject_reason or "")
+
+
+def test_trend_gate_long_all_conditions_pass_but_rejected_later():
+    """Trend gate aprova, mas sinal pode ser rejeitado por outro gate depois."""
+    sd = _evaluate(_make_signal(
+        direction=SignalDirection.LONG,
+        entry_price=110.0,
+        ema50=105.0, ema200=100.0,
+        adx=10.0,  # abaixo de HARD_MIN_ADX=20 -> Gate 3 rejeita
+    ))
+    # Trend gate nao foi o motivo da rejeicao
+    assert sd.trend_gate_ok is None or sd.trend_gate_ok is True
+    assert sd.approved is False
+    assert "ADX" in sd.reject_reason
+
+
 # --- V18.5: HARD GATES — 6 cenarios que DEVEM ser bloqueados -----------------
 
 def test_hard_gate_SHORT_KALMAN_UP():

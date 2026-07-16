@@ -91,6 +91,7 @@ class SignalDecision:
     classification_label: str = "reprovado"
     penalty_reasons: list = field(default_factory=list)
     kalman_ok: Optional[bool] = None
+    trend_gate_ok: Optional[bool] = None
     coherence: dict = field(default_factory=lambda: {})
 
     def to_dict(self) -> Dict[str, Any]:

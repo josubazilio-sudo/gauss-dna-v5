@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from typing import List
 from dotenv import load_dotenv
 
+from ENGINE.scanner.scanner_config import LEVERAGE_MAX_USER
+
 load_dotenv()
 
 @dataclass
@@ -16,6 +18,7 @@ class BotConfig:
     pyramiding: bool = False
     pyramiding_levels: int = 1
     position_size_pct: float = 0.02
+    leverage: float = LEVERAGE_MAX_USER
 
     # Baseline v4.0 — Quality Gates Institucionais
     min_confidence: float = 0.85

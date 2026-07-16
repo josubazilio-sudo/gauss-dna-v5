@@ -9,6 +9,7 @@ from CORE.events.events import Event, EventTypes
 from CORE.execution.mode_manager import ExecutionModeManager
 from ENGINE.market.market_engine import MarketEngine
 from ENGINE.scanner.scanner_engine import ScannerEngine
+from ENGINE.scanner.scanner_config import ACCOUNT_SIZE
 
 from .bot_config import BotConfig
 from BOTS.mexc.bot_types import (
@@ -258,7 +259,7 @@ class BotEngine:
     def _update_balance(self) -> None:
         mode = ExecutionModeManager()
         if not mode.is_live():
-            self._balance = Balance(total=10000.0, free=10000.0, used=0.0)
+            self._balance = Balance(total=ACCOUNT_SIZE, free=ACCOUNT_SIZE, used=0.0)
         else:
             try:
                 self._balance = self._exchange.get_balance()

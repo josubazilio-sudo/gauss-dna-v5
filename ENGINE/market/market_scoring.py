@@ -55,7 +55,10 @@ def score_confidence(
     volatility_zone: VolatilityZone,
 ) -> float:
     base = regime_confidence
-    if regime in (MarketRegime.TRENDING_UP, MarketRegime.TRENDING_DOWN) and trend != TrendDirection.NEUTRAL:
+    if regime in (
+        MarketRegime.TRENDING_UP, MarketRegime.TRENDING_DOWN,
+        MarketRegime.STRONG_TREND_UP, MarketRegime.STRONG_TREND_DOWN,
+    ) and trend != TrendDirection.NEUTRAL:
         base += 0.2
     if rsi_zone == RsiZone.NORMAL:
         base += 0.1

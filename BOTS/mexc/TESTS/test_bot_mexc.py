@@ -177,9 +177,12 @@ class TestBotRiskManager(unittest.TestCase):
         self.assertFalse(self.rm.can_open_position(10000.0, 100.0, 0.0001))
 
     def test_size_calculation(self):
+        from ENGINE.scanner.scanner_config import ACCOUNT_SIZE
         size = self.rm.calculate_position_size(10000.0, 100.0, 90.0)
-        # risk = 10000 * 0.02 = 200. distance = 10. size = 20
-        self.assertEqual(size, 20.0)
+        # RFC V18.6: ACCOUNT_SIZE * leverage / entry_price
+        # ACCOUNT_SIZE=200, leverage=25, entry=100 => 200*25/100 = 50
+        expected = ACCOUNT_SIZE * self.rm._config.leverage / 100.0
+        self.assertEqual(size, expected)
 
 
 class TestExecutionEngine(unittest.TestCase):

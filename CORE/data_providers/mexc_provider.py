@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import threading
 import time
 from datetime import datetime, timezone
@@ -25,7 +26,7 @@ CACHE_TTL_SECONDS = 60
 
 # Limite de requisicoes HTTP simultaneas a MEXC — protege contra rate limit
 # quando o scan roda com varios pares em paralelo (ThreadPoolExecutor em main.py).
-MAX_CONCURRENT_REQUESTS = int(os.getenv("QUANTOS_MEXC_MAX_CONCURRENT", "12"))
+MAX_CONCURRENT_REQUESTS = int(os.getenv("QUANTOS_MEXC_MAX_CONCURRENT", "6"))
 
 # Pool de conexoes HTTP dimensionado para o numero de requisicoes concorrentes
 # permitidas (MAX_CONCURRENT_REQUESTS). Sem isso, cada chamada requests.get()
@@ -33,6 +34,13 @@ MAX_CONCURRENT_REQUESTS = int(os.getenv("QUANTOS_MEXC_MAX_CONCURRENT", "12"))
 # novo — medido em producao: ~10s na 1a chamada a /klines, ~0.3s (30x mais
 # rapido) nas chamadas seguintes quando a conexao e reaproveitada.
 _POOL_SIZE = max(MAX_CONCURRENT_REQUESTS, 10)
+
+# Backoff config para 429 Too Many Requests
+_BACKOFF_BASE_SECONDS = 1.0
+_BACKOFF_MAX_SECONDS = 30.0
+_BACKOFF_JITTER = 0.1
+_RETRY_MAX_ATTEMPTS = 3
+_COOLDOWN_AFTER_429_SECONDS = 2.0
 
 class MexcDataProvider(IDataProvider):
     name = "MexcDataProvider"
@@ -48,6 +56,9 @@ class MexcDataProvider(IDataProvider):
         adapter = HTTPAdapter(pool_connections=_POOL_SIZE, pool_maxsize=_POOL_SIZE)
         self._session.mount("https://", adapter)
         self._session.mount("http://", adapter)
+        self._last_429_time: float = 0.0
+        self._429_lock = threading.Lock()
+        self._consecutive_429: int = 0
 
     def get_candles(
         self, symbol: str, timeframe: str, count: Optional[int] = None
@@ -72,31 +83,75 @@ class MexcDataProvider(IDataProvider):
         return candles
 
     def _fetch_klines(self, symbol: str, interval: str, limit: int = 250) -> List[Candle]:
-        try:
-            url = f"{self._rest_url}/api/v3/klines"
-            params = {"symbol": symbol.upper(), "interval": interval, "limit": limit}
-            headers = {}
-            if self._api_key:
-                headers["X-MEXC-APIKEY"] = self._api_key
-            with self._request_gate:
-                resp = self._session.get(url, params=params, headers=headers, timeout=15)
-            resp.raise_for_status()
-            data = resp.json()
-            candles = []
-            for k in data:
-                candles.append(Candle(
-                    timestamp=datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc),
-                    open=float(k[1]),
-                    high=float(k[2]),
-                    low=float(k[3]),
-                    close=float(k[4]),
-                    volume=float(k[5]),
-                ))
-            log.info("MexcDataProvider: fetched %d candles for %s %s", len(candles), symbol, interval)
-            return candles
-        except Exception as e:
-            log.error("MexcDataProvider: error fetching %s %s: %s", symbol, interval, e)
-            return []
+        url = f"{self._rest_url}/api/v3/klines"
+        params = {"symbol": symbol.upper(), "interval": interval, "limit": limit}
+        headers = {}
+        if self._api_key:
+            headers["X-MEXC-APIKEY"] = self._api_key
+
+        for attempt in range(_RETRY_MAX_ATTEMPTS):
+            try:
+                with self._request_gate:
+                    self._enforce_cooldown()
+                    resp = self._session.get(url, params=params, headers=headers, timeout=15)
+
+                if resp.status_code == 429:
+                    self._handle_429()
+                    if attempt < _RETRY_MAX_ATTEMPTS - 1:
+                        wait = min(_BACKOFF_BASE_SECONDS * (2 ** attempt) + random.uniform(0, _BACKOFF_JITTER), _BACKOFF_MAX_SECONDS)
+                        log.warning("MexcDataProvider: 429 for %s %s, retry %d/%d after %.1fs", symbol, interval, attempt + 1, _RETRY_MAX_ATTEMPTS, wait)
+                        time.sleep(wait)
+                        continue
+                    log.error("MexcDataProvider: 429 for %s %s, exhausted retries", symbol, interval)
+                    return []
+
+                resp.raise_for_status()
+                data = resp.json()
+                candles = []
+                for k in data:
+                    candles.append(Candle(
+                        timestamp=datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc),
+                        open=float(k[1]),
+                        high=float(k[2]),
+                        low=float(k[3]),
+                        close=float(k[4]),
+                        volume=float(k[5]),
+                    ))
+                self._consecutive_429 = 0
+                log.info("MexcDataProvider: fetched %d candles for %s %s", len(candles), symbol, interval)
+                return candles
+
+            except requests.exceptions.Timeout:
+                if attempt < _RETRY_MAX_ATTEMPTS - 1:
+                    wait = _BACKOFF_BASE_SECONDS * (2 ** attempt)
+                    log.warning("MexcDataProvider: timeout for %s %s, retry %d/%d after %.1fs", symbol, interval, attempt + 1, _RETRY_MAX_ATTEMPTS, wait)
+                    time.sleep(wait)
+                    continue
+                log.error("MexcDataProvider: timeout for %s %s, exhausted retries", symbol, interval)
+                return []
+
+            except Exception as e:
+                log.error("MexcDataProvider: error fetching %s %s: %s", symbol, interval, e)
+                return []
+
+        return []
+
+    def _handle_429(self) -> None:
+        with self._429_lock:
+            self._last_429_time = time.time()
+            self._consecutive_429 += 1
+
+    def _enforce_cooldown(self) -> None:
+        with self._429_lock:
+            if self._last_429_time == 0:
+                return
+            elapsed = time.time() - self._last_429_time
+            cooldown = _COOLDOWN_AFTER_429_SECONDS * (1 + min(self._consecutive_429, 10) * 0.5)
+            remaining = cooldown - elapsed
+            if remaining > 0:
+                log.debug("MexcDataProvider: cooldown %.1fs after 429 burst (consecutive=%d)", remaining, self._consecutive_429)
+        if remaining > 0:
+            time.sleep(remaining)
 
     def get_symbols(self) -> List[str]:
         """Descobre pares USDT elegiveis: com trading spot habilitado e

@@ -147,6 +147,40 @@ class DecisionEngine:
                 )
                 _log_result(sd.trace_id, sd.symbol, sd.direction, sd); return sd
 
+        # GATE TREND (V18.6): Hard Gate de Tendencia — MA50/MA200
+        # LONG: Price > MA50, Price > MA200, MA50 > MA200
+        # SHORT: Price < MA50, Price < MA200, MA50 < MA200
+        _entry_price = signal.entry_price
+        _ma50 = signal.ema50
+        _ma200 = signal.ema200
+        _signal_dir_local = sd.direction.lower() if hasattr(sd.direction, 'lower') else str(sd.direction).lower()
+        _is_long_tg = _signal_dir_local in ("long", "buy")
+        _is_short_tg = _signal_dir_local in ("short", "sell")
+        _trend_gate_fail = False
+        if _is_long_tg and _ma50 > 0 and _ma200 > 0:
+            if not (_entry_price > _ma50 and _entry_price > _ma200 and _ma50 > _ma200):
+                sd.trend_gate_ok = False
+                sd.approved = False
+                sd.reject_reason = (
+                    f"REJECT_LONG_ABOVE_TREND "
+                    f"(entry={_entry_price:.4f} ma50={_ma50:.4f} ma200={_ma200:.4f})"
+                )
+                _trend_gate_fail = True
+        elif _is_short_tg and _ma50 > 0 and _ma200 > 0:
+            if not (_entry_price < _ma50 and _entry_price < _ma200 and _ma50 < _ma200):
+                sd.trend_gate_ok = False
+                sd.approved = False
+                sd.reject_reason = (
+                    f"REJECT_SHORT_AGAINST_TREND "
+                    f"(entry={_entry_price:.4f} ma50={_ma50:.4f} ma200={_ma200:.4f})"
+                )
+                _trend_gate_fail = True
+        if _ma50 > 0 and _ma200 > 0:
+            sd.trend_gate_ok = sd.trend_gate_ok is not False
+        if _trend_gate_fail:
+            _log_result(sd.trace_id, sd.symbol, sd.direction, sd)
+            return sd
+
         # GATE 12 (V18.3): Regras do Kalman
         # LONG: UP ou NEUTRO permitidos. DOWN = rejeitar.
         # SHORT: DOWN ou NEUTRO permitidos. UP = rejeitar.

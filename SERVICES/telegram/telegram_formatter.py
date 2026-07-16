@@ -138,6 +138,10 @@ class TelegramFormatter:
         audit_cycle = _get(audit, "cycle_id", _get(signal, "cycle_id", 0))
         audit_processing = float(_get(audit, "processing_time_ms", 0))
         audit_timestamp = _str(audit, "timestamp_utc", "")
+        fingerprint = _get(signal, "fingerprint", {})
+        fp_server = _str(fingerprint, "server", "")
+        fp_pid = _get(fingerprint, "pid", "")
+        fp_build = _str(fingerprint, "build", "")
 
         quantity = float(_get(signal, "quantity", 0.0))
         balance = float(_get(signal, "balance", 0.0))
@@ -150,7 +154,50 @@ class TelegramFormatter:
         # BLOCK 1: HEADER
         lines.append(header)
         lines.append(f"\U0001f48e *{symbol}* | {dir_emoji} | {timeframe}")
+        if _get(signal, "_watchlist_priority", False):
+            lines.append("\u2b50 *WATCHLIST PRIORIT\u00c1RIA*")
         lines.append(SEPARATOR)
+
+        # RFC V18.5: REGIME E SETUP
+        sig_regime = _str(signal, "regime", "")
+        sig_setup = _str(signal, "setup_type", "")
+        sig_strategy = _str(signal, "strategy_desc", "")
+        sig_objective = _str(signal, "objective", "")
+        sig_continuation = _str(signal, "continuation", "")
+
+        REGIME_LABELS = {
+            "strong_trend_up": "Tendencia Forte Alta",
+            "strong_trend_down": "Tendencia Forte Baixa",
+            "ranging": "Lateral",
+            "compression": "Compressao",
+            "exhaustion": "Exaustao",
+        }
+        SETUP_LABELS = {
+            "trend_pullback": "Trend Pullback",
+            "trend_breakout": "Trend Breakout",
+            "trend_following": "Trend Following",
+            "pullback_short": "Pullback Short",
+            "breakdown": "Breakdown",
+            "range_reversal": "Range Reversal",
+            "fade": "Fade",
+            "reversal": "Reversao",
+            "breakout": "Breakout",
+            "mean_reversion": "Retorno a Media",
+        }
+
+        if sig_regime:
+            regime_desc = _escape_markdown(REGIME_LABELS.get(sig_regime, sig_regime.title()))
+            lines.append(f"\U0001f9e0 *Regime*: {regime_desc}")
+        if sig_setup:
+            setup_desc = _escape_markdown(SETUP_LABELS.get(sig_setup, sig_setup.title()))
+            lines.append(f"\U0001f3af *Setup*: {setup_desc}")
+        if sig_strategy:
+            lines.append(f"\U0001f4cc *Estrategia*: {_escape_markdown(sig_strategy)}")
+        if sig_objective:
+            lines.append(f"\U0001f3d7 *Objetivo*: {_escape_markdown(sig_objective)}")
+        if sig_continuation:
+            esaca = _escape_markdown(sig_continuation)
+            lines.append(f"\U0001f4c8 *Continuacao*: {esaca}")
 
         # BLOCK 2: CLASSIFICACAO E QUALIDADE
         lines.append("\U0001f3af *Classifica\u00e7\u00e3o e Qualidade*")
@@ -269,7 +316,7 @@ class TelegramFormatter:
         if isinstance(risk_dec, dict) and risk_dec.get("risco_total", 0) > 0:
             lines.append(f"\u26a0\ufe0f Risco total: {risk_dec['risco_total']:.0f}/100")
         if mtf_conflict:
-            lines.append("\u26d4 Conflito MTF detectado!")
+            lines.append(f"\u26d4 Conflito Direcional entre Timeframes detectado!")
         if cs_value > 0:
             cs_emoji = "\U0001f9e0" if cs_value >= 85 else "\u26a0\ufe0f" if cs_value >= 60 else "\u274c"
             cs_line = f"{cs_emoji} Coer\u00eancia: {cs_value:.0f}/100"
@@ -293,6 +340,12 @@ class TelegramFormatter:
         if validation_errors:
             for e in validation_errors[:2]:
                 lines.append(f"\u274c {_escape_markdown(e)}")
+        # RFC V18.5: Motivo do sinal
+        approval = _get(signal, "approval_reasons", [])
+        if approval and isinstance(approval, list):
+            lines.append("\U0001f9e0 *Motivo do sinal*")
+            for reason in approval[:6]:
+                lines.append(f"\u2022 {_escape_markdown(reason)}")
         if main_reason:
             lines.append(f"\U0001f4a1 {_escape_markdown(main_reason)}")
         lines.append(SEPARATOR)
@@ -307,5 +360,13 @@ class TelegramFormatter:
             lines.append(f"Processamento: {audit_processing:.1f}ms")
         if audit_timestamp:
             lines.append(f"UTC: {audit_timestamp}")
+        # RFC V25.3 (temporario): fingerprint de instancia para rastrear a
+        # origem do sinal — remover ou mover so para o log apos a auditoria.
+        if fp_server:
+            lines.append(f"Servidor: {fp_server}")
+        if fp_pid:
+            lines.append(f"PID: {fp_pid}")
+        if fp_build:
+            lines.append(f"Build: {fp_build}")
 
         return "\n".join(lines)

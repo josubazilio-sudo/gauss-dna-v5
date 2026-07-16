@@ -38,6 +38,7 @@ from SERVICES.telegram.telegram_service import TelegramService
 from ENGINE.diagnostic.engine import DiagnosticEngine
 from ENGINE.diagnostics.decision_diagnostics import DecisionDiagnostics
 from ENGINE.deduplication.signal_cache import SignalCacheEngine
+from ENGINE.exchange.exchange_validation import ExchangeValidation
 from ENGINE.diagnostic.cycle_profiler import CycleProfiler
 from ENGINE.diagnostic import calibration_measurement
 from ENGINE.diagnostic.advanced_report import build_advanced_report
@@ -62,6 +63,9 @@ from ENGINE.diagnostic.fast_diagnostic import (
 from ENGINE.diagnostic.rfc_v25_6_diagnostic import (
     build_v25_6_diagnostic, format_v25_6_report,
 )
+from ENGINE.analytics.root_cause_engine import (
+    RootCauseDiagnosticEngine, format_rcde_report, format_rcde_telegram,
+)
 from ENGINE.exchange.execution_validator import (
     ExchangeExecutionValidator, ExchangeSymbolInfo, ExecutionValidationResult,
 )
@@ -73,11 +77,13 @@ from ENGINE.scanner.scanner_config import (
 from ENGINE.watchlist.watchlist_manager import WatchlistManager, WATCHLIST_PRIORITY_BONUS
 from ENGINE.scanner.scanner_config import WATCHLIST_PATH
 from ENGINE.analytics.rejection_analytics import RejectionAnalytics, _classify_gate
+from ENGINE.analytics.gate_calibration_engine import GateCalibrationEngine
 from ENGINE.analytics.baseline_monitor import (
     BaselineRegistry, BaselineAnalyzer, BaselineReporter, CycleSnapshot,
 )
 from ENGINE.scanner.scanner_config import (
     ENABLE_REJECTION_ANALYTICS, REJECTION_ANALYTICS_EXPORT_DIR,
+    CALIBRATION_MIN_SAMPLES, CALIBRATION_ENABLED,
 )
 
 from logging import StreamHandler, FileHandler
@@ -222,6 +228,12 @@ class QuantOSApp:
         self._decision_diag = DecisionDiagnostics()
         self._signal_cache = SignalCacheEngine()
         self._profiler = CycleProfiler()
+        # RFC V18.5: Exchange Validation Gate — universo de simbolos vem
+        # da API de SPOT da MEXC (CORE/data_providers/mexc_provider.py),
+        # mas o pipeline inteiro assume futuros (leverage/margem/
+        # liquidacao). Filtra aqui, antes de qualquer scan, simbolos sem
+        # contrato futuro real (ex.: ACNONUSDT, ATTONUSDT).
+        self._exchange_validation = ExchangeValidation()
 
         startup = Startup()
         startup.run()
@@ -235,7 +247,10 @@ class QuantOSApp:
         self._telegram = TelegramService(self._bus)
         self._watchdog = WatchdogIntegration(self)
         self._health = HealthMonitor(ping_fn=self._async_ping)
-        self._paper = PaperTradingEngine()
+        # RFC V26.X: banca institucional fixa — mesma fonte de verdade
+        # (ACCOUNT_SIZE) usada por BotEngine.balance, InstitutionalMathAuditor
+        # e a curva de equity, nunca um valor interno divergente.
+        self._paper = PaperTradingEngine(initial_capital=ACCOUNT_SIZE)
         self._trade_registry = TradeRegistry()
         self._signal_tracker = SignalTracker()
         self._watchlist = WatchlistManager(path=WATCHLIST_PATH or None)
@@ -244,6 +259,10 @@ class QuantOSApp:
             export_dir=REJECTION_ANALYTICS_EXPORT_DIR or None,
         )
         self._rejection_analytics.set_enabled(ENABLE_REJECTION_ANALYTICS)
+        self._calibration = GateCalibrationEngine(
+            min_samples=CALIBRATION_MIN_SAMPLES,
+            enabled=CALIBRATION_ENABLED,
+        )
         self._running = False
         self._scan_count = 0
         self._last_heartbeat: float = 0.0
@@ -258,6 +277,13 @@ class QuantOSApp:
         self._baseline_registry = BaselineRegistry()
         self._baseline_analyzer = BaselineAnalyzer()
         self._baseline_reporter = BaselineReporter(self._baseline_analyzer)
+        # RFC V26.X: Root Cause Diagnostic Engine — investiga gates em
+        # crise e detecta regressoes, ao final de cada ciclo.
+        self._rcde = RootCauseDiagnosticEngine()
+        # RFC V26.X: diagnostico unico enviado ao Telegram uma vez por dia
+        # as 18h (sem alertas avulsos) — data do ultimo envio, para nao
+        # repetir no mesmo dia.
+        self._last_daily_diagnostic_date = None
         self._zero_signal_streak = 0
         self._symbols = self._discover_symbols()
         self._config.pairs = list(self._symbols)
@@ -338,14 +364,26 @@ class QuantOSApp:
     def _discover_symbols(self) -> List[str]:
         limit_label = MAX_SCAN_PAIRS if MAX_SCAN_PAIRS is not None else "ALL"
         if DISCOVERY_MODE == "CUSTOM":
-            discovered = [s.upper() for s in CUSTOM_PAIRS if s.strip()]
+            candidates = [s.upper() for s in CUSTOM_PAIRS if s.strip()]
+            # RFC V18.5: mesmo em modo manual, nunca escanear simbolo sem
+            # contrato futuro real na MEXC.
+            valid = self._exchange_validation.filter_valid(candidates)
+            discovered = sorted(valid, key=candidates.index)
             log.info("Discovery CUSTOM: %d pairs configurados manualmente", len(discovered))
         else:
             all_syms = self._provider.get_symbols()
             filtered = [s for s in all_syms if any(s.endswith(qa) for qa in QUOTE_ASSETS)]
-            discovered = filtered[:MAX_SCAN_PAIRS]
+            # RFC V18.5: Exchange Validation Gate — filtra ANTES de
+            # truncar por MAX_SCAN_PAIRS, para nao desperdicar vagas de
+            # scan com simbolos que existem no spot mas nao em futuros.
+            valid = self._exchange_validation.filter_valid(filtered)
+            valid_sorted = [s for s in filtered if s in valid]
+            discovered = valid_sorted[:MAX_SCAN_PAIRS]
             mode_label = "DEBUG" if DISCOVERY_MODE == "DEBUG" else "AUTO"
-            log.info("Discovery %s: %d / %d USDT pairs (limit: %s)", mode_label, len(discovered), len(filtered), limit_label)
+            log.info(
+                "Discovery %s: %d / %d USDT pairs validos em futuros (limit: %s)",
+                mode_label, len(discovered), len(valid_sorted), limit_label,
+            )
         if not discovered:
             log.warning("Nenhum simbolo descoberto! Fallback para BTCUSDT")
             discovered = ["BTCUSDT"]
@@ -401,6 +439,7 @@ class QuantOSApp:
                 self._decision_diag.start_cycle(self._scan_count)
                 self._profiler.start_cycle(self._scan_count)
                 self._rejection_analytics.start_cycle(self._scan_count)
+                self._calibration.start_cycle(self._scan_count)
                 self._diag.record_step("Ativos monitorados", len(self._symbols))
                 start_time = time.time()
                 log.info("--- Ciclo de scan #%d ---", self._scan_count)
@@ -525,38 +564,52 @@ class QuantOSApp:
                     rejection_summary = None
 
                 try:
-                    _recs = self._rejection_analytics.cycle_records
-                    _qual = [r.quality for r in _recs if r.quality]
-                    _conf = [r.confidence for r in _recs if r.confidence]
-                    _cons = [r.consensus for r in _recs if r.consensus]
-                    _snap = CycleSnapshot(
-                        cycle=self._scan_count,
-                        timestamp=time.time(),
-                        total_analyzed=rejection_summary.get("total_analyzed", 0),
-                        total_approved=rejection_summary.get("total_approved", 0),
-                        total_rejected=rejection_summary.get("total_rejected", 0),
-                        approval_rate=rejection_summary.get("approval_rate", 0.0),
-                        avg_quality=round(sum(_qual) / max(len(_qual), 1), 4) if _qual else 0.0,
-                        avg_confidence=round(sum(_conf) / max(len(_conf), 1), 4) if _conf else 0.0,
-                        avg_consensus=round(sum(_cons) / max(len(_cons), 1), 4) if _cons else 0.0,
-                        avg_rr=0.0,
-                        gate_percentages=rejection_summary.get("gate_percentages", {}),
-                        gate_counts=rejection_summary.get("gate_counts", {}),
-                    )
-                    self._baseline_registry.record_cycle(_snap)
+                    calibration_report = self._calibration.end_cycle()
+                    if calibration_report:
+                        for _line in calibration_report.split("\n"):
+                            log.info("CALIB| %s", _line)
+                except Exception as e:
+                    log.warning("GateCalibrationEngine: erro ao finalizar ciclo: %s", e)
+
+                try:
+                    # RFC V26.1: ciclo vazio (nenhum ativo analisado) nunca
+                    # entra no registro de baseline — senao dilui/zera as
+                    # medias de 24h do relatorio de 30min e gera falso
+                    # alerta de "queda abrupta" no proximo ciclo real.
+                    if rejection_summary is not None and rejection_summary.get("total_analyzed", 0) > 0:
+                        _recs = self._rejection_analytics.cycle_records
+                        _qual = [r.quality for r in _recs if r.quality]
+                        _conf = [r.confidence for r in _recs if r.confidence]
+                        _cons = [r.consensus for r in _recs if r.consensus]
+                        _snap = CycleSnapshot(
+                            cycle=self._scan_count,
+                            timestamp=time.time(),
+                            total_analyzed=rejection_summary.get("total_analyzed", 0),
+                            total_approved=rejection_summary.get("total_approved", 0),
+                            total_rejected=rejection_summary.get("total_rejected", 0),
+                            approval_rate=rejection_summary.get("approval_rate", 0.0),
+                            avg_quality=round(sum(_qual) / max(len(_qual), 1), 4) if _qual else 0.0,
+                            avg_confidence=round(sum(_conf) / max(len(_conf), 1), 4) if _conf else 0.0,
+                            avg_consensus=round(sum(_cons) / max(len(_cons), 1), 4) if _cons else 0.0,
+                            avg_rr=0.0,
+                            gate_percentages=rejection_summary.get("gate_percentages", {}),
+                            gate_counts=rejection_summary.get("gate_counts", {}),
+                        )
+                        self._baseline_registry.record_cycle(_snap)
                 except Exception as e:
                     log.warning("BaselineRegistry: erro ao registrar ciclo: %s", e)
 
                 try:
-                    _now = time.time()
-                    if _now - self._baseline_registry.last_30min_report >= 1800:
-                        self._baseline_registry.last_30min_report = _now
+                    _now_ts = time.time()
+                    if _now_ts - self._baseline_registry.last_30min_report >= 1800:
+                        self._baseline_registry.last_30min_report = _now_ts
                         _report = self._baseline_reporter.build_30min_report(self._baseline_registry)
                         for _line in self._baseline_reporter.format_30min_log(_report).split("\n"):
                             log.info("30MIN| %s", _line)
-                        self._telegram.send_diagnostic(
-                            self._baseline_reporter.format_30min_telegram(_report)
-                        )
+                        # RFC V26.X: validacoes de calibracao permanecem so
+                        # no log — o usuario pediu para o Telegram nao
+                        # receber mais alertas avulsos, so o sinal e o
+                        # diagnostico unico diario (ver bloco RCDE abaixo).
                         _impacts = self._baseline_analyzer.pending_impacts(
                             self._baseline_registry
                         )
@@ -568,7 +621,6 @@ class QuantOSApp:
                             _c.impact_data = _i
                             _msg = self._baseline_reporter.build_change_report(_c, _i)
                             log.info("CHANGE_VALIDATION| %s", _msg.replace("\n", " | "))
-                            self._telegram.send_diagnostic(_msg)
                 except Exception as e:
                     log.warning("30MIN: erro ao gerar relatorio: %s", e)
 
@@ -604,15 +656,28 @@ class QuantOSApp:
                         )
                         for _line in format_fast_diagnostic_log(fast_diag).split("\n"):
                             log.info("FASTDIAG| %s", _line)
-                        self._diag_baseline.update(
-                            rejection_summary.get("gate_percentages", {}) or {},
-                            rejection_summary.get("approval_rate", 0.0),
-                        )
+                        # RFC V26.1: ciclo vazio nunca atualiza a baseline
+                        # historica (senao contamina a media com 0% real).
+                        if not fast_diag.ciclo_vazio:
+                            self._diag_baseline.update(
+                                rejection_summary.get("gate_percentages", {}) or {},
+                                rejection_summary.get("approval_rate", 0.0),
+                            )
+                        # RFC V26.X: sem alertas avulsos no Telegram — o
+                        # alerta imediato continua so no log; qualquer
+                        # anomalia real reaparece no diagnostico unico
+                        # diario via RCDE (mais completo: causa raiz,
+                        # hipoteses e confianca, nao so o aviso isolado).
                         if fast_diag.alerta_imediato:
-                            self._telegram.send_diagnostic(fast_diag.alerta_imediato)
-                        self._telegram.send_diagnostic(
-                            format_detailed_diagnostic(rejection_summary)
-                        )
+                            log.info("FASTDIAG| ALERTA (so log): %s",
+                                      fast_diag.alerta_imediato.replace("\n", " | "))
+                        # RFC V26.4: diagnostico detalhado (analisados/
+                        # aprovados/rejeitados/ranking por timeframe) e log
+                        # tecnico de rotina, nao informacao operacional —
+                        # nunca vai ao Telegram. Permanece no log a cada
+                        # ciclo, exatamente como antes.
+                        for _line in format_detailed_diagnostic(rejection_summary).split("\n"):
+                            log.info("DETAILEDDIAG| %s", _line)
 
                         try:
                             from dataclasses import asdict
@@ -639,6 +704,41 @@ class QuantOSApp:
                 if diag_report:
                     for _line in diag_report.report_text.split("\n"):
                         log.info("DIAG| %s", _line)
+
+                # ============================================================
+                # RFC V26.X: Root Cause Diagnostic Engine — investiga gates em
+                # crise a cada ciclo (le report.decisions, ja populado acima,
+                # sem recalcular nenhum indicador) e envia UM diagnostico
+                # consolidado ao Telegram por dia, as 18h, sempre — sem
+                # alertas avulsos (ver remocao de fast_diag.alerta_imediato
+                # e do envio do relatorio de 30min acima).
+                # ============================================================
+                try:
+                    if report is not None:
+                        self._rcde.record_cycle(report.decisions)
+                        rcde_report = self._rcde.investigate(
+                            total_analyzed=rejection_summary.get("total_analyzed", 0) if rejection_summary else 0,
+                            total_approved=rejection_summary.get("total_approved", 0) if rejection_summary else 0,
+                            avg_adx=_avg_adx if rejection_summary else 0.0,
+                            regime_mode=_regime_mode if rejection_summary else "",
+                            silent_drop_pct=_silent_drop_pct if rejection_summary else 0.0,
+                            calibration_data=self._calibration.last_data,
+                            duplicates_blocked=self._signal_cache.duplicate_blocked_count,
+                        )
+                        for _line in format_rcde_report(rcde_report).split("\n"):
+                            log.info("RCDE| %s", _line)
+
+                        _now_dt = datetime.now()
+                        if (
+                            _now_dt.hour >= 18
+                            and self._last_daily_diagnostic_date != _now_dt.date()
+                        ):
+                            self._last_daily_diagnostic_date = _now_dt.date()
+                            log.info("RCDE| Telegram: diagnostico diario BLOQUEADO pelo usuario (so sinais)")
+                            # Envio de diagnostico desativado pelo usuario
+                            # self._telegram.send_diagnostic(format_rcde_telegram(rcde_report))
+                except Exception as e:
+                    log.warning("RCDE: erro ao gerar diagnostico de causa raiz: %s", e)
 
                 # RFC V20.0: consolidacao de analytics (leitura de
                 # TradeRegistry, nao registra nada novo). Fail-safe: erro
@@ -910,6 +1010,12 @@ class QuantOSApp:
                     closes=_closes_list,
                 )
             calibration_measurement.record(pair, sig.timeframe, sd, sig)
+            self._calibration.record_signal_all_gates(
+                symbol=pair, timeframe=sig.timeframe,
+                direction=sd.direction,
+                result="APPROVED" if sd.approved else "REJECTED",
+                signal=sig, sd=sd,
+            )
 
             log.info(
                 "SD[%s] %s %s | aprov=%s entry=%.8f sl=%.8f tp1=%.8f rr=%.4f "
@@ -997,7 +1103,6 @@ class QuantOSApp:
                     details=sd.reject_reason or "",
                 )
                 self._decision_diag.increment_rejected()
-                _gate_name = _classify_gate(sd.reject_reason) if callable(__builtins__.get("_classify_gate")) else sd.reject_reason or "Desconhecido"
                 self._rejection_analytics.record_rejection(
                     gate=sd.reject_reason or "Desconhecido",
                     symbol=pair, timeframe=sig.timeframe,
@@ -1137,7 +1242,18 @@ class QuantOSApp:
             data["confluence_score"] = compute_confluence_score(data)
             data["risk_decomposition"] = compute_risk_decomposition(data)
             data["main_reason"] = compute_main_reason(data)
-            mtf_results = DecisionEngine.detect_mtf_conflict(all_decisions)
+            # RFC V26.8: detect_mtf_conflict() recebia all_decisions (TODAS
+            # as decisoes avaliadas no ciclo para o par, aprovadas OU
+            # rejeitadas). Uma direcao de um timeframe REJEITADO (por RVOL
+            # fraco, consenso baixo, etc. — motivos sem relacao com o vies
+            # direcional) nao e uma leitura validada do mercado; usar essa
+            # leitura para vetar um sinal ja aprovado por todos os gates
+            # tratava ruido de timeframes descartados como se fosse
+            # divergencia real. Conflito MTF agora so considera timeframes
+            # que TAMBEM foram aprovados nesse ciclo — discordancia entre
+            # duas leituras validadas continua bloqueando (comportamento
+            # do Hard Gate V25 preservado), mas ruido de rejeitados nao.
+            mtf_results = DecisionEngine.detect_mtf_conflict(approved_this_pair)
             data["mtf_conflict"] = mtf_results.get(best_sd.timeframe, False) if mtf_results else False
 
             # V18.4: Probabilidade, Coerencia, Coherence Score, Weighted Vote
@@ -1367,6 +1483,23 @@ class QuantOSApp:
                     )
                     data["_validation_blocked"] = True
                     data["hard_fail_reason"] = _exec_result.hard_fail_reason
+                elif AUTO_ROUND_PRICES or AUTO_ROUND_QUANTITY:
+                    # RFC V26.7: quando o auto-round esta ativo, os checks
+                    # de tick_size/step_size passam com o valor arredondado
+                    # (ver ExchangeExecutionValidator._check_tick_size), mas
+                    # a validacao em si nao alterava entry/stop/tp/quantity
+                    # usados no resto do pipeline — Telegram e auditoria
+                    # continuavam mostrando os precos brutos, nao alinhados
+                    # ao exchange. Propaga os valores arredondados de volta
+                    # para `data`, que e a fonte usada dali em diante.
+                    if AUTO_ROUND_PRICES:
+                        data["entry_price"] = _exec_val.round_price(best_sd.entry_price)
+                        data["stop_loss"] = _exec_val.round_price(best_sd.stop_loss)
+                        data["take_profit_1"] = _exec_val.round_price(best_sd.take_profit_1)
+                        if best_sd.take_profit_2:
+                            data["take_profit_2"] = _exec_val.round_price(best_sd.take_profit_2)
+                    if AUTO_ROUND_QUANTITY:
+                        data["quantity"] = _exec_val.round_quantity(real_quantity)
 
             data["audit"] = {
                 "signal_id": best_sd.signal_id or best_sd.trace_id,
@@ -1408,6 +1541,16 @@ class QuantOSApp:
 
             if skip_telegram:
                 pass
+            elif not self._exchange_validation.is_valid_symbol(best_sd.symbol):
+                # RFC V18.5: defesa em profundidade — o Discovery ja
+                # filtra simbolos sem contrato futuro real, mas o
+                # Telegram nunca deve enviar um sinal de ativo invalido,
+                # independentemente de como o simbolo chegou ate aqui.
+                log.warning(
+                    "TELEGRAM BLOCKED (INVALID_SYMBOL): %s nao existe como "
+                    "contrato futuro na MEXC.",
+                    best_sd.symbol,
+                )
             elif data.get("_validation_blocked", False):
                 log.info(
                     "TELEGRAM BLOCKED (VALIDATION): %s_%s -> %s",

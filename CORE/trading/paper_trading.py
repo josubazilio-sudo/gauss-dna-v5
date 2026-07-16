@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from statistics import mean
 from typing import Dict, List, Optional, Any
 
+from ENGINE.scanner.scanner_config import ACCOUNT_SIZE
+
 log = logging.getLogger(__name__)
 
 
@@ -73,13 +75,14 @@ class PaperTrade:
 class PaperTradingEngine:
     """Registra sinais aprovados como operacoes de papel e monitora saidas."""
 
-    def __init__(self, db_path: str = "MEMORY/paper_trading.json"):
+    def __init__(self, db_path: str = "MEMORY/paper_trading.json",
+                 initial_capital: float = ACCOUNT_SIZE):
         self._db_path = db_path
         self._open_trades: Dict[str, PaperTrade] = {}
         self._closed_trades: List[PaperTrade] = []
-        self._capital: float = 10000.0
+        self._capital: float = initial_capital
         self._max_concurrent: int = 5
-        self._initial_capital: float = 10000.0
+        self._initial_capital: float = initial_capital
         self._load()
 
     def _load(self):
@@ -87,8 +90,8 @@ class PaperTradingEngine:
             try:
                 with open(self._db_path) as f:
                     data = json.load(f)
-                    self._capital = data.get("capital", 10000.0)
-                    self._initial_capital = data.get("initial_capital", 10000.0)
+                    loaded_initial = data.get("initial_capital", self._initial_capital)
+                    loaded_capital = data.get("capital", self._capital)
                     trades = data.get("closed_trades", [])
                     for t in trades:
                         pt = PaperTrade(
@@ -117,6 +120,26 @@ class PaperTradingEngine:
                         pt.lowest_seen = t.get("lowest_seen", pt.entry_price)
                         pt.max_profit_before_reversal = t.get("max_profit_before_reversal", 0.0)
                         self._closed_trades.append(pt)
+
+                    # RFC V26.X: banca institucional fixa (ACCOUNT_SIZE).
+                    # Se o baseline persistido nao bate com o configurado
+                    # (ex.: arquivo antigo com o valor hardcoded de 10000
+                    # que existia antes desta correcao), nunca usar o valor
+                    # antigo — recalcula o capital atual a partir do PnL
+                    # real dos trades fechados sobre o novo baseline, sem
+                    # descartar o historico.
+                    if abs(loaded_initial - self._initial_capital) > 0.01:
+                        net_pnl = sum(t.pnl for t in self._closed_trades)
+                        log.warning(
+                            "PaperTrading: baseline de capital desatualizado "
+                            "(%.2f) nao bate com ACCOUNT_SIZE (%.2f). "
+                            "Recalculando capital atual a partir do PnL "
+                            "real dos %d trades fechados.",
+                            loaded_initial, self._initial_capital, len(self._closed_trades),
+                        )
+                        self._capital = round(self._initial_capital + net_pnl, 2)
+                    else:
+                        self._capital = loaded_capital
                 log.info(f"PaperTrading: loaded {len(self._closed_trades)} closed trades, capital={self._capital:.2f}")
             except Exception as e:
                 log.warning(f"PaperTrading: load error {e}")

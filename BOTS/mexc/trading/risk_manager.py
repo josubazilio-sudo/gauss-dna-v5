@@ -92,27 +92,14 @@ class BotRiskManager:
         self, balance: float, entry_price: float, stop_loss: float,
         quality_score: float = 0.0,
     ) -> float:
-        base_pct = self._config.position_size_pct
-        q = quality_score * 100.0 if quality_score <= 1.0 else quality_score
-        if q >= 95:
-            pct = base_pct * 3.0
-        elif q >= 90:
-            pct = base_pct * 2.5
-        elif q >= 80:
-            pct = base_pct * 2.0
-        elif q >= 70:
-            pct = base_pct * 1.5
-        elif q >= 60:
-            pct = base_pct * 1.2
-        else:
-            pct = base_pct
-        risk_per_trade = balance * min(pct, 0.10)
-        price_risk = abs(entry_price - stop_loss)
-        if price_risk <= 0:
+        from ENGINE.scanner.scanner_config import ACCOUNT_SIZE
+        capital_per_trade = ACCOUNT_SIZE
+        leverage = self._config.leverage
+        nominal_value = capital_per_trade * leverage
+        if entry_price <= 0:
             return 0.0
-        qty = risk_per_trade / price_risk
-        max_qty = balance * self._config.max_daily_drawdown_pct / price_risk
-        return min(qty, max_qty)
+        qty = nominal_value / entry_price
+        return qty
 
     def record_trade_result(self, pnl: float) -> None:
         if pnl > 0:

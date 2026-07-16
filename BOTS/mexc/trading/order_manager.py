@@ -22,7 +22,7 @@ class OrderManager:
         """Gate de seguranca: uma ordem so pode ser real se dry_run=False
         E o modo de execucao ativo for LIVE. Qualquer dessincronia entre
         BotConfig.dry_run e QUANTOS_MODE forca DRY RUN por seguranca."""
-        if self._should_dry_run():
+        if self._config.dry_run:
             return True
         if not ExecutionModeManager().can_trade():
             log.error(

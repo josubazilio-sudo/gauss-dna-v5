@@ -1,0 +1,15 @@
+{
+  "description": "Watchlist Prioritária — moedas escaneadas primeiro e com +3 de bônus no ranking",
+  "symbols": [
+    "SPCXUSDT",
+    "EPICUSDT",
+    "HOMEUSDT",
+    "SKYAIUSDT",
+    "SOLUSDT",
+    "OPGUSDT",
+    "WLDUSDT",
+    "ALLOUSDT",
+    "HUSDT",
+    "BEATUSDT"
+  ]
+}

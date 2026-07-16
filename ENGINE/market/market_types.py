@@ -11,12 +11,31 @@ class TrendDirection(Enum):
 
 
 class MarketRegime(Enum):
+    # RFC V18.5 — 5 regimes
+    STRONG_TREND_UP = "strong_trend_up"
+    STRONG_TREND_DOWN = "strong_trend_down"
+    RANGING = "ranging"
+    COMPRESSION = "compression"
+    EXHAUSTION = "exhaustion"
+    # Legado (mantido para compatibilidade)
     TRENDING_UP = "trending_up"
     TRENDING_DOWN = "trending_down"
-    RANGING = "ranging"
     VOLATILE = "volatile"
     REVERSAL = "reversal"
     CALM = "calm"
+
+
+class SetupType(Enum):
+    TREND_PULLBACK = "trend_pullback"
+    TREND_BREAKOUT = "trend_breakout"
+    TREND_FOLLOWING = "trend_following"
+    PULLBACK_SHORT = "pullback_short"
+    BREAKDOWN = "breakdown"
+    RANGE_REVERSAL = "range_reversal"
+    FADE = "fade"
+    REVERSAL = "reversal"
+    BREAKOUT = "breakout"
+    MEAN_REVERSION = "mean_reversion"
 
 
 class RsiZone(Enum):

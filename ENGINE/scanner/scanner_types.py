@@ -155,6 +155,12 @@ class Signal:
     rvol: float = 0.0
     adx: float = 0.0
     regime: str = "unknown"
+    setup_type: str = ""
+    strategy_desc: str = ""
+    objective: str = ""
+    continuation: str = ""
+    tp_multiplier: float = 0.5
+    max_leverage: int = 10
     entry_type: str = "a_mercado"
     atr_value: float = 0.0
     volume: float = 0.0
@@ -211,6 +217,12 @@ class Signal:
             "rejection_reasons": self.rejection_reasons,
             "penalty_reasons": self.penalty_reasons,
             "regime": self.regime,
+            "setup_type": self.setup_type,
+            "strategy_desc": self.strategy_desc,
+            "objective": self.objective,
+            "continuation": self.continuation,
+            "tp_multiplier": self.tp_multiplier,
+            "max_leverage": self.max_leverage,
             "entry_type": self.entry_type,
             "entry_zone": self.entry_zone,
             "order_block_distance": self.order_block_distance,

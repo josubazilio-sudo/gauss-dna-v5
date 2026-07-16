@@ -112,7 +112,9 @@ class WatchdogIntegration:
                 # engolido pelo except abaixo, entao nenhum alerta de
                 # watchdog jamais chegou ao Telegram). O metodo real e
                 # send_diagnostic(message: str).
-                tg.send_diagnostic(f"\u26a0\ufe0f *WATCHDOG*: {message}")
+                # Envio de watchdog desativado pelo usuario (so sinais)
+                log.info("Watchdog: alerta BLOQUEADO (so sinais no Telegram): %s", message)
+                # tg.send_diagnostic(f"\u26a0\ufe0f *WATCHDOG*: {message}")
 
             except Exception as e:
                 log.error("Watchdog: erro ao enviar alerta Telegram: %s", e)

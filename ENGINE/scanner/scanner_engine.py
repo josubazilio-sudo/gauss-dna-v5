@@ -5,9 +5,11 @@ import concurrent.futures
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from ENGINE.market.market_types import Candle, MarketContext
+from ENGINE.market.market_types import Candle, MarketContext, MarketRegime, SetupType
 from ENGINE.market.market_trend import compute_adx
 from ENGINE.market.market_momentum import compute_rsi, compute_rvol, compute_avg_volume
+from ENGINE.market.market_regime import detect_regime
+from ENGINE.market.setup_selector import SetupSelector
 from ENGINE.consensus.consensus_engine import ConsensusEngine
 from ENGINE.confluence.confluence_engine import ConfluenceEngine
 from ENGINE.indicators.kalman import (
@@ -31,7 +33,7 @@ from .scanner_scoring import (
     compute_all_scanner_scores, compute_quality_score, classify_signal,
     score_institutional, rescale_to_ceiling,
 )
-from .scanner_signal import build_signal, verify_direction_alignment, generate_approval_reasons
+from .scanner_signal import build_signal, verify_direction_alignment, generate_approval_reasons, _build_rejected_signal
 from .entry_zone import calculate_entry_zone
 from .scanner_ranker import pipeline as rank_pipeline
 from .flex_scoring import (
@@ -50,6 +52,28 @@ class ScannerEngine:
         self._last_scan: Optional[ScanReport] = None
         self._consensus = ConsensusEngine()
         self._confluence = ConfluenceEngine()
+        self._setup_selector = SetupSelector()
+
+        self._regime_stats = {
+            "strong_trend_up": 0,
+            "strong_trend_down": 0,
+            "ranging": 0,
+            "compression": 0,
+            "exhaustion": 0,
+        }
+        self._setup_stats = {
+            "trend_pullback": 0,
+            "trend_breakout": 0,
+            "trend_following": 0,
+            "pullback_short": 0,
+            "breakdown": 0,
+            "range_reversal": 0,
+            "fade": 0,
+            "reversal": 0,
+            "breakout": 0,
+            "mean_reversion": 0,
+        }
+        self._compatibility_rejections = 0
 
     def scan(
         self,
@@ -179,6 +203,47 @@ class ScannerEngine:
                 if kalman_dir == "ERRO":
                     log.warning("ScannerEngine: %s %s — Kalman ERRO, skipping signal", pair, tf)
                     continue
+
+                regime, regime_conf = detect_regime(
+                    trend=market_ctx.trend,
+                    trend_strength=market_ctx.trend_strength,
+                    adx=market_ctx.indicators.adx,
+                    atr_percent=market_ctx.indicators.atr_percent,
+                    rsi=rsi,
+                    bb_width=market_ctx.indicators.bb_width,
+                    rvol=rvol,
+                    kalman_direction=kalman_dir,
+                    kalman_tendency=kalman_tend,
+                    ema50=structure.mm50,
+                    ema200=structure.mm200,
+                    current_price=current_price,
+                    volume_crescente=flow_data.get("volume_crescente", False),
+                )
+                setup_rec = self._setup_selector.select_best_setup(
+                    regime=regime, direction=direction,
+                    patterns=patterns, structure=structure,
+                )
+                if setup_rec is None:
+                    self._compatibility_rejections += 1
+                    log.info(
+                        "ScannerEngine: %s %s — regime %s sem setup compativel",
+                        pair, tf, regime.value,
+                    )
+                    continue
+
+                if not self._setup_selector.is_setup_compatible(setup_rec.setup_type, regime):
+                    self._compatibility_rejections += 1
+                    signal = _build_rejected_signal(
+                        pair, tf, direction, patterns, structure, scores,
+                        current_price, regime.value,
+                        "SETUP_NOT_COMPATIBLE_WITH_MARKET_REGIME",
+                    )
+                    all_signals.append(signal)
+                    continue
+
+                self._regime_stats[regime.value] = self._regime_stats.get(regime.value, 0) + 1
+                self._setup_stats[setup_rec.setup_type.value] = self._setup_stats.get(setup_rec.setup_type.value, 0) + 1
+
                 timing_idx = compute_timing_index(
                     patterns, structure, rvol,
                     flow_data.get("volume_crescente", False),
@@ -250,6 +315,7 @@ class ScannerEngine:
                     elif p.type == PatternType.FVG and fvg_dist == 0.0:
                         fvg_dist = abs(current_price - p.price)
 
+                regime_label = regime.value if hasattr(regime, 'value') else str(regime)
                 signal = build_signal(
                     ticker=pair,
                     timeframe=tf,
@@ -264,7 +330,13 @@ class ScannerEngine:
                     rejection_reasons=None,
                     rvol=rvol,
                     adx=market_ctx.indicators.adx,
-                    regime=market_ctx.regime.value if hasattr(market_ctx.regime, 'value') else str(market_ctx.regime),
+                    regime=regime_label,
+                    setup_type=setup_rec.setup_type.value,
+                    strategy_desc=setup_rec.strategy_description,
+                    objective=setup_rec.objective,
+                    continuation=setup_rec.continuation_expected,
+                    tp_multiplier=setup_rec.tp_multiplier,
+                    max_leverage=setup_rec.max_leverage,
                     volume=volume,
                     entry_score=entry_details.score,
                     consensus_score=0.0,
@@ -307,8 +379,19 @@ class ScannerEngine:
             directions: Dict[str, SignalDirection] = {}
             tf_scores: Dict[str, float] = {}
             tf_confidence: Dict[str, float] = {}
-            primary_entry_score = all_signals[0].scores.entry_score
-            primary_quality = all_signals[0].scores.quality_score
+            # Usa o timeframe institucional de maior prioridade (1d > 4h > 1h > 30m)
+            # como fonte dos scores primarios (entry, quality), usados como boost
+            # nos caminhos de 1 TF e 2 TFs.
+            primary_entry_score = 0.0
+            primary_quality = 0.0
+            for tf in reversed(DEFAULT_TIMEFRAMES):
+                for s in all_signals:
+                    if s.timeframe == tf:
+                        primary_entry_score = s.scores.entry_score
+                        primary_quality = s.scores.quality_score
+                        break
+                if primary_entry_score > 0:
+                    break
             for s in all_signals:
                 directions[s.timeframe] = s.direction
                 tf_scores[s.timeframe] = s.scores.quality_score
@@ -333,8 +416,24 @@ class ScannerEngine:
                 s.scores.consensus_score = consensus.consensus_score
                 if not consensus_ok:
                     s.approval_reasons = []
+                    # RFC V25.6: sub-motivo real (nao inferido) do dissenso —
+                    # usa consensus.votes/dissenting_timeframes, ja calculados
+                    # acima, sem recalcular o consenso.
+                    _dissent_detail = ""
+                    if consensus.dissenting_timeframes:
+                        _dissent_parts = []
+                        for v in consensus.votes:
+                            if v.timeframe not in consensus.dissenting_timeframes:
+                                continue
+                            if v.direction is None:
+                                _dissent_parts.append(f"{v.timeframe} neutro")
+                            else:
+                                _dissent_parts.append(f"{v.timeframe} contrario")
+                        if _dissent_parts:
+                            _dissent_detail = " [" + ", ".join(_dissent_parts) + "]"
                     s.rejection_reasons.append(
                         f"Consenso multi-TF insuficiente ({consensus.consensus_score:.2f} < {CONSENSUS_MINIMUM_SCORE})"
+                        f"{_dissent_detail}"
                     )
                     s.classification = SignalClassification.REPROVADO
                     s.classification_label = SignalClassification.REPROVADO.value

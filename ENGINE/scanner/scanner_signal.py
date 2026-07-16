@@ -36,6 +36,12 @@ def build_signal(
     rvol: float = 0.0,
     adx: float = 0.0,
     regime: str = "unknown",
+    setup_type: str = "",
+    strategy_desc: str = "",
+    objective: str = "",
+    continuation: str = "",
+    tp_multiplier: float = 0.5,
+    max_leverage: int = 10,
     volume: float = 0.0,
     explanation: str = "",
     entry_score: float = 0,
@@ -103,6 +109,12 @@ def build_signal(
         adx=adx,
         atr_value=atr,
         regime=regime,
+        setup_type=setup_type,
+        strategy_desc=strategy_desc,
+        objective=objective,
+        continuation=continuation,
+        tp_multiplier=tp_multiplier,
+        max_leverage=max_leverage,
         volume=volume,
         ema50=structure.mm50,
         ema200=structure.mm200,
@@ -321,6 +333,42 @@ def _describe_setup(patterns: List[Pattern], structure: MarketStructure, directi
             parts.append(f"Padroes: {part_desc}")
     parts.append(f"Direcao: {direction.value}")
     return " | ".join(parts)
+
+
+def _build_rejected_signal(
+    ticker: str,
+    timeframe: str,
+    direction: SignalDirection,
+    patterns: List[Pattern],
+    structure: MarketStructure,
+    scores: ScannerScore,
+    current_price: float,
+    regime: str,
+    rejection_reason: str,
+) -> Signal:
+    return Signal(
+        ticker=ticker,
+        timeframe=timeframe,
+        direction=direction,
+        entry_price=current_price,
+        stop_loss=0.0,
+        take_profit_1=0.0,
+        take_profit_2=0.0,
+        risk_reward=0.0,
+        scores=scores,
+        classification=SignalClassification.REPROVADO,
+        patterns=patterns,
+        structure=structure,
+        setup="",
+        context="",
+        approval_reasons=[],
+        rejection_reasons=[rejection_reason],
+        confidence=0.0,
+        quality=0.0,
+        regime=regime,
+        signal_id=_next_signal_id(),
+        classification_label=SignalClassification.REPROVADO.value,
+    )
 
 
 def _describe_context(

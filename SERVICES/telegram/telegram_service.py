@@ -87,5 +87,9 @@ class TelegramService:
             log.exception("Erro na formatação de sinal: %s", e)
 
     def send_diagnostic(self, message: str):
+        import os
+        if os.getenv("TELEGRAM_DIAGNOSTIC_ENABLED", "false").lower() not in ("true", "1", "yes"):
+            log.info("TelegramService: send_diagnostic BLOQUEADO (TELEGRAM_DIAGNOSTIC_ENABLED=false): %s", message[:100])
+            return
         log.info("TelegramService: send_diagnostic: %s", message)
         asyncio.run_coroutine_threadsafe(self._queue.put(message), self._loop)

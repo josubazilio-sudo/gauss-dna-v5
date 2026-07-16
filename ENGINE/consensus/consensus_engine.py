@@ -66,10 +66,13 @@ class ConsensusEngine:
 
             if weight > 0:
                 total_weight += weight
+                # Consensus mede apenas alinhamento direcional entre TFs,
+                # NÃO média de confidence. Confidence já foi aplicada nos
+                # scores individuais de cada TF — não deve ser reaplicada.
                 if direction == SignalDirection.LONG:
-                    weighted_long += weight * confidence
+                    weighted_long += weight
                 elif direction == SignalDirection.SHORT:
-                    weighted_short += weight * confidence
+                    weighted_short += weight
 
             votes.append(TimeframeVote(
                 timeframe=tf,

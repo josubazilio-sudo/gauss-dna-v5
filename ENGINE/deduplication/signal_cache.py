@@ -1,6 +1,8 @@
+import hashlib
 import logging
+import math
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 TIMEFRAME_SECONDS = {
     "30m": 1800,
@@ -9,6 +11,10 @@ TIMEFRAME_SECONDS = {
     "4h": 14400,
     "1d": 86400,
 }
+
+# RFC V26.X: diferenca maxima de entrada, em %, para duas leituras do
+# mesmo ativo/direcao/timeframe/candle serem consideradas o MESMO sinal.
+DUPLICATE_ENTRY_MAX_DIFF_PCT = 0.10
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +33,45 @@ def _is_small_change(value_a: float, value_b: float, max_change: float) -> bool:
     return pct <= max_change
 
 
+def _setup_fingerprint(data: Optional[Dict]) -> Tuple[bool, bool, bool, bool]:
+    """RFC V26.X: assinatura do setup estrutural (BOS/CHoCH/Order Block/
+    FVG) que sustenta o sinal — lida dos mesmos campos reais que
+    SignalDecision.to_dict() ja expoe (bos/choch/fvg como contagens,
+    selected_order_block como string), sem recalcular nada."""
+    if not data:
+        return (False, False, False, False)
+    return (
+        bool(data.get("bos", 0)),
+        bool(data.get("choch", 0)),
+        bool(data.get("selected_order_block")),
+        bool(data.get("fvg", 0)),
+    )
+
+
+def compute_signal_fingerprint(
+    symbol: str, timeframe: str, direction: str,
+    entry_price: float, candle_open: int, data: Optional[Dict] = None,
+) -> str:
+    """RFC V26.X: fingerprint unico por setup — mesmo ativo, direcao,
+    timeframe, candle, faixa de entrada (bucket de
+    DUPLICATE_ENTRY_MAX_DIFF_PCT%) e setup estrutural produzem o mesmo
+    fingerprint. Bucketing logaritmico: dois precos caem no mesmo bucket
+    se e somente se estiverem a menos de DUPLICATE_ENTRY_MAX_DIFF_PCT%
+    um do outro — um bucket de largura absoluta (entry/largura) nao
+    funciona aqui porque a largura tambem escala com o preco, cancelando
+    a proporcao e colapsando qualquer preco no mesmo bucket."""
+    if entry_price <= 0:
+        bucket = 0
+    else:
+        ratio = 1 + DUPLICATE_ENTRY_MAX_DIFF_PCT / 100
+        bucket = round(math.log(entry_price) / math.log(ratio))
+    raw = (
+        f"{symbol.upper()}|{timeframe}|{direction.upper()}|{candle_open}|"
+        f"{bucket}|{_setup_fingerprint(data)}"
+    )
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+
 class SignalCacheEngine:
     def __init__(self):
         self._cache: Dict[str, Dict] = {}
@@ -35,6 +80,26 @@ class SignalCacheEngine:
         self._probability: Dict[str, float] = {}
         self._direction: Dict[str, str] = {}
         self._entry_price: Dict[str, float] = {}
+        # RFC V26.X: assinatura do setup estrutural (BOS/CHoCH/Order
+        # Block/FVG) do ultimo sinal enviado por chave, e contador de
+        # duplicados bloqueados (para o diagnostico diario).
+        self._setup: Dict[str, Tuple[bool, bool, bool, bool]] = {}
+        self._duplicate_blocked_count: int = 0
+
+    @property
+    def duplicate_blocked_count(self) -> int:
+        return self._duplicate_blocked_count
+
+    def fingerprint(
+        self, symbol: str, timeframe: str, direction: str,
+        entry_price: float, data: Optional[Dict] = None,
+    ) -> str:
+        """RFC V26.X: fingerprint unico do setup atual (ver
+        compute_signal_fingerprint), para rastreabilidade/auditoria."""
+        candle_open = _get_candle_open(timeframe)
+        return compute_signal_fingerprint(
+            symbol, timeframe, direction, entry_price, candle_open, data,
+        )
 
     def _make_key(self, symbol: str, timeframe: str, direction: str, candle_open: int) -> str:
         return f"{symbol.upper()}_{timeframe}_{direction.upper()}_{candle_open}"
@@ -63,12 +128,18 @@ class SignalCacheEngine:
         old_entry = self._entry_price.get(key)
         old_quality = self._quality.get(key)
         old_prob = self._probability.get(key)
+        old_setup = self._setup.get(key)
 
-        if old_entry is not None and not _is_small_change(entry, old_entry, 0.20):
+        if old_entry is not None and not _is_small_change(entry, old_entry, DUPLICATE_ENTRY_MAX_DIFF_PCT):
             return True
         if old_quality is not None and not _is_small_change(quality, old_quality, 2.0):
             return True
         if old_prob is not None and not _is_small_change(prob, old_prob, 2.0):
+            return True
+        # RFC V26.X: mesmo com preco/qualidade/probabilidade parecidos, um
+        # setup estrutural diferente (novo BOS/CHoCH/Order Block/FVG desde
+        # o ultimo envio) e um sinal genuinamente novo, nao um duplicado.
+        if old_setup is not None and old_setup != _setup_fingerprint(data):
             return True
         return False
 
@@ -90,9 +161,15 @@ class SignalCacheEngine:
                     symbol, timeframe, direction,
                 )
                 return True
-            log.info(
-                "[SIGNAL CACHE] %s %s %s — Ja enviado neste candle. Ignorando novo envio.",
+            self._duplicate_blocked_count += 1
+            fp = compute_signal_fingerprint(
                 symbol, timeframe, direction,
+                (data or {}).get("entry_price", 0) or (data or {}).get("entry", 0),
+                candle_open, data,
+            )
+            log.info(
+                "[SIGNAL CACHE] DUPLICADO BLOQUEADO: %s %s %s | fingerprint=%s",
+                symbol, timeframe, direction, fp,
             )
             return False
 
@@ -117,6 +194,7 @@ class SignalCacheEngine:
         self._quality[key] = quality
         self._probability[key] = prob
         self._direction[key] = direction
+        self._setup[key] = _setup_fingerprint(data)
 
         self._cleanup()
 
@@ -140,6 +218,7 @@ class SignalCacheEngine:
             self._quality[key] = quality
             self._probability[key] = prob
             self._direction[key] = direction
+            self._setup[key] = _setup_fingerprint(data)
 
     def is_different_setup(self, symbol: str, timeframe: str, direction: str, entry_price: float) -> bool:
         base_key = f"{symbol.upper()}_{timeframe}_{direction.upper()}"
@@ -168,5 +247,6 @@ class SignalCacheEngine:
             self._quality.pop(k, None)
             self._probability.pop(k, None)
             self._direction.pop(k, None)
+            self._setup.pop(k, None)
         if keys_to_delete:
             log.debug("[SIGNAL CACHE] Limpeza: %d entradas antigas removidas.", len(keys_to_delete))

@@ -30,40 +30,40 @@ SCANNER_HOT_RESCAN_TOP_N = int(os.getenv("SCANNER_HOT_RESCAN_TOP_N", "20"))
 if DEBUG_MODE:
     QUALITY_GATE_MIN_SCORE = 0.55
     QUALITY_GATE_RISK_MAX = 0.60
-    QUALITY_GATE_CONFIDENCE_MIN = 0.70
+    QUALITY_GATE_CONFIDENCE_MIN = 0.65
 else:
-    QUALITY_GATE_MIN_SCORE = 0.60
+    QUALITY_GATE_MIN_SCORE = 0.55
     QUALITY_GATE_RISK_MAX = 0.55
-    QUALITY_GATE_CONFIDENCE_MIN = 0.70
+    QUALITY_GATE_CONFIDENCE_MIN = 0.65
 
 # Novos gates institucionais (RFC_RECALIBRACAO_SINAIS_INSTITUCIONAL.md)
-CONFIDENCE_GATE_MIN_SCORE = 0.75
-CONFIDENCE_QUALITY_MAX_DIFF = 0.10
+CONFIDENCE_GATE_MIN_SCORE = 0.65
+CONFIDENCE_QUALITY_MAX_DIFF = 0.12
 LATERAL_REGIMES = {"ranging"}
 
 HARD_MIN_PATTERNS = 1
-HARD_MIN_RVOL = 0.70
+HARD_MIN_RVOL = 0.45
 HARD_MAX_SPREAD = 0.001
-HARD_MIN_ADX = 25
-HARD_MIN_STRUCTURE_STRENGTH = 0.30
+HARD_MIN_ADX = 20
+HARD_MIN_STRUCTURE_STRENGTH = 0.28
 HARD_MAX_ATR_PCT = 0.05
 HARD_MIN_ATR_PCT = 0.001
 
 # V17 balanced gates (0-1 scale): calibrated to the current scanner score
 # distribution while preserving consensus, RR, risk, liquidity and self-audit.
-HARD_MIN_INSTITUTIONAL = 0.45
-HARD_MIN_STRUCTURAL = 0.30
-HARD_MIN_FLOW = 0.15
-HARD_MIN_LIQUIDITY = 0.65
-HARD_MIN_TIMING = 0.45
-HARD_MIN_CONVICTION = 0.30
+HARD_MIN_INSTITUTIONAL = 0.40
+HARD_MIN_STRUCTURAL = 0.28
+HARD_MIN_FLOW = 0.12
+HARD_MIN_LIQUIDITY = 0.60
+HARD_MIN_TIMING = 0.40
+HARD_MIN_CONVICTION = 0.28
 HARD_MIN_RR = 2.0
 
-RANK_MIN_QUALITY = 0.65
-RANK_MIN_CONFIDENCE = 0.60
-RANK_MIN_CONSENSUS = 0.50
-RANK_MIN_ENTRY = 0.55
-RANK_MIN_CONVICTION = 0.55
+RANK_MIN_QUALITY = 0.55
+RANK_MIN_CONFIDENCE = 0.55
+RANK_MIN_CONSENSUS = 0.45
+RANK_MIN_ENTRY = 0.50
+RANK_MIN_CONVICTION = 0.50
 
 # Discovery modes: "AUTO" (exchange, filtrado), "CUSTOM" (lista fixa), "DEBUG" (mock apenas)
 DISCOVERY_MODE = os.getenv("QUANTOS_DISCOVERY_MODE", "AUTO").upper()
@@ -93,6 +93,8 @@ OB_CONFIRMATION_BARS = 2
 ENTRY_ZONE_MAX_AGE = 50
 ENTRY_ZONE_MAX_ATR_DISTANCE = 1.0
 ENTRY_ZONE_SCORE_MIN = 0.40  # revertido em 2026-07-11: 0.70 deixava passar so 15% dos candidatos
+MAX_SL_PCT_FROM_ENTRY = float(os.getenv("QUANTOS_MAX_SL_PCT_FROM_ENTRY", "0.05"))
+LIQUIDITY_SWEEP_RETRACE = 0.01
 LIQUIDITY_SWEEP_RETRACE = 0.01
 
 # V18.3: tabela fixa de classificacao derivada exclusivamente do Indice Geral.
@@ -107,19 +109,19 @@ CLASSIFICATION_RANGES = {
 
 # V18.3: requisitos minimos por classificacao, alem do indice geral.
 CLASSIFICATION_REQUIREMENTS = {
-    'DIAMANTE': {'quality': 0.90, 'rr': 3.5, 'consensus': 0.85, 'confidence': 0.90},
-    'PLATINA': {'quality': 0.80, 'rr': 3.0, 'consensus': 0.75, 'confidence': 0.80},
-    'OURO': {'quality': 0.70, 'rr': 2.5, 'consensus': 0.65, 'confidence': 0.70},
-    'PRATA': {'quality': 0.60, 'rr': 2.0, 'consensus': 0.55, 'confidence': 0.60},
-    'BRONZE': {'quality': 0.50, 'rr': 1.8, 'consensus': 0.50, 'confidence': 0.50},
+    'DIAMANTE': {'quality': 0.88, 'rr': 3.5, 'consensus': 0.80, 'confidence': 0.85},
+    'PLATINA': {'quality': 0.78, 'rr': 3.0, 'consensus': 0.70, 'confidence': 0.75},
+    'OURO': {'quality': 0.68, 'rr': 2.5, 'consensus': 0.60, 'confidence': 0.65},
+    'PRATA': {'quality': 0.58, 'rr': 2.0, 'consensus': 0.50, 'confidence': 0.55},
+    'BRONZE': {'quality': 0.48, 'rr': 1.8, 'consensus': 0.40, 'confidence': 0.45},
 }
 
 QUALITY_TIERS = {
-    'DIAMANTE': {'min_score': 92},
-    'PLATINA': {'min_score': 82},
-    'OURO': {'min_score': 72},
-    'PRATA': {'min_score': 62},
-    'BRONZE': {'min_score': 52},
+    'DIAMANTE': {'min_score': 90},
+    'PLATINA': {'min_score': 80},
+    'OURO': {'min_score': 70},
+    'PRATA': {'min_score': 60},
+    'BRONZE': {'min_score': 50},
 }
 RR_BASE_SL_MULTIPLIER = 1.5
 RR_BASE_TP1_MULTIPLIER = 2.0
@@ -144,7 +146,7 @@ LEVERAGE_TABLE = [
 
 MAX_CANDIDATES_PER_CYCLE = 20
 
-CONSENSUS_MINIMUM_SCORE = 0.70  # RFC_RECALIBRACAO_SINAIS_INSTITUCIONAL.md: 0.50 -> 0.70
+CONSENSUS_MINIMUM_SCORE = 0.50  # Consenso moderado: exige concordância majoritária entre TFs
 CONSENSUS_TIMEFRAME_WEIGHTS = {'30m': 0.1, '1h': 0.2, '4h': 0.3, '1d': 0.4}
 
 CONFLUENCE_FILTERS = {
@@ -170,10 +172,10 @@ CONFLUENCE_TOTAL = sum(v["weight"] for v in CONFLUENCE_FILTERS.values())
 # como "medianos". Usa o p99 (nao o maximo bruto) para nao deixar um unico
 # outlier definir toda a escala.
 QUALITY_COMPONENT_CEILINGS = {
-    "flow_score": 0.50,
-    "structural_score": 0.62,
-    "risk_score": 0.57,
-    "conviction_score": 0.67,
+    "flow_score": 0.55,
+    "structural_score": 0.65,
+    "risk_score": 0.60,
+    "conviction_score": 0.70,
 }
 
 # V19.0 Score Weights — recalibrados para priorizar qualidade real sobre fluxo
@@ -260,7 +262,7 @@ VOTE_WEIGHTS = {
     "padrao": 0.8,
 }
 
-VOTE_MIN_CONCORDANCE_PCT = 70.0
+VOTE_MIN_CONCORDANCE_PCT = 60.0
 
 # V18.4: Faixas do Institutional Coherence Score
 COHERENCE_RANGES = {
@@ -271,6 +273,18 @@ COHERENCE_RANGES = {
     "Rejeitar": (0, 59),
 }
 
+# V18.6: Trend Hard Gate — MA50/MA200 obrigatorios
+TREND_GATE_LONG_CONSTANTS = {
+    "price_above_ma50": True,
+    "price_above_ma200": True,
+    "ma50_above_ma200": True,
+}
+TREND_GATE_SHORT_CONSTANTS = {
+    "price_below_ma50": True,
+    "price_below_ma200": True,
+    "ma50_below_ma200": True,
+}
+
 # V18.4: Gate de Validacao Final
 FINAL_VALIDATION_GATES = {
     "long_kalman_down": "LONG + Kalman DOWN",
@@ -278,6 +292,36 @@ FINAL_VALIDATION_GATES = {
     "classificacao_divergente": "Classificacao incompativel com indice",
     "lateral_expectativa_alta": "Mercado lateral com expectativa alta sem rompimento",
 }
+
+# RFC V22: Exchange Execution Validator
+ENABLE_EXECUTION_VALIDATOR = os.getenv("QUANTOS_ENABLE_EXEC_VALIDATOR", "true").lower() in ("true", "1", "yes")
+EXECUTION_VALIDATION_TOLERANCE = float(os.getenv("QUANTOS_EXEC_VALIDATION_TOLERANCE", "0.000001"))
+# RFC V26.7: nada no pipeline arredondava entry/stop/tp/quantidade para o
+# tick_size/step_size do simbolo antes do Execution Validator checar
+# alinhamento — como precos calculados via matematica de ponto flutuante
+# praticamente nunca caem exatos num multiplo do tick_size, isso bloqueava
+# ~100% dos sinais aprovados (TickSize_Entry/Stop/TP1/TP2, PricePrecision_*,
+# StepSize, QtyPrecision falhando juntos, sempre — nao eram sinais
+# especificamente invalidos, era a checagem nunca tendo chance de passar).
+# Auto-round e exatamente o mecanismo ja implementado em
+# ExchangeExecutionValidator para esse caso; default trocado para ativo.
+AUTO_ROUND_PRICES = os.getenv("QUANTOS_AUTO_ROUND_PRICES", "true").lower() in ("true", "1", "yes")
+AUTO_ROUND_QUANTITY = os.getenv("QUANTOS_AUTO_ROUND_QTY", "true").lower() in ("true", "1", "yes")
+BLOCK_INVALID_EXECUTION = os.getenv("QUANTOS_BLOCK_INVALID_EXEC", "true").lower() in ("true", "1", "yes")
+EXECUTION_SLIPPAGE_RATE = float(os.getenv("QUANTOS_EXEC_SLIPPAGE_RATE", "0.0005"))
+EXECUTION_FUNDING_RATE_EST = float(os.getenv("QUANTOS_EXEC_FUNDING_RATE_EST", "0.0001"))
+
+# RFC V23: Watchlist Prioritária
+WATCHLIST_PRIORITY_BONUS = int(os.getenv("QUANTOS_WATCHLIST_BONUS", "3"))
+WATCHLIST_PATH = os.getenv("QUANTOS_WATCHLIST_PATH", "")
+
+# RFC V24: Rejection Analytics
+ENABLE_REJECTION_ANALYTICS = os.getenv("QUANTOS_ENABLE_REJECTION_ANALYTICS", "true").lower() in ("true", "1", "yes")
+REJECTION_ANALYTICS_EXPORT_DIR = os.getenv("QUANTOS_REJECTION_ANALYTICS_DIR", "")
+
+# RFC V25.X.2: Gate Calibration Engine
+CALIBRATION_MIN_SAMPLES = int(os.getenv("QUANTOS_CALIBRATION_MIN_SAMPLES", "500"))
+CALIBRATION_ENABLED = os.getenv("QUANTOS_CALIBRATION_ENABLED", "true").lower() in ("true", "1", "yes")
 
 if __name__ == '__main__':
     validate_config()

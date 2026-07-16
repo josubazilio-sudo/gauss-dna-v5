@@ -11,6 +11,8 @@ from ENGINE.scanner.scanner_config import (
     PENALTY_BAIXO_CONSENSO,
     CLASSIFICATION_RANGES,
     VOTE_WEIGHTS, COHERENCE_RANGES,
+    CONSENSUS_MINIMUM_SCORE, VOTE_MIN_CONCORDANCE_PCT,
+    QUALITY_GATE_MIN_SCORE, CONFIDENCE_GATE_MIN_SCORE,
 )
 from ENGINE.scanner.scanner_types import Penalty
 from ENGINE.common.score_normalizer import scale_1_to_100
@@ -266,20 +268,24 @@ def compute_risk_decomposition(signal_data: dict) -> dict:
 
 
 def compute_main_reason(signal_data: dict) -> str:
-    """V19.1: Gera resumo automatico do motivo principal de aprovacao."""
+    """V19.1: Gera resumo automatico do motivo principal de aprovacao.
+
+    RFC V26.7: lia signal_data["patterns"] (uma lista que SignalDecision.to_dict()
+    nunca preenche — o dict so tem "bos"/"choch"/"fvg" como contagens inteiras
+    e "selected_order_block" como string). Isso fazia com que "BOS confirmado"/
+    "CHoCH confirmado" nunca aparecessem em main_reason, mesmo com BOS/CHoCH
+    reais detectados — e o Final Validation ("Mercado lateral + expectativa
+    alta sem rompimento") depende exatamente desse texto para nao bloquear
+    sinais com rompimento confirmado. Corrigido para ler os campos reais."""
     reasons = []
-    patterns = signal_data.get("patterns", [])
-    if isinstance(patterns, list):
-        pattern_names = [p if isinstance(p, str) else getattr(p, 'type', None) for p in patterns]
-        pattern_names = [str(p) for p in pattern_names if p]
-        if any("BOS" in p.upper() if isinstance(p, str) else False for p in pattern_names):
-            reasons.append("BOS confirmado")
-        if any("CHOCH" in p.upper() if isinstance(p, str) else False for p in pattern_names):
-            reasons.append("CHoCH confirmado")
-        if any("ORDER_BLOCK" in p.upper() if isinstance(p, str) else False for p in pattern_names):
-            reasons.append("Order Block detectado")
-        if any("FVG" in p.upper() if isinstance(p, str) else False for p in pattern_names):
-            reasons.append("FVG identificado")
+    if signal_data.get("bos", 0):
+        reasons.append("BOS confirmado")
+    if signal_data.get("choch", 0):
+        reasons.append("CHoCH confirmado")
+    if signal_data.get("selected_order_block"):
+        reasons.append("Order Block detectado")
+    if signal_data.get("fvg", 0):
+        reasons.append("FVG identificado")
 
     trend = (signal_data.get("trend", "") or "").lower()
     kalman_dir = (signal_data.get("kalman_direction", "") or "").upper()
@@ -539,9 +545,9 @@ def compute_institutional_coherence_score(signal_data: dict) -> dict:
     liquidity_ok = 1.0 if liquidity >= 0.6 else (0.5 if liquidity >= 0.45 else 0.0)
     structure_ok = 1.0 if structure >= 0.6 else (0.5 if structure >= 0.4 else 0.0)
     momentum_ok = 1.0 if momentum >= 0.5 else (0.5 if momentum >= 0.3 else 0.0)
-    consensus_ok = 1.0 if consensus >= 0.6 else (0.5 if consensus >= 0.45 else 0.0)
-    quality_ok = 1.0 if quality >= 0.6 else 0.0
-    confidence_ok = 1.0 if confidence >= 0.6 else 0.0
+    consensus_ok = 1.0 if consensus >= CONSENSUS_MINIMUM_SCORE else (0.5 if consensus >= CONSENSUS_MINIMUM_SCORE - 0.15 else 0.0)
+    quality_ok = 1.0 if quality >= QUALITY_GATE_MIN_SCORE else 0.0
+    confidence_ok = 1.0 if confidence >= CONFIDENCE_GATE_MIN_SCORE else 0.0
     pattern_ok = 1.0 if has_bos or has_choch else 0.0
 
     raw_scores = {
@@ -630,7 +636,7 @@ def compute_weighted_vote(signal_data: dict) -> dict:
         "yes_weight": round(yes_weight, 1),
         "total_weight": total_weight,
         "concordance_pct": round(concordance, 1),
-        "approved": concordance >= 70.0,
+        "approved": concordance >= VOTE_MIN_CONCORDANCE_PCT,
     }
 
 

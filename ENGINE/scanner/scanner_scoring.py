@@ -5,6 +5,7 @@ from ENGINE.market.market_types import TrendDirection, MarketRegime
 from .scanner_types import (
     ScannerScore, SignalClassification, Pattern, PatternType,
     MarketStructure, StructureType,
+    EntryDetails,
 )
 from .scanner_config import (
     QUALITY_TIERS,

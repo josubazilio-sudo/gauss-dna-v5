@@ -36,6 +36,7 @@ APPROVAL_DROP_RATIO_ALERT = 0.5       # queda relativa (cai para <50% da media)
 SILENT_DROP_PCT_ALERT = 15.0          # % de candles perdidos silenciosamente
 ADX_FORTE_MIN = 25.0
 ADX_FRACO_MAX = 18.0
+MIN_SAMPLE_FOR_ALERT = 30              # RFC V26.1: amostra minima p/ alertas estatisticos (queda abrupta, bug)
 
 
 class DiagnosticBaseline:
@@ -86,6 +87,8 @@ class FastDiagnosticResult:
     bug_suspeito: Optional[Dict[str, Any]] = None
     sugestoes: List[str] = field(default_factory=list)
     alerta_imediato: Optional[str] = None
+    ciclo_vazio: bool = False
+    amostra_insuficiente: bool = False
 
 
 _SUGESTOES_POR_GATE = {
@@ -143,6 +146,18 @@ def build_fast_diagnostic(
     ranking = cycle_summary.get("ranking", []) or []
 
     mercado = _classify_market(avg_adx, regime_mode)
+
+    # RFC V26.1: ciclo vazio (nenhum ativo analisado) nunca gera alerta nem
+    # entra em comparacao com a baseline — nao ha dado real para avaliar.
+    if total == 0:
+        return FastDiagnosticResult(
+            scanner_saudavel=True,
+            mercado=mercado,
+            analisados=0, aprovados=0, recusados=0, taxa_aprovacao=0.0,
+            ciclo_vazio=True,
+            sugestoes=["Ciclo vazio detectado — nenhum ativo analisado neste ciclo."],
+        )
+
     top_motivos = [
         {"gate": g, "percentual": p} for g, _c, p in ranking[:5]
     ]
@@ -152,7 +167,10 @@ def build_fast_diagnostic(
         if pct >= GARGALO_PCT_THRESHOLD:
             gargalos.append(f"⚠ {gate} bloqueando muitos ativos ({pct:.0f}% das reprovacoes).")
 
-    bug_suspeito = _detect_bug(gate_pct, baseline)
+    # RFC V26.1: comparacoes estatisticas contra a media historica (bug
+    # suspeito, queda abrupta) exigem amostra minima configuravel.
+    amostra_insuficiente = total < MIN_SAMPLE_FOR_ALERT
+    bug_suspeito = None if amostra_insuficiente else _detect_bug(gate_pct, baseline)
 
     sugestoes: List[str] = []
     for g in [gate for gate, _ in sorted(gate_pct.items(), key=lambda kv: -kv[1])[:2]]:
@@ -161,6 +179,10 @@ def build_fast_diagnostic(
             sugestoes.append(f"✔ {s}")
     if silent_drop_pct >= SILENT_DROP_PCT_ALERT:
         sugestoes.append("✔ Validar API (candles nao carregados acima do normal).")
+    if amostra_insuficiente:
+        sugestoes.append(
+            f"Amostra insuficiente para analise estatistica (N={total} < {MIN_SAMPLE_FOR_ALERT})."
+        )
 
     alert_reasons: List[str] = []
     if zero_signal_streak >= ZERO_SIGNAL_STREAK_ALERT:
@@ -178,20 +200,21 @@ def build_fast_diagnostic(
         alert_reasons.append(
             f"API/candles inconsistentes: {silent_drop_pct:.0f}% dos ativos nao carregaram dados."
         )
-    baseline_approval = baseline.average_approval_rate()
-    if (
-        baseline_approval is not None and baseline_approval > 0
-        and taxa < baseline_approval * APPROVAL_DROP_RATIO_ALERT
-    ):
-        alert_reasons.append(
-            f"Queda abrupta na taxa de aprovacao: {taxa:.1f}% (media recente: {baseline_approval:.1f}%)."
-        )
-    if bug_suspeito and bug_suspeito["confianca"] >= 90.0:
-        alert_reasons.append(
-            f"Possivel bug em {bug_suspeito['gate']}: "
-            f"{bug_suspeito['media_historica']:.0f}% -> {bug_suspeito['atual']:.0f}% "
-            f"(confianca {bug_suspeito['confianca']:.0f}%)."
-        )
+    if not amostra_insuficiente:
+        baseline_approval = baseline.average_approval_rate()
+        if (
+            baseline_approval is not None and baseline_approval > 0
+            and taxa < baseline_approval * APPROVAL_DROP_RATIO_ALERT
+        ):
+            alert_reasons.append(
+                f"Queda abrupta na taxa de aprovacao: {taxa:.1f}% (media recente: {baseline_approval:.1f}%)."
+            )
+        if bug_suspeito and bug_suspeito["confianca"] >= 90.0:
+            alert_reasons.append(
+                f"Possivel bug em {bug_suspeito['gate']}: "
+                f"{bug_suspeito['media_historica']:.0f}% -> {bug_suspeito['atual']:.0f}% "
+                f"(confianca {bug_suspeito['confianca']:.0f}%)."
+            )
 
     scanner_saudavel = not alert_reasons and not gargalos
 
@@ -212,10 +235,19 @@ def build_fast_diagnostic(
         bug_suspeito=bug_suspeito,
         sugestoes=sugestoes,
         alerta_imediato=alerta_imediato,
+        amostra_insuficiente=amostra_insuficiente,
     )
 
 
 def format_fast_diagnostic_log(result: FastDiagnosticResult) -> str:
+    if result.ciclo_vazio:
+        return "\n".join([
+            "=" * 50,
+            "DIAGNOSTICO RAPIDO (FAST)",
+            "=" * 50,
+            "Ciclo vazio detectado — nenhum ativo analisado neste ciclo.",
+            "=" * 50,
+        ])
     lines = [
         "=" * 50,
         "DIAGNOSTICO RAPIDO (FAST)",

@@ -1,5 +1,465 @@
 # Changelog
 
+## [18.5.0] - 2026-07-15
+### Added — RFC V18.5: Exchange Validation Gate (MEXC Futures)
+- **Bug crítico de produção corrigido**: QuantOS gerou sinais para
+  `ACNONUSDT` e `ATTONUSDT` — ativos impossíveis de operar. Causa raiz:
+  `CORE/data_providers/mexc_provider.py` descobre o universo de símbolos
+  via `/api/v3/exchangeInfo`, a API de **spot** da MEXC — mas todo o
+  resto do pipeline (leverage, margem, liquidação) assume **futuros**.
+  Confirmado: `ACNONUSDT`/`ATTONUSDT` existem no spot mas não nos 995
+  contratos futuros reais retornados por
+  `https://contract.mexc.com/api/v1/contract/detail`.
+- Novo `ENGINE/exchange/exchange_validation.py::ExchangeValidation`:
+  consulta a API oficial de Futuros da MEXC, mantém um `Set` de símbolos
+  realmente negociáveis (filtrando por `apiAllowed`), com cache de 60min
+  e `is_valid_symbol(symbol)`. Fail-safe deliberado: falha de rede nunca
+  zera a lista (mantém a última válida); sem cache anterior, falha
+  aberto (aceita tudo) com log crítico, para nunca bloquear 100% dos
+  sinais por uma instabilidade de rede.
+- `main.py`: filtro aplicado no Discovery (`_discover_symbols()`), antes
+  de truncar por `MAX_SCAN_PAIRS` — não desperdiça vagas de scan com
+  símbolos inválidos, em modo `AUTO` e `CUSTOM`. Defesa em profundidade:
+  checagem redundante imediatamente antes do envio ao Telegram
+  (`TELEGRAM BLOCKED (INVALID_SYMBOL)`), independente de como o símbolo
+  chegou até ali.
+- 19 testes novos (`TESTS/test_rfc_v18_5_exchange_validation.py` +
+  `_integration.py`), incluindo os casos exatos pedidos (BTCUSDT/
+  ETHUSDT/BANANAUSDT válidos, ACNONUSDT/ATTONUSDT/INVALID123 inválidos)
+  — todos com resposta de API simulada, sem chamada de rede real na
+  suite. Suite completa: **668/668 passando**, zero regressão.
+
+## [26.X.1] - 2026-07-15
+### Fixed — Banca Institucional Fixa (ACCOUNT_SIZE) no PaperTradingEngine
+- **Inconsistência real encontrada**: `CORE/trading/paper_trading.py`
+  hardcodeava `self._capital`/`self._initial_capital = 10000.0`,
+  completamente desconectado de `ACCOUNT_SIZE` (200, já usado em
+  `Balance` do bot, `InstitutionalMathAuditor` e na curva de equity).
+  Isso distorcia `total_return_pct` e a curva de equity de toda operação
+  em paper trading — o dimensionamento de posição já usava $200
+  corretamente (via `RiskManager`), só o *tracking* de capital do
+  PaperTradingEngine usava um baseline que nunca foi real.
+- Correção: `PaperTradingEngine.__init__` agora aceita
+  `initial_capital: float = ACCOUNT_SIZE`. Migração automática e segura
+  de arquivos persistidos antigos (`MEMORY/paper_trading.json`) com o
+  baseline de 10000 — recalcula o capital atual a partir do PnL real dos
+  trades fechados sobre o novo baseline, **sem descartar o histórico**.
+- 4 testes novos (`TESTS/test_rfc_v26_x_paper_trading_capital.py`),
+  incluindo reprodução exata do cenário encontrado em produção (arquivo
+  com `initial_capital=10000`, 2 trades fechados).
+
+## [26.X.2] - 2026-07-15
+### Added — Duplicate Signal Guard
+- `SignalCacheEngine` já bloqueava reenvio no mesmo candle por preço/
+  qualidade/probabilidade parecidos, mas não considerava o **setup
+  estrutural** (BOS/CHoCH/Order Block/FVG) nem tinha fingerprint único
+  ou contagem de duplicados bloqueados para o diagnóstico.
+- Novo `compute_signal_fingerprint()`: hash único por
+  ativo+direção+timeframe+candle+faixa de entrada (bucketing
+  **logarítmico** — corrigido um bug de bucketing linear que colapsava
+  qualquer preço no mesmo bucket, pego pelo próprio teste antes de ir
+  para produção) + setup estrutural.
+- `SignalCacheEngine`: threshold de entrada apertado para 0,10% (era
+  0,20%, agora `DUPLICATE_ENTRY_MAX_DIFF_PCT`); um novo setup estrutural
+  (ex.: BOS confirmado que antes não existia) deixa de ser tratado como
+  duplicado, mesmo com preço parecido — é um sinal genuinamente novo.
+  Novo contador `duplicate_blocked_count` e log padronizado
+  `DUPLICADO BLOQUEADO`.
+- Contagem de duplicados bloqueados agora aparece no diagnóstico diário
+  (RCDE) — `RCDEReport.duplicates_blocked`, exibido no log e no
+  Telegram.
+- 16 testes novos (`TESTS/test_rfc_v26_x_duplicate_signal_guard.py`) +
+  4 testes de integração RCDE. Suite completa (com V18.5 e V26.X.1):
+  **668/668 passando**, zero regressão.
+
+## [26.X.0] - 2026-07-15
+### Added — RFC V26.X: Root Cause Diagnostic Engine (RCDE) + Diagnóstico Único Diário
+- Novo `ENGINE/analytics/root_cause_engine.py::RootCauseDiagnosticEngine`:
+  investiga automaticamente POR QUE um gate está reprovando, não apenas
+  que reprovou. Reaproveita infraestrutura já existente — `GATE_ORDER`
+  de `advanced_report.py`, estatísticas do `GateCalibrationEngine`
+  (gap threshold-vs-P75), e os agregados de mercado já calculados pelo
+  Fast Diagnostic (ADX médio, regime, silent drops) — nada recalculado.
+- `GateOutcomeTracker`: histórico de aprovação/rejeição por gate
+  (janela de 200 execuções) + taxa por ciclo (streak de 10 ciclos).
+- Investigação automática dispara quando um gate tem aprovação <5%
+  (= rejeição >95%) por 3 ciclos consecutivos. Gera hipóteses
+  ranqueadas por estrelas (1-5) — threshold mal calibrado, bug no
+  cálculo, dados incompletos, condição de mercado atípica, API com
+  problema — ponderadas por evidência real disponível (gap
+  threshold/observado, regime de mercado, % de candles perdidos), com
+  nível de confiança que cresce com o tamanho da amostra.
+- `HEALTH SCORE` (0-100) por gate + score geral do sistema.
+- `REGRESSÃO DETECTADA`: gate que piora >30% vs. média histórica é
+  sinalizado, com referência à entrada mais recente do `CHANGELOG.md`
+  como pista de correlação temporal (não é git blame automático —
+  decisão deliberada de escopo, ver observação abaixo).
+- `main.py`: RCDE roda a cada ciclo (log completo via `RCDE|`), mas o
+  Telegram só recebe **um diagnóstico consolidado por dia, às 18h,
+  sempre** — a pedido explícito do usuário ("não quero mais alerta
+  mensagem, só o sinal e o diagnóstico único").
+- **Removido** do Telegram (passam a ficar só no log): alerta imediato
+  do Fast Diagnostic (`fast_diag.alerta_imediato`), relatório de 30min
+  (`should_send_telegram`/`telegram_policy.py` — agora sem uso em
+  `main.py`, módulo mantido mas não referenciado), e a mensagem de
+  validação de mudança do Calibration Engine.
+- 20 testes novos em `TESTS/test_rfc_v26_x_root_cause_engine.py`
+  (motor + formatação + integração com `main.py`), mais ajustes em
+  `TESTS/test_rfc_v25_5_fast_diagnostic.py`. Suite completa:
+  **628/628 passando**, zero regressão.
+- Observação de escopo: a RFC original pedia comparação automática com
+  "último commit"/"qual RFC originou a regressão" via análise de
+  histórico de código. Implementado como correlação temporal simples
+  (última entrada do CHANGELOG.md), não git blame automático rodando a
+  cada ciclo — mais seguro (sem I/O de processo externo no loop
+  principal) e suficiente para orientar investigação manual. Git blame
+  automatizado fica como possível RFC futura se necessário.
+
+## [26.8.0] - 2026-07-15
+### Fixed — RFC V26.8: Conflito MTF Bloqueando por Ruído de Timeframes Rejeitados
+- **Causa raiz encontrada** para o quinto (e, até aqui, último) bloqueio
+  da cadeia: com Final Validation e Execution Validator corrigidos
+  ([26.7.0]/[26.7.1]), o "Conflito MTF" passou a ser o motivo de **6 dos
+  7 sinais** que chegavam à Final Validation — dominante o suficiente
+  para ainda impedir qualquer `TELEGRAM SENT`.
+- `main.py` chamava `DecisionEngine.detect_mtf_conflict(all_decisions)`
+  — `all_decisions` contém **todas** as decisões avaliadas no ciclo para
+  o par, aprovadas **ou rejeitadas**. A direção de um timeframe
+  rejeitado (por RVOL fraco, consenso baixo, etc. — motivos sem relação
+  com viés direcional) não é uma leitura validada do mercado, mas era
+  usada do mesmo jeito para vetar um sinal já aprovado por todos os
+  gates. Isso tratava ruído de timeframes descartados como se fosse
+  divergência real entre leituras confiáveis.
+- **Correção**: `detect_mtf_conflict()` agora recebe `approved_this_pair`
+  (só as decisões aprovadas neste ciclo para o par), não `all_decisions`.
+  O comportamento do Hard Gate (RFC V25) é preservado integralmente:
+  duas leituras **validadas** discordando entre si ainda bloqueia o
+  sinal — só o ruído de timeframes rejeitados por outros motivos deixa
+  de contar.
+- 5 testes novos em `TESTS/test_rfc_v26_8_mtf_conflict_approved_only.py`,
+  incluindo um teste que reproduz lado a lado o falso positivo do
+  comportamento antigo vs. o comportamento correto do novo. Suite
+  completa: **607/607 passando**, zero regressão.
+
+## [26.7.1] - 2026-07-15
+### Fixed — RFC V26.7 (continuação): Execution Validator bloqueando 100% após o fix do rompimento
+- **Causa raiz encontrada** para o quarto bloqueio da cadeia: com a
+  detecção de rompimento corrigida ([26.7.0]), 27 de 57 sinais passaram
+  pela Final Validation — mas **25 desses 27 foram bloqueados pelo
+  Execution Validator** (RFC V22), sempre com o mesmo padrão: todas as
+  ~10 checagens (`TickSize_Entry/Stop/TP1/TP2`, `PricePrecision_*`,
+  `StepSize`, `QtyPrecision`) falhando juntas, em todo sinal.
+- Não era um problema do sinal em si: `entry_price`/`stop_loss`/
+  `take_profit_*`/`quantity` são calculados via matemática de ponto
+  flutuante (ATR, multiplicadores de RR) e **nada no pipeline os
+  arredondava** para o `tick_size`/`step_size` do símbolo antes da
+  checagem de alinhamento do Execution Validator — então a checagem
+  exata (`preço % tick_size == 0`) era, na prática, quase impossível de
+  passar para qualquer sinal real.
+- O próprio módulo já tinha o mecanismo certo para isso
+  (`auto_round_prices`/`auto_round_quantity`, com `round_price()`/
+  `round_quantity()` já testados em `TESTS/test_rfc_v22_execution_validator.py`)
+  — só nunca estava ligado por padrão (`AUTO_ROUND_PRICES`/
+  `AUTO_ROUND_QTY` default `"false"`), e mesmo quando ligado, a validação
+  não devolvia os valores arredondados para quem chama.
+- **Correção**: `ENGINE/scanner/scanner_config.py` — default de
+  `AUTO_ROUND_PRICES`/`AUTO_ROUND_QTY` trocado para `"true"`. `main.py` —
+  quando o auto-round está ativo, os valores arredondados agora são
+  propagados de volta para `data["entry_price"]`/`["stop_loss"]`/
+  `["take_profit_1"]`/`["take_profit_2"]`/`["quantity"]`, para que
+  Telegram e auditoria mostrem os preços já alinhados ao exchange, não os
+  brutos. Nenhuma alteração em Decision Engine, Consensus, Quality Gate,
+  Risk, thresholds ou qualquer lógica de estratégia — só correção de uma
+  peça de infraestrutura de execução que nunca foi conectada corretamente.
+- 6 testes novos em `TESTS/test_rfc_v26_7_auto_round_default_and_propagation.py`,
+  incluindo reprodução do bloqueio real com preço não-arredondado e
+  confirmação de que o mesmo preço passa com auto-round. Suite completa:
+  **602/602 passando**, zero regressão.
+- Observação registrada para revisão futura (fora de escopo agora):
+  `main.py::_build_default_symbol_info()` usa valores genéricos
+  (`tick_size=0.001`, `price_precision=3`) para todo símbolo, em vez de
+  buscar os dados reais por símbolo na exchange (o código já tem
+  `ExchangeSymbolInfo.from_mexc_symbol()` pronto para isso, só não é
+  chamado). Não corrigido agora porque exigiria I/O de rede + cache — o
+  auto-round já resolve o bloqueio; a precisão exata por símbolo fica
+  para uma RFC futura se necessário.
+
+## [26.7.0] - 2026-07-15
+### Fixed — RFC V26.7: Deteccao de Rompimento Quebrada no Final Validation
+- **Causa raiz encontrada** para o Final Validation bloquear ~100% dos
+  sinais aprovados via "Mercado lateral + expectativa Alta sem
+  rompimento": `ENGINE/common/operational.py::compute_main_reason()`
+  lia `signal_data["patterns"]` — uma chave que `SignalDecision.to_dict()`
+  **nunca preenche** (o dict real expõe `bos`/`choch`/`fvg` como
+  contagens inteiras e `selected_order_block` como string, nunca uma
+  lista `"patterns"`). Resultado: `signal_data.get("patterns", [])`
+  sempre retornava `[]`, e o texto "BOS confirmado"/"CHoCH confirmado"
+  **nunca** aparecia em `main_reason` — mesmo quando o scanner detectava
+  rompimento real (`sig.bos`/`sig.choch` > 0).
+- O gate de mercado lateral em `main.py` (`has_breakout = "BOS" in
+  main_reason or "CHOCH" in main_reason`) dependia exatamente desse
+  texto — como ele nunca podia ser verdadeiro, **todo sinal aprovado em
+  mercado lateral com expectativa alta era rejeitado, tivesse rompimento
+  confirmado ou não**. Confirmado em produção: 4 de 5 sinais aprovados
+  bloqueados por esse motivo na primeira hora pós-homologação da V26.6.
+- **Correção**: `compute_main_reason()` agora lê `bos`/`choch`/`fvg`/
+  `selected_order_block` diretamente — os campos reais do dict, sem
+  inventar nenhum campo novo. Nenhuma alteração em Decision Engine,
+  Consensus, thresholds ou qualquer outro gate.
+- 7 testes novos em `TESTS/test_rfc_v26_7_main_reason_breakout_fix.py`.
+  Suite completa: **596/596 passando**, zero regressão.
+
+## [26.6.0] - 2026-07-15
+### Fixed — RFC V26.6: Remoção de Código Morto que Interrompia o Fluxo de Sinais
+- **Causa raiz encontrada** para "o Decision Engine aprova sinais mas nada
+  chega ao Telegram": `main.py:1049` continha
+  `_gate_name = _classify_gate(sd.reject_reason) if callable(__builtins__.get("_classify_gate")) else ...`
+  — introduzida sem querer no commit `b5b15ce` (RFC V25.7, hoje 02:38:14),
+  sem relação com o propósito daquele commit.
+- `__builtins__` é o **módulo** `builtins` (sem `.get()`) quando o script
+  roda como `__main__` — exatamente como o PM2 executa `main.py` em
+  produção — mas é um `dict` comum quando o módulo é importado —
+  exatamente como o `pytest` importa `main.py` nos testes. Por isso a
+  suite inteira (584/584) sempre passou sem nunca exercitar o bug real:
+  `AttributeError: module 'builtins' has no attribute 'get'`, disparado
+  toda vez que qualquer sinal era rejeitado pelo Decision Engine
+  (confirmado: 3.900 ocorrências em 34 minutos de log de produção real).
+- A exceção interrompia o processamento do par **antes** do bloco que
+  decide o envio ao Telegram, mesmo quando outro timeframe do mesmo par
+  já tinha sido aprovado — resultado: 22 aprovações reais do Decision
+  Engine na mesma janela de 34min, **zero** mensagens `TELEGRAM SENT`.
+- `_gate_name` nunca era consumido em nenhum outro lugar do arquivo —
+  código morto confirmado. `record_rejection()` já usava
+  `sd.reject_reason` diretamente, não `_gate_name`.
+- **Correção**: linha removida por completo, sem substituição. Nenhuma
+  alteração em Decision Engine, gates, thresholds, Consensus, Entry Zone,
+  Quality Gate, Risk, Scanner, Calibration, Score ou estratégia
+  operacional — confirmado via diff isolado a essa única linha.
+- 5 testes novos em `TESTS/test_rfc_v26_6_dead_code_removal.py`,
+  incluindo reprodução real da diferença de comportamento de
+  `__builtins__` entre execução como `__main__` (produção) e como módulo
+  importado (pytest) — para impedir regressões semelhantes no futuro.
+  Suite completa: **589/589 passando**, zero regressão.
+
+## [26.4.0] - 2026-07-15
+### Changed — RFC V26.4: Política de Envio para o Telegram (Somente Mensagens Úteis)
+- Novo `SERVICES/telegram/telegram_policy.py::should_send_telegram()`:
+  decide se o relatório periódico de 30min deve ir ao Telegram — só
+  autoriza quando há mudança operacional relevante desde o último
+  (saúde do scanner, bug novo, gargalo novo, crescimento anormal de
+  gate, nova validação de calibração pendente). Sem mudança, cancela o
+  envio (mas continua sempre logado).
+- `main.py`: o diagnóstico detalhado por ciclo (`format_detailed_diagnostic`
+  — "Analisados/Aprovados/Rejeitados/Taxa/Ranking por timeframe") deixou
+  de ser enviado ao Telegram a cada ciclo (era o principal violador —
+  log técnico de rotina sendo tratado como mensagem operacional).
+  Continua no log (`DETAILEDDIAG|`), só não vai mais ao Telegram.
+- Alerta imediato do Fast Diagnostic e validação de mudança do
+  Calibration Engine não foram alterados — já eram inerentemente
+  condicionais no ponto de geração.
+- 8 testes novos em `TESTS/test_rfc_v26_4_telegram_policy.py`. Suite
+  completa: **584/584 passando**, zero regressão.
+
+## [26.2.0] - 2026-07-15
+### Fixed — RFC V26.2: Contrato Estável de `build_advanced_report()` + Flow Trace
+- **Causa raiz corrigida** (detectada e documentada, mas não corrigida, na
+  RFC V25.5): `build_advanced_report()` retornava um dicionário com apenas
+  3 das 11 chaves quando `report.decisions` estava vazio (nenhum candidato
+  chegou ao Decision Engine no ciclo). `main.py:650` acessa
+  `advanced["resumo_executivo"]` incondicionalmente, causando
+  `KeyError: 'resumo_executivo'` a cada ciclo vazio — confirmado no log de
+  produção ocorrendo dezenas de vezes por hora.
+- **Correção**: `build_advanced_report()` agora sempre retorna o mesmo
+  contrato (14 chaves), com ou sem candidatos no ciclo. Quando `decisions`
+  está vazio, o `resumo_executivo` e a `recomendacao_automatica` refletem
+  o cenário real ("O ciclo foi encerrado sem candidatos no Decision
+  Engine... filtrados antes desta etapa"), nunca mensagens genéricas como
+  "Scanner saudável" ou "Nenhum bloqueador dominante".
+- **Novo**: `flow_trace` — rastreamento por estágio do pipeline
+  (Scanner → Candles/API → Indicadores → Estrutura → Entry Zone →
+  Consensus → Quality Gate → Decision Engine → Aprovados), com status por
+  estágio (executado/aprovado/bloqueado/parcialmente_bloqueado/
+  não_executado). Reaproveita exclusivamente `report.pipeline_funnel` e
+  `report.total_assets`, já coletados por `DiagnosticEngine` — nenhum dado
+  novo, nenhuma alteração em Scanner ou Decision Engine. O primeiro estágio
+  bloqueado é usado para nomear onde o pipeline foi interrompido.
+- **Novo**: `metadata` (cycle_number, exchange, duration_ms, total_assets,
+  decisions_count) e `timestamp` (ISO 8601, UTC) — sempre presentes.
+- Chaves e nomes do contrato original (RFC V6.7/V7) preservados sem
+  renomear, para retrocompatibilidade com `telegram_diagnostic_formatter.py`
+  e os testes já existentes.
+- 6 testes novos em `TESTS/test_diagnostico_avancado_v7.py`. Suite
+  completa: **576/576 passando**, zero regressão.
+- Ver conversa desta sessão (sem arquivo RFC dedicado — escopo reduzido de
+  proposta inicial mais ampla, acordado com o usuário).
+
+## [26.1.0] - 2026-07-15
+### Fixed — RFC V26.1 (escopo reduzido): Falso Alerta de "Queda Abrupta" em Ciclo Vazio
+- **Causa raiz encontrada** para o sintoma "Scanner reportou 198/182
+  (91,92%) aprovação e, no relatório seguinte, 0/0 (0,0%) com alerta de
+  queda abrupta": não era falta de sincronização entre módulos — era
+  `ENGINE/diagnostic/fast_diagnostic.py::build_fast_diagnostic()` comparando
+  a taxa de aprovação de um ciclo genuinamente vazio (`total_analyzed == 0`,
+  ex: falha momentânea de API) contra a média histórica sem nenhuma guarda.
+  Como `0 < baseline_media * 0.5` é sempre verdadeiro quando há histórico,
+  **todo ciclo vazio disparava alerta de queda abrupta garantido**.
+- **Correção**: `build_fast_diagnostic()` agora detecta ciclo vazio
+  (`total_analyzed == 0`) e retorna imediatamente sem gerar nenhum alerta,
+  gargalo ou comparação — apenas registra "Ciclo vazio detectado". Também
+  adicionada amostra mínima configurável (`MIN_SAMPLE_FOR_ALERT = 30`):
+  ciclos com poucos ativos analisados não disparam mais o alerta de queda
+  abrupta nem a detecção de bug suspeito (comparações estatísticas contra
+  a média histórica), substituídos por "Amostra insuficiente para análise
+  estatística".
+- Em `main.py`: ciclos vazios não são mais gravados em `_diag_baseline`
+  (usado pelo Fast Diagnostic e RFC V25.6) nem em `_baseline_registry`
+  (usado pelo relatório de 30min/Telegram, RFC V25.7) — evita poluir as
+  médias históricas com entradas de 0%, o que geraria falsos alertas
+  também nos ciclos seguintes.
+- Escopo deliberadamente reduzido frente à RFC V26.1 original (que pedia
+  Cycle ID propagado e verificação cruzada entre Scanner/Analytics/
+  Calibration/Monitor/Telegram): a causa raiz real era uma guarda de
+  ciclo vazio ausente, não falta de sincronização. Infraestrutura de
+  Cycle ID cross-module não foi implementada — ver decisão do usuário
+  nesta sessão.
+- 5 testes novos em `TESTS/test_rfc_v25_5_fast_diagnostic.py`. Suite
+  completa: **576/576 passando**, zero regressão.
+
+## [25.5.0] - 2026-07-15
+### Added — RFC V25.5: Diagnóstico Rápido Inteligente (Fast Diagnostic)
+- Novo `ENGINE/diagnostic/fast_diagnostic.py`: diagnóstico ao final de cada
+  ciclo (não recalcula indicadores, lê apenas dados já produzidos por
+  `RejectionAnalytics`). Reporta scanner saudável (SIM/NÃO), classificação
+  do mercado (Forte/Lateral/Fraco), top 5 motivos de bloqueio, gargalos
+  (⚠ gate ≥ 35% das reprovações), detecção de possível bug (gate ≥ 25 pontos
+  acima da média histórica dos últimos 20 ciclos, com % de confiança) e
+  sugestões (nunca altera parâmetros automaticamente).
+- Alerta imediato ao Telegram (via `TelegramService.send_diagnostic()`,
+  método já existente mas nunca chamado antes) quando: zero sinais por 5+
+  ciclos consecutivos, um gate reprova ≥90% de todos os ativos analisados,
+  ≥15% dos candles não carregam (proxy de API inconsistente), ou queda
+  abrupta na taxa de aprovação vs. média recente.
+- Integrado em `main.py` de forma fail-safe (try/except dedicado — um erro
+  no diagnóstico nunca derruba o ciclo principal).
+- 18 testes novos (`TESTS/test_rfc_v25_5_fast_diagnostic.py`). Suite
+  completa: **518/518 passando**, zero regressão.
+- Validado em produção real (local + VPS): relatório correto no primeiro
+  ciclo pós-deploy em ambos os ambientes.
+- Detectado (não corrigido, fora de escopo) bug pré-existente em
+  `build_advanced_report()` (`KeyError: 'resumo_executivo'` quando nenhum
+  candidato chega ao Decision Engine) — já não-fatal, capturado pelo
+  try/except existente.
+- Ver `RFC_V25_5_FAST_DIAGNOSTIC.md`.
+
+## [25.4.0] - 2026-07-15
+### Fixed — RFC V25.4: Correção do Bug de Escala no Filtro de Exaustão
+- **Causa raiz encontrada** para o sintoma "quase nenhum sinal aprovado entre
+  centenas de criptos": `ENGINE/scanner/flex_scoring.py::compute_exaustao()`
+  comparava o range da vela (calculado em escala percentual, ex. `0.42` para
+  0,42%) contra `atr_percent * 2.5`, onde `atr_percent` é uma fração (ex.
+  `0.0057` para 0,57%) — nunca convertida para a mesma escala. O threshold
+  ficava ~100x menor que o pretendido, fazendo o fator
+  `velas_alongadas_consecutivas` (+15 pontos, o maior peso do filtro) disparar
+  em praticamente qualquer vela. Confirmado com dados reais (BTCUSDT 1h): esse
+  fator estava presente em **100% (2151/2151)** dos bloqueios por Exaustão.
+- **Correção**: `c_range` passa a ser calculado em fração (mesma escala de
+  `atr_percent`), removendo o `* 100`. Único ponto alterado.
+- **Resultado real (antes × depois, mesmo dia)**: Exaustão caiu de 71,7% para
+  **19,7%** de todas as rejeições; `velas_alongadas_consecutivas` caiu de
+  100% para 76,6% dentro dos bloqueios por Exaustão (agora reflete velas
+  genuinamente grandes, não dispara universalmente).
+- Auditado o restante do scanner em busca do mesmo padrão de erro (comparação
+  direta % vs fração) — nenhuma outra ocorrência encontrada.
+- 4 testes novos (`TESTS/test_rfc_v25_4_fix_escala_exaustao.py`). Suite
+  completa: **500/500 passando**, zero regressão.
+- Nenhum outro filtro, threshold, peso ou regra de trading foi alterado.
+- Deploy local + VPS confirmados, zero erros pós-deploy.
+- Ver `RFC_V25_4_FIX_ESCALA_EXAUSTAO.md`.
+
+## [25.3.0] - 2026-07-14
+### Fixed — RFC V25.3: Auditoria da Origem dos Sinais do Telegram
+- **Causa raiz da duplicidade de sinais encontrada**: o VPS tinha 2 processos
+  QuantOS ativos simultaneamente enviando para o mesmo Telegram — o `pm2`
+  (gerenciado pelas RFCs V25/V25.2) e um serviço `systemd` (`quantos.service`,
+  `enabled`, `Restart=always`) esquecido, rodando havia 16h com código
+  anterior à RFC V25 (nenhum `deploy_vps.sh` anterior o reiniciava, só o pm2).
+  Explicava os sinais quase idênticos recebidos com poucos segundos de
+  diferença e a mensagem "Conflito MTF detectado!" (texto de versão antiga).
+- **Ação**: `systemctl stop quantos.service && systemctl disable quantos.service`
+  (autorizado pelo usuário). Confirmado: apenas 1 processo ativo no VPS.
+- Auditados todos os ambientes possíveis (Docker, WSL, Task Scheduler, cron,
+  GitHub Actions, SSH config) — nenhum outro ambiente além de local + VPS.
+- `main.py`: adicionado `self._fingerprint` (servidor via `socket.gethostname()`,
+  PID, build = commit curto + timestamp UTC), calculado uma vez no
+  `QuantOSApp.start()` e anexado a `data["fingerprint"]` de cada sinal.
+- `SERVICES/telegram/telegram_formatter.py`: bloco "Auditoria" exibe
+  `Servidor`/`PID`/`Build` quando o fingerprint está presente (retrocompatível
+  — sinais sem fingerprint continuam funcionando normalmente).
+- Marcado explicitamente como temporário (comentários `RFC V25.3 (temporario)`)
+  — remover do Telegram (mantendo só no log) quando a rastreabilidade for
+  considerada validada.
+- 4 testes novos (`TESTS/test_rfc_v25_3_fingerprint_rastreabilidade.py`).
+  Suite completa: **496/496 passando**, zero regressão.
+- Nenhuma lógica operacional, filtro, cálculo ou threshold foi alterado.
+- Ver `RFC_V25_3_AUDITORIA_ORIGEM_SINAIS.md`.
+
+## [25.2.0] - 2026-07-14
+### Ops — RFC V25.2: Deploy da RFC V25 para o VPS
+- Backup reversível do estado anterior do VPS criado antes do deploy
+  (`/opt/backups/quantos_pre_v25_20260714_223641.tar.gz`).
+- Código da RFC V25 propagado para `vps-gauss` via `deploy_vps.sh` (instância
+  única, `.env` preservado). Verificação pós-deploy confirmou presença dos
+  novos checks (`MarginWithinCapital`, `LeverageWithinLimit`,
+  `Conflito MTF entre timeframes`) e ausência de erros/tracebacks em 20 min de
+  monitoramento.
+- Pendência: validar o Hard Gate em um sinal real aprovado (nenhum sinal foi
+  aprovado nas janelas observadas, local ou VPS).
+- Ver `RFC_V25_2_DEPLOY_VPS.md`.
+
+## [25.1.0] - 2026-07-14
+### Homologação — RFC V25.1: Homologação Pós-Deploy Local (Paper Trading Real)
+- 2h / 44 ciclos locais após restart, zero erros, zero regressão.
+- Identificado que sinais com "Conflito MTF detectado!" recebidos pelo usuário
+  durante a homologação vieram de uma instância não identificada, não do
+  processo local nem do VPS (confirmado na RFC V25.2).
+- Ver `RFC_V25_1_HOMOLOGACAO_POS_DEPLOY.md`.
+
+## [25.0.0] - 2026-07-14
+### Fixed — RFC V25: Hard Gate Financeiro e Unificação do Dimensionamento de Capital
+Investigação do sinal `BULLSUSDT` reportado com valor nominal/margem incompatíveis
+com a conta configurada revelou 3 bugs de causa raiz (nenhuma auditoria nova foi
+criada — os 3 gates existentes, V18.4/V21/V22, já cobriam a arquitetura correta,
+mas com efeito anulado por esses bugs):
+
+- **`BOTS/mexc/bot_engine.py::_update_balance()`**: em paper trading, o saldo era
+  fixo em `10000.0` USDT, ignorando `QUANTOS_ACCOUNT_SIZE=200` do `.env`. Corrigido
+  para usar `ACCOUNT_SIZE` (já lido de `QUANTOS_ACCOUNT_SIZE` em
+  `ENGINE/scanner/scanner_config.py`). Branch de execução real (`is_live()`) não
+  alterado.
+- **`main.py`**: `data["leverage"]` sempre caía em `1.0` porque `BotConfig` nunca
+  teve o atributo `leverage` (fallback `hasattr` sempre falhava), desconectando
+  `QUANTOS_LEVERAGE_MAX=25` de qualquer cálculo real. Corrigido adicionando
+  `leverage: float = LEVERAGE_MAX_USER` em `BOTS/mexc/bot_config.py`.
+- **`ENGINE/auditor/institutional_math_auditor.py` (V21)**: o Math Auditor
+  validava apenas auto-consistência aritmética (10 dos 12 checks comparavam um
+  valor com ele mesmo, nunca podendo falhar) — nunca validava contra os limites
+  reais da conta. Adicionados 2 checks reais: `MarginWithinCapital` (margem ≤
+  capital configurado) e `LeverageWithinLimit` (alavancagem ≤
+  `QUANTOS_LEVERAGE_MAX`). "Exposição máxima" fica coberta automaticamente como
+  consequência dos dois (decisão confirmada com o usuário — sem nova variável de
+  ambiente). `hard_fail_reason` passa a detalhar qual check falhou.
+- **`main.py`**: conflito MTF isolado (`DecisionEngine.detect_mtf_conflict`) só
+  bloqueava quando combinado com `structural_score < 0.60`. Substituído por gate
+  padrão — qualquer conflito MTF reprova o sinal, igual ao gate já existente para
+  Kalman contrário.
+- Nenhuma mudança em `ExchangeExecutionValidator` (V22), no sistema de
+  penalidades cosmético (`compute_penalties`) ou no branch de saldo de execução
+  real (`is_live()`).
+- 15 testes novos (6 em `TESTS/test_rfc_v21_math_auditor.py`, 9 em
+  `TESTS/test_rfc_v25_hard_gate_financeiro.py`). Suite completa: **492/492
+  passando**, zero regressão.
+- Ver `RFC_V25_HARD_GATE_FINANCEIRO.md` para o detalhamento completo.
+
 ## [20.3.0] - 2026-07-12
 ### Fixed — RFC V20.2: Correção de Consistência do Sinal
 (Nota: o prompt original chamou esta RFC de "V20.2", colidindo com a

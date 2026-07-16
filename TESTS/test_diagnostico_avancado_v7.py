@@ -328,3 +328,74 @@ def test_advanced_report_empty_decisions_returns_minimal_structure():
     assert "resumo_scanner" in data
     assert data["resumo_scanner"]["quantidade_moedas"] == 100
     assert "mercado_estatisticas" in data
+
+
+# =============================================================================
+# RFC V26.2 — Contrato estavel de build_advanced_report() + flow_trace
+# =============================================================================
+
+_FULL_CONTRACT_KEYS = {
+    "resumo_ciclo", "resumo_scanner", "funil_granular", "top_quase_aprovados",
+    "diagnostico_por_ativo", "ranking_bloqueadores", "saude_mercado",
+    "recomendacao_automatica", "resumo_executivo", "estatisticas_gerais",
+    "mercado_estatisticas", "flow_trace", "metadata", "timestamp",
+}
+
+
+def test_advanced_report_empty_decisions_has_full_contract_no_keyerror():
+    """Regressao do bug original: main.py acessa advanced['resumo_executivo']
+    incondicionalmente — isso nao pode lancar KeyError quando decisions
+    esta vazio, e o contrato deve ser identico ao caso com candidatos."""
+    r = _report_with([], total_assets=592, duration_ms=5000.0)
+    data = ar.build_advanced_report(r)
+    assert _FULL_CONTRACT_KEYS.issubset(data.keys())
+    assert isinstance(data["resumo_executivo"], str) and data["resumo_executivo"]
+
+
+def test_advanced_report_non_empty_decisions_also_has_full_contract():
+    decisions = [_decision(rvol_ok=True, adx_ok=False), _decision(approved=True, rvol_ok=True,
+                 adx_ok=True, structure_ok=True, entry_zone_ok=True, quality_ok=True,
+                 consensus_ok=True, confidence_ok=True, kalman_ok=True, rr_ok=True)]
+    r = _report_with(decisions)
+    data = ar.build_advanced_report(r)
+    assert _FULL_CONTRACT_KEYS.issubset(data.keys())
+
+
+def test_advanced_report_empty_decisions_executive_summary_is_accurate():
+    """RFC V26.2: proibido usar mensagens genericas ('Scanner saudavel',
+    'Nenhum bloqueador dominante') quando na verdade nenhum candidato
+    chegou ao Decision Engine."""
+    r = _report_with([], total_assets=592, duration_ms=5000.0)
+    data = ar.build_advanced_report(r)
+    resumo = data["resumo_executivo"].lower()
+    assert "saudavel" not in resumo
+    assert "nenhum bloqueador dominante" not in resumo
+    assert "decision engine" in resumo
+    assert "592" in data["resumo_executivo"]
+
+
+def test_build_flow_trace_marks_stage_as_blocked_when_funnel_drops_to_zero():
+    r = _report_with([], total_assets=100, duration_ms=1000.0)
+    r.pipeline_funnel = {"candles": 100, "indicadores": 100, "estrutura": 0}
+    trace = ar.build_flow_trace(r)
+    by_stage = {t["estagio"]: t for t in trace}
+    assert by_stage["Candles/API"]["status"] == "executado"
+    assert by_stage["Estrutura"]["status"] == "bloqueado"
+    assert by_stage["Entry Zone"]["status"] == "nao_executado"
+
+
+def test_advanced_report_empty_decisions_names_interruption_stage():
+    r = _report_with([], total_assets=100, duration_ms=1000.0)
+    r.pipeline_funnel = {"candles": 100, "indicadores": 100, "estrutura": 0}
+    data = ar.build_advanced_report(r)
+    assert "Estrutura" in data["resumo_executivo"]
+    assert "Estrutura" in data["recomendacao_automatica"]
+
+
+def test_advanced_report_metadata_and_timestamp_present():
+    r = _report_with([_decision()], total_assets=1)
+    r.cycle_number = 42
+    data = ar.build_advanced_report(r)
+    assert data["metadata"]["cycle_number"] == 42
+    assert data["metadata"]["decisions_count"] == 1
+    assert data["timestamp"]
