@@ -146,17 +146,16 @@ def _full_signal_dict():
     }
 
 
-def test_formatted_card_shows_classification_exactly_once():
-    """RFC V20.2 item 1: nunca 'OURO' no cabecalho e 'PRATA' na analise."""
+def test_formatted_card_shows_aprovado_header():
+    """RFC V19.1: score 60-79 mostra APROVADO no header."""
     msg = TelegramFormatter.format_signal(_full_signal_dict())
-    assert msg.count("OURO") == 1  # so no Bloco 2, nao mais tambem no Bloco 6
-    assert "PRATA" not in msg  # classification_label divergente nao deve aparecer
+    assert "APROVADO" in msg
+    assert msg.count("Score") == 1
 
 
-def test_formatted_card_shows_penalty_details_only_once():
-    """RFC V20.2 item 3: nao duplicar lista de penalizacao."""
+def test_formatted_card_shows_no_penalty_details():
+    """RFC V19.1: penalty_details nao aparece mais no card."""
     data = _full_signal_dict()
     data["penalty_reasons"] = ["Fake penalty (peso: 0.10)"]
     msg = TelegramFormatter.format_signal(data)
-    assert "Penalizações:" not in msg  # bloco antigo removido
-    assert "Kalman: -5" in msg  # penalty_details continua aparecendo
+    assert "Kalman" not in msg  # penalty_details removido do card

@@ -1201,7 +1201,7 @@ class QuantOSApp:
                 asm.create(best_sd.symbol, best_sd.timeframe, best_sd.direction, data)
             data["update_label"] = res.update_label
             data["cycle_id"] = self._scan_count
-            data["engine_version"] = "V18.4"
+            data["engine_version"] = "V19.1"
             data["fingerprint"] = self._fingerprint  # RFC V25.3 (temporario)
 
 

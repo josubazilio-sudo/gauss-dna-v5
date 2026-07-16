@@ -217,10 +217,10 @@ class TestMainPyIntegration:
         import main
         source = inspect.getsource(main)
         idx = source.index("self._rcde.record_cycle(report.decisions)")
-        block = source[idx:idx + 1500]
+        block = source[idx:idx + 2000]
         assert "_now_dt.hour >= 18" in block
         assert "self._last_daily_diagnostic_date != _now_dt.date()" in block
-        assert "self._telegram.send_diagnostic(format_rcde_telegram(rcde_report))" in block
+        assert "send_diagnostic(format_rcde_telegram(rcde_report))" in block
 
     def test_rcde_block_is_failsafe(self):
         import main

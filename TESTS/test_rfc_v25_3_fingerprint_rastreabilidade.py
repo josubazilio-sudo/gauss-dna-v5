@@ -31,13 +31,14 @@ def _full_signal_dict():
 
 
 class TestFingerprintNoTelegram:
-    def test_fingerprint_fields_rendered_when_present(self):
+    def test_fingerprint_not_rendered(self):
+        """RFC V19.1: fingerprint removido do card do Telegram."""
         data = _full_signal_dict()
         data["fingerprint"] = {"server": "VPS-GAUSS", "pid": 1563310, "build": "d687290-20260714-2238"}
         msg = TelegramFormatter.format_signal(data)
-        assert "Servidor: VPS-GAUSS" in msg
-        assert "PID: 1563310" in msg
-        assert "Build: d687290-20260714-2238" in msg
+        assert "Servidor:" not in msg
+        assert "PID:" not in msg
+        assert "Build:" not in msg
 
     def test_no_fingerprint_lines_when_absent(self):
         """Compatibilidade retroativa: sinal sem fingerprint nao quebra e nao mostra linhas vazias."""

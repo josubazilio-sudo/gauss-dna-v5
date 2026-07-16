@@ -60,6 +60,15 @@ class TelegramService:
         if not validate_consistency(data):
             return
 
+        # RFC V19.1: filtra sinais com score < 60 (BRONZE/REPROVADO)
+        overall_val = float(data.get("overall_score_value", 0))
+        if overall_val < 60:
+            log.info(
+                "TelegramService: sinal descartado (score %.1f < 60): %s_%s",
+                overall_val, data.get("symbol", "?"), data.get("timeframe", "?"),
+            )
+            return
+
         # RFC V20.2: valida consistencia dos dados que serao EXIBIDOS
         pres_ok, pres_reason = validate_presentation_consistency(data)
         if not pres_ok:

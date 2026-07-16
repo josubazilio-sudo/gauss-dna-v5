@@ -1,5 +1,21 @@
 # Changelog
 
+## [19.1.0] - 2026-07-16
+### Added — RFC V19.1: ELITE SIGNAL CARD
+- **Redesenho completo do cartão de sinais do Telegram**: layout limpo,
+  profissional e rápido de ler (menos de 5 segundos).
+- **Classificação dual**: 👑 ELITE SIGNAL (overall_score >= 80) ou 🏆 APROVADO
+  (overall_score 60-79). Score < 60 não envia mais Telegram.
+- **Seções**: Score/Probabilidade/Confiança/Risco | Entrada/TP/SL/RR |
+  Contexto (Regime+Setup) | Confluências (BOS/Order Block/FVG/Kalman) |
+  Operação (Capital/Alavancagem/Lucro/Perda) | 🧠 Motivo | Status.
+- **Removido**: ADX, RVOL, ATR, Fluxo, Estrutura, Liquidez, Coerência,
+  Votação, Penalidades, Convicção, Expectativa, MTF Conflict, Signal ID,
+  Versão, Ciclo, PID, Servidor, Build, UTC, Processamento, Valor nominal,
+  Margem, Quantidade, Sobre patrimônio, Sobre margem, approval_reasons.
+- Arquivos: `SERVICES/telegram/telegram_formatter.py` (reescrita),
+  `SERVICES/telegram/telegram_service.py` (filtro score < 60).
+
 ## [18.5.0] - 2026-07-15
 ### Added — RFC V18.5: Exchange Validation Gate (MEXC Futures)
 - **Bug crítico de produção corrigido**: QuantOS gerou sinais para

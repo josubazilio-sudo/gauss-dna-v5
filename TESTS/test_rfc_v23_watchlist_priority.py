@@ -318,7 +318,8 @@ class TestIntegrationWithPriorityScore(unittest.TestCase):
 
 class TestTelegramIndicator(unittest.TestCase):
 
-    def test_formatter_accepts_watchlist_field(self):
+    def test_watchlist_no_longer_shows_in_card(self):
+        """RFC V19.1: watchlist priority removido do card."""
         from SERVICES.telegram.telegram_formatter import TelegramFormatter
         signal = {
             "symbol": "SOLUSDT", "timeframe": "1h", "direction": "LONG",
@@ -330,7 +331,7 @@ class TestTelegramIndicator(unittest.TestCase):
             "_watchlist_priority": True,
         }
         msg = TelegramFormatter.format_signal(signal, message_type="new")
-        self.assertIn("WATCHLIST PRIORIT", msg)
+        self.assertNotIn("WATCHLIST", msg)
 
     def test_formatter_no_watchlist_field(self):
         from SERVICES.telegram.telegram_formatter import TelegramFormatter
