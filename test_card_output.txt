@@ -1,0 +1,77 @@
+👑 ELITE SIGNAL
+
+*BTCUSDT*
+🔴 SHORT | 1h
+
+━━━━━━━━━━━━━━━━━━━━
+
+🎯 Score
+85.0/100 🏆
+
+🎲 Probabilidade
+75%
+
+🧠 Confianca
+86%
+
+⚠️ Risco
+24/100
+
+━━━━━━━━━━━━━━━━━━━━
+
+💰 Entrada
+60500.00
+
+🎯 Take Profit
+59000.00
+
+🛑 Stop Loss
+61000.00
+
+⚖️ RR
+3.00
+
+━━━━━━━━━━━━━━━━━━━━
+
+🧠 Contexto
+
+Regime
+Tendencia Forte Baixa
+
+Setup
+Trend Continuation
+
+━━━━━━━━━━━━━━━━━━━━
+
+✅ BOS
+✅ Order Block
+✅ Fair Value Gap
+✅ Kalman DOWN
+
+━━━━━━━━━━━━━━━━━━━━
+
+💵 Operacao
+
+Capital
+200 USDT
+
+Alavancagem
+25x
+
+Lucro Estimado
+1.50 USDT
+
+Perda Maxima
+0.50 USDT
+
+━━━━━━━━━━━━━━━━━━━━
+
+🧠 Motivo
+
+BOS + Order Block + FVG + Kalman alinhado
+
+━━━━━━━━━━━━━━━━━━━━
+
+🟢 STATUS
+
+ENTRADA LIBERADA
