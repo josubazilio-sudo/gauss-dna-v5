@@ -493,6 +493,8 @@ class K10Engine:
             "tend_1d":          tend_1d,
             "timeframe":        "30m",
             "preco_atual":      c,
+            "ema21":            float(r30["ema21"]),
+            "vwap":             float(r30["vwap"]),
             **gb,
         }
 
