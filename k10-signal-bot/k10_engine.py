@@ -8,6 +8,7 @@ import ccxt
 import pandas as pd
 import numpy as np
 from config import BANCA, RISCO_PCT, ALAVANCAGEM_POR_REGIME
+from scoring import calcular_score, TIER_EMOJI, TIER_RANK
 
 
 class K10Engine:
@@ -440,23 +441,53 @@ class K10Engine:
 
         rr = round(abs(tp2-entrada)/abs(stop-entrada), 2) if stop!=entrada else 0
 
-        # ── Score final (setup + MTF) ─────────────────────────────────────────
-        score_final = round(setup["score"] * (1.0 if mtf_ok else 0.7))
+        # ── Score v45 ─────────────────────────────────────────────────────────
+        atr_pct    = atr / c * 100 if c > 0 else 0
+        atr_cons   = round(atr_pct / (atr_pct + abs(stop-c)/c*100) * 100) if (atr_pct + abs(stop-c)/c*100) > 0 else 0
+        dist_ema21 = round(abs(c - float(r30["ema21"])) / atr, 2) if atr > 0 else 0
+        kalman     = "UP" if direcao == "LONG" else "DOWN"
+
+        score_data = {
+            "confirmacoes":       setup["conf"],
+            "direcao":            direcao,
+            "tend_4h":            tend_4h,
+            "tend_1d":            tend_1d,
+            "adx":                float(r30["adx"]),
+            "rsi":                float(r30["rsi"]),
+            "rvol":               float(r30["rvol"]),
+            "rr":                 rr,
+            "atr_consumido":      atr_cons,
+            "atr_pct":            atr_pct,
+            "dist_ema21_atr":     dist_ema21,
+            "kalman":             kalman,
+            "mtf_ok":             mtf_ok,
+            "macd_hist":          float(r30["macd_hist"]),
+            "liquidez_status":    "ALTA" if r30["rvol"] >= 1.2 else "BAIXA",
+            "liquidez_score":     min(round(float(r30["rvol"]) * 60), 100),
+            "timing_score":       min(round(float(r30["adx"]) + (50 - abs(float(r30["rsi"]) - 50))), 100),
+            "institucional_score":round(len(setup["conf"]) * 12),
+            "cruzamento_antigo":  False,
+        }
+
+        sc          = calcular_score(score_data)
+        score_final = sc["score_final"]
+        tier        = sc["tier"]
+        aprovado_sc = sc["aprovado"]
 
         # ── Falhas finais ─────────────────────────────────────────────────────
         motivos = list(setup["falhas"])
         falta   = list(setup["falta"])
         if not mtf_ok:
             motivos.insert(0, mtf_motivo)
-            falta.insert(0, "Aguardar alinhamento de H4 e D1")
+            falta.insert(0, "Aguardar alinhamento H4 e D1")
         if rr < 2.0:
             motivos.append(f"RR {rr} < 2.0")
             falta.append("RR mínimo 1:2")
-        if score_final < 60:
-            motivos.append(f"Score {score_final} < 60 (mínimo Bronze)")
-            falta.append("Score ≥ 60 para aprovação")
+        if not aprovado_sc:
+            motivos.append(f"Score {score_final} < 70 (mínimo Bronze)")
+            falta.append("Score ≥ 70")
 
-        aprovado = len(motivos)==0 and score_final>=60 and rr>=2.0 and mtf_ok
+        aprovado = len(motivos) == 0 and aprovado_sc and rr >= 2.0 and mtf_ok
 
         gb = self._gestao_banca(regime, entrada, stop, atr)
 
@@ -464,7 +495,6 @@ class K10Engine:
             if s >= 90: return "ELITE 🔥"
             if s >= 80: return "ALTA ✅"
             if s >= 70: return "BOA ⚡"
-            if s >= 60: return "BRONZE 🥉"
             return "BAIXA ❌"
 
         return {
@@ -487,6 +517,10 @@ class K10Engine:
             "rvol":             r30["rvol"],
             "volume_status":    f"RVOL {r30['rvol']:.2f}",
             "confirmacoes":     setup["conf"],
+            "tier":             tier,
+            "penalizacoes":     sc["penalizacoes"],
+            "bonus":            sc["bonus"],
+            "score_componentes":sc["componentes"],
             "motivos_rejeicao": motivos,
             "o_que_falta":      falta,
             "setup_alternativo":"—",

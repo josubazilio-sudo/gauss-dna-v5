@@ -33,10 +33,14 @@ def formatar_cartao(r: dict) -> str:
 
     dir_emoji = "🟢 LONG" if direcao == "LONG" else "🔴 SHORT"
 
-    if score >= 90:   tier, rank = "🥇 OURO",   "🥇 #1 DO CICLO"
-    elif score >= 80: tier, rank = "🥈 PRATA",  "🥈 TOP DO CICLO"
-    elif score >= 70: tier, rank = "🥉 BRONZE", "🥉 SINAL CONFIRMADO"
-    else:             tier, rank = "🥉 BRONZE", "🥉 SINAL MONITORADO"
+    tier_raw = r.get("tier", "")
+    tier_map = {
+        "DIAMANTE": ("💎 DIAMANTE", "💎 INSTITUCIONAL — MELHOR DO CICLO"),
+        "OURO":     ("🥇 OURO",    "🥇 #1 DO CICLO"),
+        "PRATA":    ("🥈 PRATA",   "🥈 TOP DO CICLO"),
+        "BRONZE":   ("🥉 BRONZE",  "🥉 SINAL CONFIRMADO"),
+    }
+    tier, rank = tier_map.get(tier_raw, ("🥉 BRONZE", "🥉 SINAL CONFIRMADO"))
 
     tp1_pct  = abs(tp1  - entrada) / entrada * 100
     tp2_pct  = abs(tp2  - entrada) / entrada * 100
@@ -63,6 +67,14 @@ def formatar_cartao(r: dict) -> str:
     conf_line = " • ".join(confs[:5]) if confs else "Confluência confirmada"
     pontos    = "\n".join(f"✅ {c}" for c in confs)
     narrativa = ", ".join(confs[:3]) + f", Kalman {kalman}." if confs else f"Kalman {kalman}."
+
+    # Penalizações e bônus
+    penais = r.get("penalizacoes", [])
+    bonus  = r.get("bonus", [])
+    pen_block = "
+".join(f"➖ {n} ({v:+d})" for n, v in penais) if penais else ""
+    bon_block = "
+".join(f"➕ {n} ({v:+d})" for n, v in bonus)  if bonus  else ""
 
     filled = round(score / 10)
     barra  = "█" * filled + "░" * (10 - filled)
@@ -103,8 +115,9 @@ def formatar_cartao(r: dict) -> str:
         f"{sep}\n\n"
         f"⭐ Pontos Fortes\n\n"
         f"{pontos}\n\n"
-        f"{sep}\n\n"
-        f"📝 {narrativa}\n\n"
+        + (f"⚠️ Penalizações\n\n{pen_block}\n\n{sep}\n\n" if pen_block else f"{sep}\n\n")
+        + (f"✨ Bônus\n\n{bon_block}\n\n{sep}\n\n" if bon_block else "")
+        + f"📝 {narrativa}\n\n"
         f"{sep}\n\n"
         f"🧠 Setup: {setup_label} | 🌍 Regime: {regime}\n"
         f"⏱️ Duração: {duracao} | 📈 Gain: +{tp2_pct:.2f}% | 📉 Loss: -{stop_pct:.2f}%\n\n"
