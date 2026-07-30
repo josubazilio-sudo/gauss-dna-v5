@@ -1,8 +1,7 @@
 """
-K10 Institucional Engine — v2.0
-Indicadores: EMA10/21/50/200, ADX, RSI Adaptativo, ATR, RVOL, MACD,
-             VWAP, Bollinger, Volume, BOS, CHoCH, FVG, Order Block, Liquidez
-Timeframes: 30m (operacional) | 1h (confirmação) | 4h (tendência) | 1D (macro)
+K10 Institucional Engine — v3.0
+4 Setups oficiais com hierarquia automática
+Timeframes: 30m | 1h | 4h | 1D
 """
 
 import ccxt
@@ -33,309 +32,360 @@ class K10Engine:
     def _calc(self, df: pd.DataFrame) -> pd.DataFrame:
         c, h, l, v = df["close"], df["high"], df["low"], df["volume"]
 
-        # EMAs
         for p in [10, 21, 50, 200]:
             df[f"ema{p}"] = c.ewm(span=p, adjust=False).mean()
 
-        # VWAP
         df["vwap"] = (v * (h + l + c) / 3).cumsum() / v.cumsum()
 
-        # ATR 14
-        tr = pd.concat([h - l, (h - c.shift()).abs(), (l - c.shift()).abs()], axis=1).max(axis=1)
+        tr = pd.concat([h-l,(h-c.shift()).abs(),(l-c.shift()).abs()], axis=1).max(axis=1)
         df["atr"] = tr.ewm(span=14, adjust=False).mean()
 
-        # ADX 14
-        dm_p = (h.diff()).clip(lower=0).where(h.diff() > (-l.diff()), 0.0)
-        dm_n = (-l.diff()).clip(lower=0).where((-l.diff()) > h.diff(), 0.0)
+        dm_p = (h.diff()).clip(lower=0).where(h.diff()>(-l.diff()), 0.0)
+        dm_n = (-l.diff()).clip(lower=0).where((-l.diff())>h.diff(), 0.0)
         atr14 = tr.ewm(span=14, adjust=False).mean()
-        di_p = 100 * dm_p.ewm(span=14, adjust=False).mean() / atr14
-        di_n = 100 * dm_n.ewm(span=14, adjust=False).mean() / atr14
-        dx = (100 * (di_p - di_n).abs() / (di_p + di_n).replace(0, np.nan))
-        df["adx"] = dx.ewm(span=14, adjust=False).mean()
+        di_p  = 100 * dm_p.ewm(span=14, adjust=False).mean() / atr14
+        di_n  = 100 * dm_n.ewm(span=14, adjust=False).mean() / atr14
+        dx    = 100*(di_p-di_n).abs()/(di_p+di_n).replace(0,np.nan)
+        df["adx"]  = dx.ewm(span=14, adjust=False).mean()
         df["di_p"] = di_p
         df["di_n"] = di_n
 
-        # RSI 14
         delta = c.diff()
-        gain = delta.clip(lower=0).ewm(span=14, adjust=False).mean()
-        loss = (-delta.clip(upper=0)).ewm(span=14, adjust=False).mean()
-        df["rsi"] = 100 - 100 / (1 + gain / loss.replace(0, np.nan))
+        gain  = delta.clip(lower=0).ewm(span=14, adjust=False).mean()
+        loss  = (-delta.clip(upper=0)).ewm(span=14, adjust=False).mean()
+        df["rsi"] = 100 - 100/(1 + gain/loss.replace(0,np.nan))
 
-        # MACD 12/26/9
         ema12 = c.ewm(span=12, adjust=False).mean()
         ema26 = c.ewm(span=26, adjust=False).mean()
         df["macd"]        = ema12 - ema26
         df["macd_signal"] = df["macd"].ewm(span=9, adjust=False).mean()
         df["macd_hist"]   = df["macd"] - df["macd_signal"]
 
-        # Bollinger 20 / desvio 2
         sma20 = c.rolling(20).mean()
         std20 = c.rolling(20).std()
-        df["bb_upper"] = sma20 + 2 * std20
-        df["bb_lower"] = sma20 - 2 * std20
+        df["bb_upper"] = sma20 + 2*std20
+        df["bb_lower"] = sma20 - 2*std20
         df["bb_mid"]   = sma20
-        df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / sma20
+        df["bb_width"] = (df["bb_upper"]-df["bb_lower"])/sma20
 
-        # RVOL 20
         df["vol_ma"] = v.rolling(20).mean()
         df["rvol"]   = v / df["vol_ma"]
 
         return df
 
     # ─────────────────────────────────────────────────────────────────────────
-    # REGIME DE MERCADO
+    # REGIME
     # ─────────────────────────────────────────────────────────────────────────
     def _regime(self, df: pd.DataFrame) -> str:
-        r = df.iloc[-1]
-        adx      = r["adx"]
-        bb_width = r["bb_width"]
-        bb_prev  = df["bb_width"].iloc[-5]
+        r   = df.iloc[-1]
+        adx = r["adx"]
+        bw  = r["bb_width"]
+        bw_ma = df["bb_width"].rolling(20).mean().iloc[-1]
 
         if adx > 25:
-            if r["ema10"] > r["ema21"] > r["ema50"] > r["ema200"]:
+            if r["ema10"]>r["ema21"]>r["ema50"]>r["ema200"]:
                 return "Bull Trend"
-            elif r["ema10"] < r["ema21"] < r["ema50"] < r["ema200"]:
+            elif r["ema10"]<r["ema21"]<r["ema50"]<r["ema200"]:
                 return "Bear Trend"
-            else:
-                return "Transição"
-        elif adx < 18:
-            if bb_width < bb_prev * 0.8:
-                return "Compressão"   # Bollinger comprimindo → breakout iminente
-            return "Range"
-        else:
             return "Transição"
+        elif adx < 18:
+            if bw < bw_ma * 0.8:
+                return "Compressão"
+            return "Range"
+        return "Transição"
 
-    def _setup_para_regime(self, regime: str) -> str:
-        return {
-            "Bull Trend":  "TREND FOLLOWING",
-            "Bear Trend":  "TREND FOLLOWING",
-            "Compressão":  "BREAKOUT",
-            "Transição":   "REVERSÃO INSTITUCIONAL",
-            "Range":       "SCALPING ADAPTATIVO",
-        }.get(regime, "SCALPING ADAPTATIVO")
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # ESTRUTURA: BOS / CHoCH / FVG / Order Block / Liquidez
-    # ─────────────────────────────────────────────────────────────────────────
-    def _bos(self, df: pd.DataFrame, direcao: str) -> bool:
-        highs = df["high"].rolling(10).max()
-        lows  = df["low"].rolling(10).min()
-        if direcao == "LONG":
-            return df["close"].iloc[-1] > highs.iloc[-5]
-        return df["close"].iloc[-1] < lows.iloc[-5]
-
-    def _choch(self, df: pd.DataFrame) -> bool:
-        """Mudança de estrutura: swing anterior quebrado na direção oposta"""
-        h = df["high"]
-        l = df["low"]
-        prev_high = h.iloc[-10:-1].max()
-        prev_low  = l.iloc[-10:-1].min()
-        c = df["close"].iloc[-1]
-        return c > prev_high or c < prev_low
-
-    def _fvg(self, df: pd.DataFrame, direcao: str) -> bool:
-        """Fair Value Gap: gap entre candle[-3] e candle[-1]"""
-        if len(df) < 4:
-            return False
-        c1_high = df["high"].iloc[-3]
-        c1_low  = df["low"].iloc[-3]
-        c3_high = df["high"].iloc[-1]
-        c3_low  = df["low"].iloc[-1]
-        if direcao == "LONG":
-            return c3_low > c1_high   # gap bullish
-        return c3_high < c1_low       # gap bearish
-
-    def _order_block(self, df: pd.DataFrame, direcao: str) -> bool:
-        """Último candle forte antes de movimento impulsivo"""
-        closes = df["close"]
-        opens  = df["open"]
-        vols   = df["volume"]
-        vol_ma = df["vol_ma"]
-        for i in range(-5, -1):
-            candle_forte = abs(closes.iloc[i] - opens.iloc[i]) > df["atr"].iloc[i] * 0.8
-            vol_inst     = vols.iloc[i] > vol_ma.iloc[i] * 1.3
-            if candle_forte and vol_inst:
-                if direcao == "LONG" and closes.iloc[i] > opens.iloc[i]:
-                    return True
-                if direcao == "SHORT" and closes.iloc[i] < opens.iloc[i]:
-                    return True
-        return False
-
-    def _liquidez_capturada(self, df: pd.DataFrame, direcao: str) -> bool:
-        """Sweep de topo/fundo antes da entrada"""
-        highs = df["high"]
-        lows  = df["low"]
-        eq_high = highs.iloc[-20:-1].max()
-        eq_low  = lows.iloc[-20:-1].min()
-        last_h  = highs.iloc[-1]
-        last_l  = lows.iloc[-1]
-        last_c  = df["close"].iloc[-1]
-        if direcao == "LONG":
-            # Sweep de fundo: low rompeu mínima e fechou acima
-            return last_l < eq_low and last_c > eq_low
-        else:
-            # Sweep de topo: high rompeu máxima e fechou abaixo
-            return last_h > eq_high and last_c < eq_high
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # CONFIRMAÇÃO MULTI-TIMEFRAME
-    # ─────────────────────────────────────────────────────────────────────────
     def _tendencia_tf(self, df: pd.DataFrame) -> str:
         r = df.iloc[-1]
-        if r["ema21"] > r["ema50"]:
-            return "ALTA"
-        elif r["ema21"] < r["ema50"]:
-            return "BAIXA"
+        if r["ema21"] > r["ema50"]: return "ALTA"
+        if r["ema21"] < r["ema50"]: return "BAIXA"
         return "NEUTRA"
 
-    def _mtf_ok(self, direcao: str, tend_4h: str, tend_1d: str) -> tuple:
-        """Nunca operar contra H4 e D1"""
-        if direcao == "LONG":
-            ok = tend_4h != "BAIXA" and tend_1d != "BAIXA"
-        else:
-            ok = tend_4h != "ALTA" and tend_1d != "ALTA"
-        motivo = ""
-        if not ok:
-            motivo = f"Contra tendência H4={tend_4h} D1={tend_1d}"
-        return ok, motivo
-
     # ─────────────────────────────────────────────────────────────────────────
-    # FILTROS DE INDICADORES
+    # ESTRUTURA SMC
     # ─────────────────────────────────────────────────────────────────────────
-    def _emas_alinhadas(self, df: pd.DataFrame, direcao: str) -> tuple:
-        r = df.iloc[-1]
-        if direcao == "LONG":
-            ok = r["ema10"] > r["ema21"] > r["ema50"] > r["ema200"]
-            motivo = "" if ok else f"EMAs desalinhadas para LONG (EMA10={r['ema10']:.2f} EMA21={r['ema21']:.2f} EMA50={r['ema50']:.2f})"
-        else:
-            ok = r["ema10"] < r["ema21"] < r["ema50"] < r["ema200"]
-            motivo = "" if ok else f"EMAs desalinhadas para SHORT"
-        return ok, motivo
+    def _bos(self, df, direcao):
+        highs = df["high"].rolling(10).max()
+        lows  = df["low"].rolling(10).min()
+        c     = df["close"].iloc[-1]
+        return (c > highs.iloc[-5]) if direcao=="LONG" else (c < lows.iloc[-5])
 
-    def _adx_ok(self, df: pd.DataFrame) -> tuple:
-        adx = df["adx"].iloc[-1]
-        ok  = adx >= 18
-        motivo = "" if ok else f"ADX {adx:.1f} < 18 (mercado lateral)"
-        return ok, motivo, adx
+    def _choch(self, df, direcao):
+        swing_high = df["high"].iloc[-20:-1].max()
+        swing_low  = df["low"].iloc[-20:-1].min()
+        c = df["close"].iloc[-1]
+        if direcao=="LONG":  return c > swing_high   # estrutura invertida para cima
+        return c < swing_low
 
-    def _rsi_adaptativo(self, df: pd.DataFrame, direcao: str, regime: str) -> tuple:
-        rsi = df["rsi"].iloc[-1]
-        if direcao == "LONG":
-            # Mercado de alta: comprar quando RSI volta de 30–45
-            if regime in ("Bull Trend", "Transição"):
-                ok = 30 <= rsi <= 55
-            else:
-                ok = rsi <= 55
-            # Nunca comprar acima de 75
-            if rsi > 75:
-                return False, f"RSI {rsi:.1f} > 75 — sobrecomprado, evitar LONG", rsi
-        else:
-            # Mercado de baixa: vender quando RSI volta de 55–70
-            if regime in ("Bear Trend", "Transição"):
-                ok = 45 <= rsi <= 70
-            else:
-                ok = rsi >= 45
-            # Nunca vender abaixo de 25
-            if rsi < 25:
-                return False, f"RSI {rsi:.1f} < 25 — sobrevendido, evitar SHORT", rsi
-        motivo = "" if ok else f"RSI {rsi:.1f} fora da zona ideal para {direcao}"
-        return ok, motivo, rsi
+    def _fvg(self, df, direcao):
+        if len(df) < 4: return False
+        c1h = df["high"].iloc[-3]; c1l = df["low"].iloc[-3]
+        c3h = df["high"].iloc[-1]; c3l = df["low"].iloc[-1]
+        return (c3l > c1h) if direcao=="LONG" else (c3h < c1l)
 
-    def _macd_ok(self, df: pd.DataFrame, direcao: str) -> tuple:
-        hist      = df["macd_hist"].iloc[-1]
-        hist_prev = df["macd_hist"].iloc[-2]
-        macd      = df["macd"].iloc[-1]
-        signal    = df["macd_signal"].iloc[-1]
-        if direcao == "LONG":
-            ok = (macd > signal) or (hist > hist_prev and hist > 0) or (hist > hist_prev and hist_prev < 0)
-        else:
-            ok = (macd < signal) or (hist < hist_prev and hist < 0) or (hist < hist_prev and hist_prev > 0)
-        motivo = "" if ok else f"MACD desfavorável para {direcao}"
-        return ok, motivo
+    def _order_block(self, df, direcao):
+        atr = df["atr"].iloc[-1]
+        vol_ma = df["vol_ma"]
+        for i in range(-6,-1):
+            forte = abs(df["close"].iloc[i]-df["open"].iloc[i]) > atr*0.7
+            inst  = df["volume"].iloc[i] > vol_ma.iloc[i]*1.3
+            if forte and inst:
+                if direcao=="LONG" and df["close"].iloc[i]>df["open"].iloc[i]: return True
+                if direcao=="SHORT" and df["close"].iloc[i]<df["open"].iloc[i]: return True
+        return False
 
-    def _vwap_ok(self, df: pd.DataFrame, direcao: str) -> tuple:
+    def _sweep_liquidez(self, df, direcao):
+        eq_high = df["high"].iloc[-20:-1].max()
+        eq_low  = df["low"].iloc[-20:-1].min()
+        lh = df["high"].iloc[-1]
+        ll = df["low"].iloc[-1]
+        lc = df["close"].iloc[-1]
+        if direcao=="LONG":  return ll < eq_low  and lc > eq_low
+        return lh > eq_high and lc < eq_high
+
+    def _divergencia_rsi(self, df, direcao):
+        closes = df["close"].iloc[-14:]
+        rsis   = df["rsi"].iloc[-14:]
+        if direcao=="LONG":
+            return closes.iloc[-1] < closes.iloc[0] and rsis.iloc[-1] > rsis.iloc[0]
+        return closes.iloc[-1] > closes.iloc[0] and rsis.iloc[-1] < rsis.iloc[0]
+
+    def _pullback_ema21(self, df, direcao):
         c    = df["close"].iloc[-1]
-        vwap = df["vwap"].iloc[-1]
-        if direcao == "LONG":
-            ok = c > vwap
-            motivo = "" if ok else f"Preço {c:.4f} abaixo do VWAP {vwap:.4f} — somente SHORT"
-        else:
-            ok = c < vwap
-            motivo = "" if ok else f"Preço {c:.4f} acima do VWAP {vwap:.4f} — somente LONG"
-        return ok, motivo
+        e21  = df["ema21"].iloc[-1]
+        atr  = df["atr"].iloc[-1]
+        return abs(c - e21) <= atr * 0.8
 
-    def _rvol_ok(self, df: pd.DataFrame) -> tuple:
-        rvol = df["rvol"].iloc[-1]
-        ok   = rvol >= 1.20
-        motivo = "" if ok else f"RVOL {rvol:.2f} < 1.20 (volume insuficiente)"
-        return ok, motivo, rvol
+    def _bollinger_comprimido(self, df):
+        bw    = df["bb_width"].iloc[-1]
+        bw_ma = df["bb_width"].rolling(20).mean().iloc[-1]
+        return bw < bw_ma * 0.85
 
-    def _bollinger_ok(self, df: pd.DataFrame, direcao: str, setup: str) -> tuple:
+    def _volume_crescente(self, df):
+        return df["volume"].iloc[-1] > df["volume"].iloc[-3:-1].mean()
+
+    def _candle_rejeicao(self, df, direcao):
+        o = df["open"].iloc[-1];  c = df["close"].iloc[-1]
+        h = df["high"].iloc[-1];  l = df["low"].iloc[-1]
+        corpo = abs(c-o); total = h-l
+        if total == 0: return False
+        sombra_pct = (h-max(o,c))/total if direcao=="LONG" else (min(o,c)-l)/total
+        return sombra_pct > 0.4 and corpo < total*0.5
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SETUPS
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _setup1_trend(self, df, direcao, regime) -> dict:
+        """SETUP 1 — TREND FOLLOWING"""
+        conf=[]; falhas=[]; falta=[]
+
+        def chk(ok, nome, desc_falha, desc_falta):
+            if ok: conf.append(nome)
+            else:  falhas.append(desc_falha); falta.append(desc_falta)
+            return ok
+
         r = df.iloc[-1]
-        c = r["close"]
-        if setup == "BREAKOUT":
-            # Compressão das bandas = setup ideal
-            comprimido = r["bb_width"] < df["bb_width"].rolling(20).mean().iloc[-1] * 0.8
-            ok = comprimido
-            motivo = "" if ok else "Bollinger não comprimido para Breakout"
-        elif setup == "SCALPING ADAPTATIVO":
-            # Operar nas bordas das bandas
-            if direcao == "LONG":
-                ok = c <= r["bb_lower"] * 1.005
-                motivo = "" if ok else "Preço não na banda inferior (Scalping)"
-            else:
-                ok = c >= r["bb_upper"] * 0.995
-                motivo = "" if ok else "Preço não na banda superior (Scalping)"
+        # Regime compatível
+        regime_ok = regime in ("Bull Trend","Bear Trend","Transição")
+        chk(regime_ok, "Regime Trend", f"Regime {regime} não favorável a Trend Following","Regime Bull/Bear Trend")
+
+        # EMAs alinhadas
+        if direcao=="LONG":
+            emas = r["ema10"]>r["ema21"]>r["ema50"]>r["ema200"]
         else:
-            # Trend: evitar entrar com preço na banda oposta
-            if direcao == "LONG":
-                ok = c < r["bb_upper"] * 0.99
-                motivo = "" if ok else "Preço na banda superior — exaustão possível"
-            else:
-                ok = c > r["bb_lower"] * 1.01
-                motivo = "" if ok else "Preço na banda inferior — exaustão possível"
-        return ok, motivo
+            emas = r["ema10"]<r["ema21"]<r["ema50"]<r["ema200"]
+        chk(emas,"EMAs alinhadas","EMAs desalinhadas","EMA10>EMA21>EMA50>EMA200")
+
+        adx = r["adx"]
+        chk(adx>=20,"ADX ≥ 20",f"ADX {adx:.1f} < 20","ADX ≥ 20")
+
+        rvol = r["rvol"]
+        chk(rvol>=1.20,"RVOL ≥ 1.20",f"RVOL {rvol:.2f} < 1.20","RVOL ≥ 1.20")
+
+        chk(self._pullback_ema21(df,direcao),"Pullback EMA21","Sem pullback na EMA21","Pullback até EMA21 ou OB")
+        chk(self._bos(df,direcao),"BOS confirmado","BOS não confirmado","Break of Structure")
+
+        # MACD alinhado
+        macd_ok = (r["macd"]>r["macd_signal"]) if direcao=="LONG" else (r["macd"]<r["macd_signal"])
+        chk(macd_ok,"MACD alinhado","MACD desalinhado","MACD na direção da operação")
+
+        # VWAP
+        vwap_ok = (r["close"]>r["vwap"]) if direcao=="LONG" else (r["close"]<r["vwap"])
+        chk(vwap_ok,"VWAP alinhado",f"Preço {'abaixo' if direcao=='LONG' else 'acima'} do VWAP","VWAP na direção da operação")
+
+        # RSI zona de correção
+        rsi = r["rsi"]
+        rsi_ok = (30<=rsi<=55) if direcao=="LONG" else (45<=rsi<=70)
+        chk(rsi_ok,"RSI zona correção",f"RSI {rsi:.1f} fora da zona de pullback","RSI entre 30-45 (LONG) ou 55-70 (SHORT)")
+
+        chk(self._volume_crescente(df),"Volume crescente","Volume não crescente","Volume acima da média crescendo")
+        chk(self._candle_rejeicao(df,direcao),"Candle de rejeição","Sem candle de rejeição/confirmação","Candle de rejeição + retomada")
+
+        peso = [(regime_ok,8),(emas,15),(adx>=20,12),(rvol>=1.20,10),
+                (self._pullback_ema21(df,direcao),10),(self._bos(df,direcao),12),
+                (macd_ok,10),(vwap_ok,8),(rsi_ok,8),(self._volume_crescente(df),7)]
+        score = round(sum(p for ok,p in peso if ok)/sum(p for _,p in peso)*100)
+
+        return {"conf":conf,"falhas":falhas,"falta":falta,"score":score,"nome":"TREND FOLLOWING"}
+
+    def _setup2_breakout(self, df, direcao) -> dict:
+        """SETUP 2 — BREAKOUT INSTITUCIONAL"""
+        conf=[]; falhas=[]; falta=[]
+
+        def chk(ok, nome, desc_falha, desc_falta):
+            if ok: conf.append(nome)
+            else:  falhas.append(desc_falha); falta.append(desc_falta)
+            return ok
+
+        r = df.iloc[-1]
+
+        comp = self._bollinger_comprimido(df)
+        chk(comp,"Bollinger comprimido","Bollinger não comprimido","Consolidação + BB comprimidas")
+
+        adx = r["adx"]
+        adx_subindo = adx > df["adx"].iloc[-5]
+        chk(adx_subindo,"ADX subindo",f"ADX {adx:.1f} não subindo","ADX crescente (expansão da tendência)")
+
+        rvol = r["rvol"]
+        chk(rvol>=1.50,"RVOL ≥ 1.50",f"RVOL {rvol:.2f} < 1.50 (fraco para Breakout)","RVOL ≥ 1.50 (explosão de volume)")
+
+        chk(self._bos(df,direcao),"BOS rompimento","BOS não confirmado","Rompimento do BOS com fechamento")
+
+        macd_acelerando = r["macd_hist"] > df["macd_hist"].iloc[-3]
+        chk(macd_acelerando,"MACD acelerando","MACD não acelerando","MACD histograma crescendo")
+
+        vwap_ok = (r["close"]>r["vwap"]) if direcao=="LONG" else (r["close"]<r["vwap"])
+        chk(vwap_ok,"VWAP alinhado","VWAP contra direção","VWAP alinhado com o rompimento")
+
+        # Reteste: preço próximo da região rompida (não entrar no primeiro candle explosivo)
+        bb_mid = r["bb_mid"]
+        reteste = abs(r["close"]-bb_mid)/r["atr"] < 2.0
+        chk(reteste,"Reteste confirmado","Entrar após reteste, não no candle explosivo","Aguardar reteste da região rompida")
+
+        peso = [(comp,15),(adx_subindo,12),(rvol>=1.50,15),(self._bos(df,direcao),15),
+                (macd_acelerando,12),(vwap_ok,10),(reteste,21)]
+        score = round(sum(p for ok,p in peso if ok)/sum(p for _,p in peso)*100)
+
+        return {"conf":conf,"falhas":falhas,"falta":falta,"score":score,"nome":"BREAKOUT"}
+
+    def _setup3_reversao(self, df, direcao) -> dict:
+        """SETUP 3 — REVERSÃO INSTITUCIONAL (SMC) — pode operar contra H4/D1"""
+        conf=[]; falhas=[]; falta=[]
+
+        def chk(ok, nome, desc_falha, desc_falta):
+            if ok: conf.append(nome)
+            else:  falhas.append(desc_falha); falta.append(desc_falta)
+            return ok
+
+        r = df.iloc[-1]
+
+        sweep = self._sweep_liquidez(df, direcao)
+        chk(sweep,"Sweep de Liquidez","Sem sweep de liquidez","Sweep de Equal High/Low antes da entrada")
+
+        choch = self._choch(df, direcao)
+        chk(choch,"CHoCH confirmado","CHoCH não confirmado","Mudança de estrutura (CHoCH)")
+
+        bos_inv = self._bos(df, direcao)
+        chk(bos_inv,"BOS invertido","BOS invertido não confirmado","BOS na nova direção após CHoCH")
+
+        ob = self._order_block(df, direcao)
+        chk(ob,"Order Block institucional","Sem Order Block válido","Order Block com volume institucional")
+
+        fvg = self._fvg(df, direcao)
+        chk(fvg,"Fair Value Gap","Sem FVG","Retorno ao Fair Value Gap")
+
+        div = self._divergencia_rsi(df, direcao)
+        chk(div,"Divergência RSI/MACD","Sem divergência","Divergência de RSI ou MACD")
+
+        rvol = r["rvol"]
+        chk(rvol>=1.20,"Volume institucional",f"RVOL {rvol:.2f} < 1.20","Volume institucional no setup")
+
+        adx = r["adx"]
+        adx_subindo = adx > df["adx"].iloc[-5]
+        chk(adx_subindo,"ADX voltando a subir","ADX não subindo","ADX voltando a crescer após reversão")
+
+        peso = [(sweep,20),(choch,20),(bos_inv,15),(ob,15),(fvg,12),(div,10),(rvol>=1.20,5),(adx_subindo,3)]
+        score = round(sum(p for ok,p in peso if ok)/sum(p for _,p in peso)*100)
+
+        return {"conf":conf,"falhas":falhas,"falta":falta,"score":score,"nome":"REVERSÃO INSTITUCIONAL"}
+
+    def _setup4_scalping(self, df, direcao) -> dict:
+        """SETUP 4 — SCALPING ADAPTATIVO (Range/Lateral)"""
+        conf=[]; falhas=[]; falta=[]
+
+        def chk(ok, nome, desc_falha, desc_falta):
+            if ok: conf.append(nome)
+            else:  falhas.append(desc_falha); falta.append(desc_falta)
+            return ok
+
+        r = df.iloc[-1]
+
+        adx = r["adx"]
+        chk(adx<18,"ADX baixo (Range)",f"ADX {adx:.1f} ≥ 18 (não é Range)","ADX < 18 para Scalping")
+
+        # Bollinger lateral
+        bw    = r["bb_width"]
+        bw_ma = df["bb_width"].rolling(20).mean().iloc[-1]
+        bb_lat = bw <= bw_ma * 1.1
+        chk(bb_lat,"Bollinger lateral","Bollinger expandindo (sem range)","Bollinger Bands laterais")
+
+        # RSI nas extremidades
+        rsi = r["rsi"]
+        rsi_ok = (rsi<=35) if direcao=="LONG" else (rsi>=65)
+        chk(rsi_ok,"RSI na extremidade",f"RSI {rsi:.1f} fora da extremidade","RSI ≤ 35 (LONG) ou ≥ 65 (SHORT)")
+
+        # Rejeição no S/R
+        rej = self._candle_rejeicao(df, direcao)
+        chk(rej,"Rejeição no S/R","Sem rejeição forte no S/R","Candle de rejeição no suporte/resistência")
+
+        rvol = r["rvol"]
+        chk(rvol>=1.0,"Volume confirmado",f"RVOL {rvol:.2f} < 1.0","Volume acima da média")
+
+        # Sem tendência dominante
+        sem_tend = not(r["ema10"]>r["ema21"]>r["ema50"] or r["ema10"]<r["ema21"]<r["ema50"])
+        chk(sem_tend,"Sem tendência dominante","Tendência dominante detectada (evitar Scalping)","Ausência de tendência dominante")
+
+        peso = [(adx<18,20),(bb_lat,15),(rsi_ok,20),(rej,20),(rvol>=1.0,10),(sem_tend,15)]
+        score = round(sum(p for ok,p in peso if ok)/sum(p for _,p in peso)*100)
+
+        return {"conf":conf,"falhas":falhas,"falta":falta,"score":score,"nome":"SCALPING ADAPTATIVO"}
 
     # ─────────────────────────────────────────────────────────────────────────
-    # SCORE
+    # HIERARQUIA: seleciona o melhor setup automaticamente
     # ─────────────────────────────────────────────────────────────────────────
-    def _calcular_score(self, checks: list) -> int:
-        """Cada item da lista é (ok: bool, peso: int)"""
-        total_peso = sum(p for _, p in checks)
-        total_ok   = sum(p for ok, p in checks if ok)
-        return round(total_ok / total_peso * 100) if total_peso else 0
+    def _selecionar_setup(self, df, direcao, regime) -> dict:
+        """
+        Hierarquia: Reversão > Trend Following > Breakout > Scalping
+        Se múltiplos aprovados, seleciona o de maior score.
+        """
+        s3 = self._setup3_reversao(df, direcao)
+        s1 = self._setup1_trend(df, direcao, regime)
+        s2 = self._setup2_breakout(df, direcao)
+        s4 = self._setup4_scalping(df, direcao)
 
-    def _convicção(self, score: int) -> str:
-        if score >= 90: return "ELITE 🔥"
-        if score >= 80: return "ALTA ✅"
-        if score >= 70: return "BOA ⚡"
-        return "BAIXA ❌"
+        # Ordena por score, com peso de hierarquia (+5 para Reversão, +3 para Trend)
+        candidatos = [
+            (s3["score"] + 5, s3),
+            (s1["score"] + 3, s1),
+            (s2["score"],     s2),
+            (s4["score"],     s4),
+        ]
+        candidatos.sort(key=lambda x: x[0], reverse=True)
+        return candidatos[0][1]   # melhor setup
 
     # ─────────────────────────────────────────────────────────────────────────
     # GESTÃO DE BANCA
     # ─────────────────────────────────────────────────────────────────────────
-    def _gestao_banca(self, regime: str, entrada: float, stop: float, atr: float) -> dict:
-        # Alavancagem inversamente proporcional ao ATR
+    def _gestao_banca(self, regime, entrada, stop, atr):
         base = ALAVANCAGEM_POR_REGIME.get(regime, 10)
-        atr_medio = atr  # referência
-        # Se ATR alto, reduz alavancagem até mínimo 8x
-        fator_atr = max(0.5, min(1.0, 0.002 / atr if atr > 0 else 1.0))
+        fator_atr = max(0.5, min(1.0, 0.002/atr if atr>0 else 1.0))
         alavancagem = max(8, min(25, round(base * fator_atr)))
-
-        risco_usdt     = round(BANCA * RISCO_PCT / 100, 2)
-        dist_stop_pct  = abs(entrada - stop) / entrada if entrada else 0.01
-        posicao        = round(min(risco_usdt / dist_stop_pct, BANCA * alavancagem), 2) if dist_stop_pct > 0 else 0
-        capital        = round(posicao / alavancagem, 2)
-        ganho_tp1      = round(risco_usdt * 2, 2)
-
-        return {
-            "alavancagem": alavancagem,
-            "capital": capital,
-            "posicao": posicao,
-            "risco_usdt": risco_usdt,
-            "ganho_tp1": ganho_tp1,
-            "banca": BANCA,
-        }
+        risco_usdt  = round(BANCA * RISCO_PCT / 100, 2)
+        dist_stop   = abs(entrada-stop)/entrada if entrada else 0.01
+        posicao     = round(min(risco_usdt/dist_stop, BANCA*alavancagem), 2) if dist_stop>0 else 0
+        capital     = round(posicao/alavancagem, 2)
+        return {"alavancagem":alavancagem,"capital":capital,"posicao":posicao,
+                "risco_usdt":risco_usdt,"ganho_tp1":round(risco_usdt*2,2),"banca":BANCA}
 
     # ─────────────────────────────────────────────────────────────────────────
     # ANÁLISE PRINCIPAL
@@ -343,149 +393,120 @@ class K10Engine:
     def analisar(self, symbol: str) -> dict:
         try:
             df30 = self._calc(self._fetch(symbol, "30m"))
-            df1h = self._calc(self._fetch(symbol, "1h",  limit=200))
             df4h = self._calc(self._fetch(symbol, "4h",  limit=200))
             df1d = self._calc(self._fetch(symbol, "1d",  limit=200))
         except Exception as e:
-            return {"symbol": symbol, "aprovado": False, "setup_nome": "—",
-                    "regime": "Erro", "score": 0, "motivos_rejeicao": [str(e)],
-                    "o_que_falta": [], "setup_alternativo": "—"}
+            return {"symbol":symbol,"aprovado":False,"setup_nome":"—","regime":"Erro",
+                    "score":0,"motivos_rejeicao":[str(e)],"o_que_falta":[],"setup_alternativo":"—"}
 
-        regime  = self._regime(df30)
-        setup   = self._setup_para_regime(regime)
-        r30     = df30.iloc[-1]
+        regime   = self._regime(df30)
+        tend_4h  = self._tendencia_tf(df4h)
+        tend_1d  = self._tendencia_tf(df1d)
+        r30      = df30.iloc[-1]
 
-        # Direção baseada nas EMAs do 30m
-        if r30["ema10"] > r30["ema21"]:
-            direcao = "LONG"
+        direcao = "LONG" if r30["ema10"] > r30["ema21"] else "SHORT"
+
+        # ── Selecionar melhor setup ───────────────────────────────────────────
+        setup = self._selecionar_setup(df30, direcao, regime)
+
+        # ── MTF — Reversão PODE operar contra H4/D1 se confirmada ────────────
+        is_reversao = setup["nome"] == "REVERSÃO INSTITUCIONAL"
+        if is_reversao:
+            # Exceção: permitido se Sweep + CHoCH + BOS confirmados
+            mtf_ok = True
+            mtf_motivo = ""
         else:
-            direcao = "SHORT"
-
-        # ── Multi-timeframe ───────────────────────────────────────────────────
-        tend_4h = self._tendencia_tf(df4h)
-        tend_1d = self._tendencia_tf(df1d)
-        mtf_ok, mtf_motivo = self._mtf_ok(direcao, tend_4h, tend_1d)
-
-        # ── Todos os filtros ──────────────────────────────────────────────────
-        emas_ok,  emas_motivo          = self._emas_alinhadas(df30, direcao)
-        adx_ok,   adx_motivo,  adx_v  = self._adx_ok(df30)
-        rsi_ok,   rsi_motivo,  rsi_v  = self._rsi_adaptativo(df30, direcao, regime)
-        macd_ok,  macd_motivo          = self._macd_ok(df30, direcao)
-        vwap_ok,  vwap_motivo          = self._vwap_ok(df30, direcao)
-        rvol_ok,  rvol_motivo, rvol_v  = self._rvol_ok(df30)
-        boll_ok,  boll_motivo          = self._bollinger_ok(df30, direcao, setup)
-        bos_ok                         = self._bos(df30, direcao)
-        liq_ok                         = self._liquidez_capturada(df30, direcao)
-        ob_ok                          = self._order_block(df30, direcao)
+            if direcao == "LONG":
+                mtf_ok = tend_4h != "BAIXA" and tend_1d != "BAIXA"
+            else:
+                mtf_ok = tend_4h != "ALTA" and tend_1d != "ALTA"
+            mtf_motivo = f"Contra tendência H4={tend_4h} D1={tend_1d}" if not mtf_ok else ""
 
         # ── Níveis ────────────────────────────────────────────────────────────
         c   = r30["close"]
         atr = r30["atr"]
         if direcao == "LONG":
             entrada = round(c, 4)
-            stop    = round(c - atr * 1.5, 4)
-            tp1     = round(c + atr * 2.0, 4)
-            tp2     = round(c + atr * 3.5, 4)
+            stop    = round(c - atr*1.5, 4)
+            tp1     = round(c + atr*1.0, 4)   # TP1 = 1:1
+            tp2     = round(c + atr*2.0, 4)   # TP2 = 1:2
+            tp3     = round(c + atr*3.0, 4)   # TP3 = 1:3
         else:
             entrada = round(c, 4)
-            stop    = round(c + atr * 1.5, 4)
-            tp1     = round(c - atr * 2.0, 4)
-            tp2     = round(c - atr * 3.5, 4)
+            stop    = round(c + atr*1.5, 4)
+            tp1     = round(c - atr*1.0, 4)
+            tp2     = round(c - atr*2.0, 4)
+            tp3     = round(c - atr*3.0, 4)
 
-        rr = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
+        rr = round(abs(tp2-entrada)/abs(stop-entrada), 2) if stop!=entrada else 0
 
-        # ── Score (pesos por importância) ─────────────────────────────────────
-        checks = [
-            (mtf_ok,   20),  # nunca operar contra H4/D1
-            (emas_ok,  15),  # EMAs alinhadas
-            (adx_ok,   10),  # ADX ≥ 18
-            (rvol_ok,  10),  # RVOL ≥ 1.20
-            (bos_ok,   10),  # BOS
-            (liq_ok,    8),  # liquidez capturada
-            (ob_ok,     8),  # order block
-            (macd_ok,   7),  # MACD
-            (rsi_ok,    5),  # RSI adaptativo
-            (vwap_ok,   4),  # VWAP
-            (boll_ok,   3),  # Bollinger
-        ]
-        score = self._calcular_score(checks)
-        rr_ok = rr >= 2.0
+        # ── Score final (setup + MTF) ─────────────────────────────────────────
+        score_final = round(setup["score"] * (1.0 if mtf_ok else 0.7))
 
-        # ── Confirmações aprovadas ────────────────────────────────────────────
-        nomes = ["MTF H4/D1","EMAs alinhadas","ADX","RVOL","BOS","Liquidez",
-                 "Order Block","MACD","RSI","VWAP","Bollinger"]
-        confirmacoes = [n for n, (ok, _) in zip(nomes, checks) if ok]
-
-        # ── Falhas ────────────────────────────────────────────────────────────
-        motivos = []
-        falta   = []
-        for motivo in [mtf_motivo, emas_motivo, adx_motivo, rsi_motivo,
-                       macd_motivo, vwap_motivo, rvol_motivo, boll_motivo]:
-            if motivo:
-                motivos.append(motivo)
-        if not bos_ok:
-            motivos.append("BOS não confirmado")
-            falta.append("Break of Structure no 30m")
-        if not liq_ok:
-            motivos.append("Liquidez não capturada")
-            falta.append("Sweep de topo/fundo antes da entrada")
-        if not ob_ok:
-            motivos.append("Sem Order Block institucional")
-            falta.append("Order Block com volume institucional")
-        if not rr_ok:
+        # ── Falhas finais ─────────────────────────────────────────────────────
+        motivos = list(setup["falhas"])
+        falta   = list(setup["falta"])
+        if not mtf_ok:
+            motivos.insert(0, mtf_motivo)
+            falta.insert(0, "Aguardar alinhamento de H4 e D1")
+        if rr < 2.0:
             motivos.append(f"RR {rr} < 2.0")
             falta.append("RR mínimo 1:2")
-        if score < 70:
-            motivos.append(f"Score {score} < 70 (mínimo exigido)")
-            falta.append("Score ≥ 70 para aprovação")
+        if score_final < 70:
+            motivos.append(f"Score {score_final} < 70 (mínimo exigido)")
+            falta.append("Score ≥ 70")
 
-        aprovado = (len(motivos) == 0 and score >= 70 and rr_ok)
+        aprovado = len(motivos)==0 and score_final>=70 and rr>=2.0 and mtf_ok
 
         gb = self._gestao_banca(regime, entrada, stop, atr)
 
+        def convicção(s):
+            if s>=90: return "ELITE 🔥"
+            if s>=80: return "ALTA ✅"
+            if s>=70: return "BOA ⚡"
+            return "BAIXA ❌"
+
         return {
-            "symbol":          symbol,
-            "aprovado":        aprovado,
-            "setup_nome":      setup,
-            "regime":          regime,
-            "direcao":         direcao,
-            "score":           score,
-            "convicção":       self._convicção(score),
-            "entrada":         entrada,
-            "stop":            stop,
-            "tp1":             tp1,
-            "tp2":             tp2,
-            "rr":              rr,
-            "adx":             adx_v,
-            "rsi":             rsi_v,
-            "atr":             atr,
-            "rvol":            rvol_v,
-            "volume_status":   f"RVOL {rvol_v:.2f}",
-            "confirmacoes":    confirmacoes,
+            "symbol":           symbol,
+            "aprovado":         aprovado,
+            "setup_nome":       setup["nome"],
+            "regime":           regime,
+            "direcao":          direcao,
+            "score":            score_final,
+            "convicção":        convicção(score_final),
+            "entrada":          entrada,
+            "stop":             stop,
+            "tp1":              tp1,
+            "tp2":              tp2,
+            "tp3":              tp3,
+            "rr":               rr,
+            "adx":              r30["adx"],
+            "rsi":              r30["rsi"],
+            "atr":              atr,
+            "rvol":             r30["rvol"],
+            "volume_status":    f"RVOL {r30['rvol']:.2f}",
+            "confirmacoes":     setup["conf"],
             "motivos_rejeicao": motivos,
-            "o_que_falta":     falta,
-            "setup_alternativo": "—",
-            "tend_4h":         tend_4h,
-            "tend_1d":         tend_1d,
-            "timeframe":       "30m",
-            "preco_atual":     c,
+            "o_que_falta":      falta,
+            "setup_alternativo":"—",
+            "tend_4h":          tend_4h,
+            "tend_1d":          tend_1d,
+            "timeframe":        "30m",
+            "preco_atual":      c,
             **gb,
         }
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # REGIME RÁPIDO (para /regime)
-    # ─────────────────────────────────────────────────────────────────────────
     def obter_regime(self, symbol: str) -> dict:
         df30 = self._calc(self._fetch(symbol, "30m"))
         df4h = self._calc(self._fetch(symbol, "4h", limit=100))
         df1d = self._calc(self._fetch(symbol, "1d", limit=100))
         regime = self._regime(df30)
         r = df30.iloc[-1]
-        return {
-            "regime":            regime,
-            "adx":               r["adx"],
-            "atr":               r["atr"],
-            "tendencia_4h":      self._tendencia_tf(df4h),
-            "tendencia_1d":      self._tendencia_tf(df1d),
-            "setup_recomendado": self._setup_para_regime(regime),
+        regime_setup = {
+            "Bull Trend":"TREND FOLLOWING","Bear Trend":"TREND FOLLOWING",
+            "Compressão":"BREAKOUT","Transição":"REVERSÃO INSTITUCIONAL","Range":"SCALPING ADAPTATIVO"
         }
+        return {"regime":regime,"adx":r["adx"],"atr":r["atr"],
+                "tendencia_4h":self._tendencia_tf(df4h),
+                "tendencia_1d":self._tendencia_tf(df1d),
+                "setup_recomendado":regime_setup.get(regime,"SCALPING ADAPTATIVO")}
