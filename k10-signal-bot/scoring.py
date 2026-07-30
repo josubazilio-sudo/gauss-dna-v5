@@ -1,5 +1,5 @@
 """
-K10 Scoring Engine v45.0
+K10 Scoring Engine 
 Pesos: Estrutura 40% | Timing 20% | Institucional 15% | Liquidez 10%
        Momentum 5% | Volatilidade 5% | Risco 5%
 Penalizações, Bônus e regras Diamante

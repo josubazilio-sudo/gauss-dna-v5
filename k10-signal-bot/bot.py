@@ -41,7 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("ℹ️ Sobre o K10",       callback_data="menu_sobre")],
     ]
     await update.message.reply_text(
-        "🤖 *K10 Signal Engine v3.0*\n\n"
+        "🤖 *K10 Signal Engine*\n\n"
         "Futuros USDT | 300–500 ativos\n"
         "Timeframes: 30m | 1h | 4h | 1D\n\n"
         "Comandos:\n"
@@ -190,7 +190,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.message.reply_text("Digite: `/regime BTCUSDT`", parse_mode="Markdown")
     elif q.data == "menu_sobre":
         await q.message.reply_text(
-            "🤖 *K10 Signal Engine v3.0*\n\n"
+            "🤖 *K10 Signal Engine*\n\n"
             "• 4 Setups institucionais com hierarquia\n"
             "• 300–500 futuros USDT analisados\n"
             "• Multi-timeframe: 30m | 1h | 4h | 1D\n"
@@ -214,7 +214,7 @@ def main():
     app.add_handler(CommandHandler("top",      top))
     app.add_handler(CommandHandler("regime",   regime))
     app.add_handler(CallbackQueryHandler(callback_handler))
-    logger.info("✅ K10 Bot v3.0 iniciado")
+    logger.info("✅ K10 Bot iniciado")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":

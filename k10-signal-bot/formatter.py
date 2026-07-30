@@ -124,7 +124,7 @@ def formatar_cartao(r: dict) -> str:
         f"{sep}\n\n"
         f"✅ APROVADO\n\n"
         f"{sep}\n\n"
-        f"K10 v3.0 | Engine Institucional Adaptativo"
+        f"K10 | Engine Institucional Adaptativo"
     )
 
 
@@ -152,5 +152,5 @@ def formatar_rejeicao(r: dict) -> str:
         f"{sep}\n\n"
         f"❌ REJEITADO\n\n"
         f"{sep}\n\n"
-        f"K10 v3.0 | Engine Institucional Adaptativo"
+        f"K10 | Engine Institucional Adaptativo"
     )

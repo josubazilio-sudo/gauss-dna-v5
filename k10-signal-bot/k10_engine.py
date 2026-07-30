@@ -1,5 +1,5 @@
 """
-K10 Institucional Engine — v3.0
+K10 Institucional Engine —
 4 Setups oficiais com hierarquia automática
 Timeframes: 30m | 1h | 4h | 1D
 """
@@ -441,7 +441,7 @@ class K10Engine:
 
         rr = round(abs(tp2-entrada)/abs(stop-entrada), 2) if stop!=entrada else 0
 
-        # ── Score v45 ─────────────────────────────────────────────────────────
+        # ── Score  ─────────────────────────────────────────────────────────
         atr_pct    = atr / c * 100 if c > 0 else 0
         atr_cons   = round(atr_pct / (atr_pct + abs(stop-c)/c*100) * 100) if (atr_pct + abs(stop-c)/c*100) > 0 else 0
         dist_ema21 = round(abs(c - float(r30["ema21"])) / atr, 2) if atr > 0 else 0
