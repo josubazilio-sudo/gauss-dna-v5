@@ -156,41 +156,120 @@ class K10Engine:
         rsi_down = rsis.iloc[-1] < rsis.iloc[0]
         return (price_up and rsi_down) or (not price_up and not rsi_down)
 
-    # ── Entry Engine ──────────────────────────────────────────────────────────
+    # ── MACD ──────────────────────────────────────────────────────────────────
+    def _calc_macd(self, df: pd.DataFrame) -> pd.DataFrame:
+        ema12 = df["close"].ewm(span=12).mean()
+        ema26 = df["close"].ewm(span=26).mean()
+        df["macd"] = ema12 - ema26
+        df["macd_signal"] = df["macd"].ewm(span=9).mean()
+        df["macd_hist"] = df["macd"] - df["macd_signal"]
+        return df
+
+    # ── Cruzamento de EMA (gatilho principal) ─────────────────────────────────
+    def _cruzamento_ema(self, df: pd.DataFrame) -> dict:
+        """
+        Detecta cruzamento de EMA20 x EMA50 no candle atual (nascimento).
+        Retorna direção e se foi no candle atual (não depois que andou).
+        """
+        ema20 = df["ema20"]
+        ema50 = df["ema50"]
+
+        # Candle atual e anterior
+        curr_acima = ema20.iloc[-1] > ema50.iloc[-1]
+        prev_acima = ema20.iloc[-2] > ema50.iloc[-2]
+
+        cruzou_agora = curr_acima != prev_acima  # cruzamento no candle atual
+        direcao = "LONG" if curr_acima else "SHORT"
+
+        # Distância do cruzamento (quanto o preço andou após o cruzamento)
+        dist_emas = abs(ema20.iloc[-1] - ema50.iloc[-1])
+        atr = df["atr"].iloc[-1]
+        andou_muito = dist_emas > atr * 0.5  # se andou mais de 0.5 ATR, tarde demais
+
+        return {
+            "cruzou_agora": cruzou_agora,
+            "direcao": direcao,
+            "andou_muito": andou_muito,
+            "dist_emas": dist_emas,
+        }
+
+    # ── RSI no ponto certo (momentum favorável, não extremo) ──────────────────
+    def _rsi_favoravel(self, df: pd.DataFrame, direcao: str) -> dict:
+        rsi = df["rsi"].iloc[-1]
+        rsi_prev = df["rsi"].iloc[-2]
+
+        if direcao == "LONG":
+            # RSI entre 45-65: subindo, momentum favorável, não sobrecomprado
+            ok = 45 <= rsi <= 65 and rsi > rsi_prev
+            motivo = f"RSI {rsi:.1f} — precisa estar entre 45-65 subindo" if not ok else ""
+        else:
+            # RSI entre 35-55: caindo, momentum favorável, não sobrevendido
+            ok = 35 <= rsi <= 55 and rsi < rsi_prev
+            motivo = f"RSI {rsi:.1f} — precisa estar entre 35-55 caindo" if not ok else ""
+
+        return {"ok": ok, "rsi": rsi, "motivo": motivo}
+
+    # ── MACD favorável ────────────────────────────────────────────────────────
+    def _macd_favoravel(self, df: pd.DataFrame, direcao: str) -> dict:
+        hist = df["macd_hist"].iloc[-1]
+        hist_prev = df["macd_hist"].iloc[-2]
+        macd = df["macd"].iloc[-1]
+        signal = df["macd_signal"].iloc[-1]
+
+        if direcao == "LONG":
+            # MACD acima da signal OU histograma virando positivo
+            ok = (macd > signal) or (hist > 0 and hist > hist_prev)
+            motivo = f"MACD desfavorável para LONG" if not ok else ""
+        else:
+            # MACD abaixo da signal OU histograma virando negativo
+            ok = (macd < signal) or (hist < 0 and hist < hist_prev)
+            motivo = f"MACD desfavorável para SHORT" if not ok else ""
+
+        return {"ok": ok, "macd": macd, "signal": signal, "hist": hist, "motivo": motivo}
+
+    # ── Entry Engine (nascimento do candle) ───────────────────────────────────
     def _entry_engine(self, df: pd.DataFrame, direcao: str) -> dict:
         last = df.iloc[-1]
         c = last["close"]
-        ema20, vwap = last["ema20"], last["vwap"]
         atr = last["atr"]
         rvol = last["rvol"]
 
-        prox_ema = abs(c - ema20) / atr < 1.5
-        prox_vwap = abs(c - vwap) / atr < 1.5
-        atr_ok = atr > 0
-        vol_ok = rvol >= 1.0
-        espaco = atr * 4  # espaço mínimo para TP
-
         falhas = []
-        if not prox_ema:
-            falhas.append("Preço distante do EMA20")
-        if not prox_vwap:
-            falhas.append("Preço distante do VWAP")
-        if not vol_ok:
-            falhas.append(f"Volume abaixo da média (RVOL {rvol:.2f} < 1.0)")
+
+        # 1. Cruzamento de EMA — gatilho principal
+        cruz = self._cruzamento_ema(df)
+        if not cruz["cruzou_agora"]:
+            falhas.append("Sem cruzamento EMA20 x EMA50 no candle atual")
+        if cruz["andou_muito"]:
+            falhas.append(f"Preço já andou após o cruzamento — entrada atrasada")
+
+        # 2. RSI no ponto certo
+        rsi_res = self._rsi_favoravel(df, direcao)
+        if not rsi_res["ok"]:
+            falhas.append(rsi_res["motivo"])
+
+        # 3. MACD favorável
+        macd_res = self._macd_favoravel(df, direcao)
+        if not macd_res["ok"]:
+            falhas.append(macd_res["motivo"])
+
+        # 4. Volume mínimo
+        if rvol < 1.0:
+            falhas.append(f"Volume fraco (RVOL {rvol:.2f} < 1.0)")
 
         aprovado = len(falhas) == 0
 
-        # Níveis
+        # Níveis — entrada no preço atual (nascimento do candle)
         if direcao == "LONG":
             entrada = round(c, 4)
-            stop = round(c - atr * 1.5, 4)
-            tp1 = round(c + atr * 2, 4)
-            tp2 = round(c + atr * 4, 4)
+            stop    = round(c - atr * 1.5, 4)
+            tp1     = round(c + atr * 2.0, 4)
+            tp2     = round(c + atr * 4.0, 4)
         else:
             entrada = round(c, 4)
-            stop = round(c + atr * 1.5, 4)
-            tp1 = round(c - atr * 2, 4)
-            tp2 = round(c - atr * 4, 4)
+            stop    = round(c + atr * 1.5, 4)
+            tp1     = round(c - atr * 2.0, 4)
+            tp2     = round(c - atr * 4.0, 4)
 
         rr = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
 
@@ -202,6 +281,9 @@ class K10Engine:
             "tp1": tp1,
             "tp2": tp2,
             "rr": rr,
+            "rsi": rsi_res["rsi"],
+            "macd_hist": macd_res["hist"],
+            "cruzou_agora": cruz["cruzou_agora"],
         }
 
     # ── Setup 1 — Continuação ─────────────────────────────────────────────────
@@ -365,6 +447,7 @@ class K10Engine:
         try:
             df1h = self._fetch(symbol, "1h")
             df1h = self._indicadores(df1h)
+            df1h = self._calc_macd(df1h)
             df4h = self._fetch(symbol, "4h", limit=100)
             df4h = self._indicadores(df4h)
         except Exception as e:
