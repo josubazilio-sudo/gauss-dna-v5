@@ -35,7 +35,8 @@ def formatar_cartao(r: dict) -> str:
 
     if score >= 90:   tier, rank = "🥇 OURO",   "🥇 #1 DO CICLO"
     elif score >= 80: tier, rank = "🥈 PRATA",  "🥈 TOP DO CICLO"
-    else:             tier, rank = "🥉 BRONZE", "🥉 CONFIRMADO"
+    elif score >= 70: tier, rank = "🥉 BRONZE", "🥉 SINAL CONFIRMADO"
+    else:             tier, rank = "🥉 BRONZE", "🥉 SINAL MONITORADO"
 
     tp1_pct  = abs(tp1  - entrada) / entrada * 100
     tp2_pct  = abs(tp2  - entrada) / entrada * 100

@@ -34,7 +34,7 @@ class K10Scanner:
     # ─────────────────────────────────────────────────────────────────────────
     def scan(
         self,
-        min_score: int = 70,
+        min_score: int = 60,
         min_volume: float = 1_000_000,
         max_ativos: int = 500,
         progress_callback=None,

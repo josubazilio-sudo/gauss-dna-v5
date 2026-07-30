@@ -452,18 +452,19 @@ class K10Engine:
         if rr < 2.0:
             motivos.append(f"RR {rr} < 2.0")
             falta.append("RR mínimo 1:2")
-        if score_final < 70:
-            motivos.append(f"Score {score_final} < 70 (mínimo exigido)")
-            falta.append("Score ≥ 70")
+        if score_final < 60:
+            motivos.append(f"Score {score_final} < 60 (mínimo Bronze)")
+            falta.append("Score ≥ 60 para aprovação")
 
-        aprovado = len(motivos)==0 and score_final>=70 and rr>=2.0 and mtf_ok
+        aprovado = len(motivos)==0 and score_final>=60 and rr>=2.0 and mtf_ok
 
         gb = self._gestao_banca(regime, entrada, stop, atr)
 
         def convicção(s):
-            if s>=90: return "ELITE 🔥"
-            if s>=80: return "ALTA ✅"
-            if s>=70: return "BOA ⚡"
+            if s >= 90: return "ELITE 🔥"
+            if s >= 80: return "ALTA ✅"
+            if s >= 70: return "BOA ⚡"
+            if s >= 60: return "BRONZE 🥉"
             return "BAIXA ❌"
 
         return {

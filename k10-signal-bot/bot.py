@@ -102,7 +102,7 @@ async def scan(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg.edit_text(f"⏳ Analisando... {n}/{total} ativos", parse_mode="Markdown")
         )
 
-    aprovados = scanner.scan(min_score=70)
+    aprovados = scanner.scan(min_score=60)
     resumo    = scanner.formatar_resumo(aprovados)
     await msg.edit_text(resumo, parse_mode="Markdown")
 
@@ -113,7 +113,7 @@ async def _scan_tf(update: Update, tf: str):
         f"🔍 Scan *{tf}* em andamento...", parse_mode="Markdown"
     )
     # O engine usa 30m como operacional; filtrar pelo TF no resultado
-    aprovados = scanner.scan(min_score=70)
+    aprovados = scanner.scan(min_score=60)
     resumo    = scanner.formatar_resumo(aprovados, timeframe=tf)
     await msg.edit_text(resumo, parse_mode="Markdown")
 
