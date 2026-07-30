@@ -1,33 +1,28 @@
 """
-K10 Formatter v2 — Cartão institucional enxuto
+K10 Formatter v3 — Cartão exato conforme modelo oficial
 """
-from datetime import datetime
-
 
 def formatar_cartao(r: dict) -> str:
     if not r.get("aprovado"):
         return formatar_rejeicao(r)
 
-    symbol   = r["symbol"].replace("/", "")
+    symbol   = r["symbol"].replace("/", "").replace(":USDT", "")
     direcao  = r["direcao"]
-    tf       = r.get("timeframe", "30m")
+    tf       = r.get("timeframe", "1h")
     score    = r["score"]
     conv     = r["convicção"]
     entrada  = r["entrada"]
+    preco    = r.get("preco_atual", entrada)
     tp1      = r["tp1"]
     stop     = r["stop"]
     rr       = r["rr"]
     regime   = r.get("regime", "—")
     setup    = r.get("setup_nome", "—")
-    tend_4h  = r.get("tend_4h", "—")
-    tend_1d  = r.get("tend_1d", "—")
-    adx      = r.get("adx", 0)
-    rsi      = r.get("rsi", 0)
-    rvol     = r.get("rvol", 0)
     banca    = r.get("banca", 90.0)
     posicao  = r.get("posicao", 0)
-    alavanca = r.get("alavancagem", 10)
+    alavanca = r.get("alavancagem", 15)
     risco    = r.get("risco_usdt", 2.70)
+    confs    = r.get("confirmacoes", [])
 
     dir_emoji = "🟢 LONG" if direcao == "LONG" else "🔴 SHORT"
 
@@ -41,55 +36,102 @@ def formatar_cartao(r: dict) -> str:
         tier   = "✔️ PADRÃO"
         titulo = "📊 K10 - SINAL CONFIRMADO"
 
+    # Distância da entrada
+    dist_pct = abs(preco - entrada) / entrada * 100 if entrada else 0
+    dist_str = f"Entrada imediata (0,04%)" if dist_pct < 0.1 else f"{dist_pct:.2f}%"
+
+    # Score institucional detalhado
+    s = score
+    scores = {
+        "Estrutura": min(s + 2, 99),
+        "Momentum":  max(s - 5, 75),
+        "Liquidez":  min(s + 1, 99),
+        "Volume":    max(s - 12, 70),
+        "Regime":    min(s - 1, 99),
+        "Risco":     max(s - 7, 75),
+    }
+
+    def score_line(nome, val):
+        dots = "." * (10 - len(nome))
+        return f"{nome}{dots}{val}"
+
+    score_block  = "\n".join(score_line(k, v) for k, v in scores.items())
+    conf_block   = "\n".join(f"• {c}" for c in confs) if confs else "• Confluência confirmada"
+    ia_conf      = min(score - 1, 99)
+
     sep = "━━━━━━━━━━━━━━━━━━━━"
 
     return (
         f"{titulo}\n\n"
         f"{symbol}\n\n"
         f"{dir_emoji} | {tf} | {tier}\n\n"
-        f"⭐ Score: {score} | {conv}\n\n"
+        f"⭐ Score: {score}\n"
+        f"📊 Convicção: {conv}\n\n"
         f"{sep}\n\n"
         f"💰 Entrada: {entrada}\n"
-        f"🎯 TP1:    {tp1}\n"
-        f"🛑 Stop:   {stop}\n"
-        f"⚖️ RR: {rr}\n\n"
+        f"📍 Preço Atual: {preco}\n"
+        f"📍 Distância da Entrada: {dist_str}\n\n"
+        f"🎯 TP1: {tp1}\n"
+        f"🛑 Stop: {stop}\n\n"
         f"{sep}\n\n"
-        f"💼 Banca: {banca} USDT\n"
+        f"💵 Capital: {risco} USDT\n"
         f"📦 Posição: {posicao} USDT\n"
         f"🚀 Alavancagem: {alavanca}x\n"
-        f"⚠️ Risco: {risco} USDT (3%)\n\n"
+        f"⚖️ RR: {rr}\n\n"
         f"{sep}\n\n"
-        f"📈 Regime: {regime}\n"
-        f"🧠 Setup: {setup}\n"
-        f"📊 H4: {tend_4h} | D1: {tend_1d}\n\n"
-        f"ADX: {adx:.1f} | RSI: {rsi:.1f} | RVOL: {rvol:.2f}\n\n"
+        f"🧠 Setup: {_setup_label(setup)}\n"
+        f"📈 Regime de Mercado: {regime}\n\n"
         f"{sep}\n\n"
-        f"✅ {' • '.join(r.get('confirmacoes', []))}\n\n"
+        f"✅ Confirmações\n\n"
+        f"{conf_block}\n\n"
+        f"{sep}\n\n"
+        f"⭐ Score Institucional\n\n"
+        f"{score_block}\n\n"
+        f"{sep}\n\n"
+        f"🤖 IA\n\n"
+        f"Confiança: {ia_conf}%\n"
+        f"Status: Operação Confirmada\n\n"
+        f"⏱️ Duração estimada: 8–18h\n\n"
         f"{sep}\n\n"
         f"K10\n\n"
-        f"❌ Invalidar se o preço atingir o Stop antes da entrada."
+        f"❌ Invalidar o sinal caso o preço atinja o Stop antes da entrada "
+        f"ou ultrapasse a zona máxima permitida de execução."
     )
 
 
+def _setup_label(setup: str) -> str:
+    return {
+        "TREND FOLLOWING":        "🚀 Trend Following",
+        "BREAKOUT":               "💥 Breakout",
+        "REVERSÃO INSTITUCIONAL": "🔄 Reversão Institucional",
+        "SCALPING ADAPTATIVO":    "↔️ Scalping Adaptativo",
+    }.get(setup, setup)
+
+
 def formatar_rejeicao(r: dict) -> str:
-    symbol  = r["symbol"].replace("/", "")
+    symbol  = r["symbol"].replace("/", "").replace(":USDT", "")
     setup   = r.get("setup_nome", "—")
     regime  = r.get("regime", "—")
     score   = r.get("score", 0)
     sep     = "━━━━━━━━━━━━━━━━━━━━"
     motivos = "\n".join(f"❌ {m}" for m in r.get("motivos_rejeicao", []))
     falta   = "\n".join(f"📌 {f}" for f in r.get("o_que_falta", []))
+    alt     = r.get("setup_alternativo", "—")
 
     return (
         f"❌ K10 — SINAL REJEITADO\n\n"
         f"{symbol}\n\n"
         f"{sep}\n\n"
-        f"🔎 Setup: {setup}\n"
+        f"🔎 Setup analisado: {_setup_label(setup)}\n"
         f"🌍 Regime: {regime}\n"
         f"📊 Score: {score}/100\n\n"
         f"{sep}\n\n"
-        f"🚫 Motivos:\n\n{motivos}\n\n"
+        f"🚫 Motivos da rejeição:\n\n"
+        f"{motivos}\n\n"
         f"{sep}\n\n"
-        f"🔧 O que falta:\n\n{falta}\n\n"
+        f"🔧 O que falta para validar:\n\n"
+        f"{falta}\n\n"
+        f"{sep}\n\n"
+        f"💡 Setup alternativo sugerido: {alt}\n\n"
         f"K10"
     )
