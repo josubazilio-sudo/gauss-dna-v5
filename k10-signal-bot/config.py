@@ -38,3 +38,17 @@ RR_MINIMO = float(os.getenv("RR_MINIMO", "2.0"))
 ADX_MINIMO_TENDENCIA = float(os.getenv("ADX_MINIMO_TENDENCIA", "25.0"))
 RVOL_MINIMO = float(os.getenv("RVOL_MINIMO", "1.0"))
 SCORE_MINIMO = int(os.getenv("SCORE_MINIMO", "55"))
+
+# ── Gestão de Banca ───────────────────────────────────────────────────────────
+BANCA = float(os.getenv("BANCA", "90.0"))         # USDT
+RISCO_PCT = float(os.getenv("RISCO_PCT", "3.0"))  # % da banca por trade
+
+# ── Alavancagem dinâmica por Regime (range 8x–25x) ───────────────────────────
+ALAVANCAGEM_POR_REGIME = {
+    "Bull Trend":        25,
+    "Bear Trend":        25,
+    "Transição":         15,
+    "Range":             10,
+    "Alta Volatilidade":  8,
+    "Baixa Volatilidade": 12,
+}

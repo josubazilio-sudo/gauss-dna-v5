@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional
+from config import BANCA, RISCO_PCT, ALAVANCAGEM_POR_REGIME
 
 
 # ── Estrutura de resultado ────────────────────────────────────────────────────
@@ -407,6 +408,8 @@ class K10Engine:
             res["conf"], ee["rr"], last["adx"], last["rvol"], regime
         )
 
+        gb = self._gestao_banca(regime, ee["entrada"], ee["stop"])
+
         return {
             "symbol": symbol,
             "aprovado": aprovado,
@@ -427,6 +430,52 @@ class K10Engine:
             "motivos_rejeicao": todas_falhas,
             "o_que_falta": tudo_falta,
             "setup_alternativo": self._setup_alternativo(regime, setup_rec),
+            # Gestão de banca
+            "alavancagem": gb["alavancagem"],
+            "capital": gb["capital"],
+            "posicao": gb["posicao"],
+            "risco_usdt": gb["risco_usdt"],
+            "ganho_tp1": gb["ganho_tp1"],
+            "banca": gb["banca"],
+            "preco_atual": last["close"],
+            "timeframe": "1h",
+        }
+
+    # ── Gestão de Banca ───────────────────────────────────────────────────────
+    def _gestao_banca(self, regime: str, entrada: float, stop: float) -> dict:
+        """Calcula alavancagem, posição e risco baseado no regime do mercado"""
+        alavancagem = ALAVANCAGEM_POR_REGIME.get(regime, 10)
+
+        # Risco em USDT (3% da banca)
+        risco_usdt = round(BANCA * RISCO_PCT / 100, 2)
+
+        # Distância do stop em %
+        dist_stop_pct = abs(entrada - stop) / entrada if entrada else 0.01
+
+        # Tamanho da posição baseado no risco
+        if dist_stop_pct > 0:
+            posicao = round(risco_usdt / dist_stop_pct, 2)
+        else:
+            posicao = round(BANCA * alavancagem * 0.03, 2)
+
+        # Limitar posição ao máximo possível com a alavancagem
+        posicao_max = round(BANCA * alavancagem, 2)
+        posicao = min(posicao, posicao_max)
+
+        # Capital necessário (margem)
+        capital_necessario = round(posicao / alavancagem, 2)
+
+        # Lucro estimado no TP1
+        ganho_tp1 = round(risco_usdt * 2, 2)  # RR 2:1
+
+        return {
+            "alavancagem": alavancagem,
+            "capital": capital_necessario,
+            "posicao": posicao,
+            "risco_usdt": risco_usdt,
+            "ganho_tp1": ganho_tp1,
+            "banca": BANCA,
+            "risco_pct": RISCO_PCT,
         }
 
     def _setup_alternativo(self, regime: str, atual: str) -> str:

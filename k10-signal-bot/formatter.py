@@ -11,22 +11,25 @@ def formatar_cartao(r: dict) -> str:
     if not r.get("aprovado"):
         return formatar_rejeicao(r)
 
-    symbol   = r["symbol"].replace("/", "")
-    direcao  = r["direcao"]
-    tf       = r.get("timeframe", "1h")
-    score    = r["score"]
-    conv     = r["convicção"]
-    entrada  = r["entrada"]
-    preco    = r.get("preco_atual", entrada)
-    dist_pct = abs(preco - entrada) / entrada * 100 if entrada else 0
-    tp1      = r["tp1"]
-    stop     = r["stop"]
-    capital  = r.get("capital", 4.50)
-    alavanca = r.get("alavancagem", 15)
-    posicao  = round(capital * alavanca, 2)
-    rr       = r["rr"]
-    setup    = r.get("setup_nome", "—")
-    regime   = r.get("regime", "—")
+    symbol      = r["symbol"].replace("/", "")
+    direcao     = r["direcao"]
+    tf          = r.get("timeframe", "1h")
+    score       = r["score"]
+    conv        = r["convicção"]
+    entrada     = r["entrada"]
+    preco       = r.get("preco_atual", entrada)
+    dist_pct    = abs(preco - entrada) / entrada * 100 if entrada else 0
+    tp1         = r["tp1"]
+    stop        = r["stop"]
+    capital     = r.get("capital", 2.70)
+    alavanca    = r.get("alavancagem", 15)
+    posicao     = r.get("posicao", round(capital * alavanca, 2))
+    risco_usdt  = r.get("risco_usdt", round(r.get("banca", 90) * 0.03, 2))
+    ganho_tp1   = r.get("ganho_tp1", round(risco_usdt * 2, 2))
+    banca       = r.get("banca", 90.0)
+    rr          = r["rr"]
+    setup       = r.get("setup_nome", "—")
+    regime      = r.get("regime", "—")
 
     # Emoji de direção
     dir_emoji = "🟢 LONG" if direcao == "LONG" else "🔴 SHORT"
@@ -98,9 +101,12 @@ def formatar_cartao(r: dict) -> str:
         f"🎯 TP1: {tp1}\n"
         f"🛑 Stop: {stop}\n\n"
         f"{sep}\n\n"
-        f"💵 Capital: {capital} USDT\n"
+        f"💼 Banca: {banca} USDT\n"
+        f"💵 Margem: {capital} USDT\n"
         f"📦 Posição: {posicao} USDT\n"
-        f"🚀 Alavancagem: {alavanca}x\n"
+        f"🚀 Alavancagem: {alavanca}x ({'ajustado ao regime'})\n"
+        f"⚠️ Risco: {risco_usdt} USDT (3%)\n"
+        f"💰 Ganho TP1: +{ganho_tp1} USDT\n"
         f"⚖️ RR: {rr}\n\n"
         f"{sep}\n\n"
         f"🧠 Setup: {setup_label}\n"
