@@ -1,0 +1,22 @@
+name: K11 Diagnostico
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ccxt httpx pandas numpy python-dotenv
+      - name: Diagnostico K11
+        env:
+          BOT_TOKEN: ${{ secrets.TG_TOKEN }}
+          ALLOWED_CHAT_IDS: ${{ secrets.TG_CHATID }}
+        run: |
+          cd k11-signal-bot
+          python diagnostico.py
