@@ -1,0 +1,25 @@
+name: K11 Signal Bot
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar dependencias
+        run: pip install -r k11-signal-bot/requirements.txt
+      - name: Rodar K11
+        env:
+          BOT_TOKEN: ${{ secrets.TG_TOKEN }}
+          ALLOWED_CHAT_IDS: ${{ secrets.TG_CHATID }}
+        run: |
+          cd k11-signal-bot
+          python runner.py
