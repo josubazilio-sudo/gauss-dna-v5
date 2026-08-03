@@ -90,7 +90,7 @@ def formatar_cartao(r: dict) -> str:
         f"RSI: {rsi:.0f} {rsi_ok}\n"
         f"ADX: {adx:.0f} {adx_ok}\n"
         f"RVOL: {rvol:.2f} {rvol_ok}\n"
-        f"MACD: {macd_ok}\n"
+        f"MACD: {macd_status}\n"
         f"VWAP: {vwap_pos}\n\n"
         f"{sep}\n\n"
         f"INVALIDAR\n\n"
