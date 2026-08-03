@@ -573,6 +573,13 @@ class K10Engine:
             score = max(0, score - 5)
 
         # Adaptativo V1 — Score mínimo por regime (70 padrão, 80 lateral)
+        # Definir aqui se não foi definido acima (compatibilidade)
+        if 'score_minimo' not in dir() and 'score_minimo' not in locals():
+            try:
+                regime_mercado, _, score_minimo, _ = self._detectar_regime_mercado(df)
+            except Exception:
+                regime_mercado = "NEUTRO"
+                score_minimo   = 70
         if score < score_minimo:
             motivos.append(f"Score {score} < {score_minimo} (regime {regime_mercado})")
 
