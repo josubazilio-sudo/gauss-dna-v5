@@ -185,12 +185,36 @@ class K10Engine:
         macd_h  = float(r["macd_hist"])
         macd_h2 = float(df["macd_hist"].iloc[-4])
         vol_cresc = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
-        pullback  = abs(c - e21) / atr <= 1.5 if atr > 0 else False
+        dist_ema21 = abs(c - e21) / atr if atr > 0 else 99
+        # Pullback real: preço próximo EMA21 E vela anterior estava mais distante
+        c_ant = float(df["close"].iloc[-3])
+        dist_ant = abs(c_ant - float(df["ema21"].iloc[-3])) / atr if atr > 0 else 99
+        pullback = (
+            dist_ema21 <= 1.2           # próximo da EMA21 agora
+            and dist_ant >= dist_ema21  # estava mais longe antes (recuou)
+        )
         highs = float(df["high"].iloc[-16:-1].max())
         lows  = float(df["low"].iloc[-16:-1].min())
         bos   = (c > highs * 0.998) if direcao=="LONG" else (c < lows * 1.002)
-        macd_ok = (macd_h > 0 and macd_h > macd_h2) if direcao=="LONG" else (macd_h < 0 and macd_h < macd_h2)
-        rsi_ok  = (rsi > float(df["rsi"].iloc[-4])) if direcao=="LONG" else (rsi < float(df["rsi"].iloc[-4]))
+        macd_h3 = float(df["macd_hist"].iloc[-3])
+        # MACD OK: cruzou recentemente OU está acelerando (não desacelerando)
+        macd_cruzou_long  = macd_h2 <= 0 and macd_h > 0   # cruzou na última vela
+        macd_cruzou_short = macd_h2 >= 0 and macd_h < 0
+        macd_acel_long    = macd_h > 0 and macd_h > macd_h2 and macd_h2 > macd_h3
+        macd_acel_short   = macd_h < 0 and macd_h < macd_h2 and macd_h2 < macd_h3
+        macd_ok = (macd_cruzou_long or macd_acel_long) if direcao=="LONG" else (macd_cruzou_short or macd_acel_short)
+        rsi_ant4 = float(df["rsi"].iloc[-4])
+        rsi_ant2 = float(df["rsi"].iloc[-2])
+        # RSI OK: subindo mas não sobrecomprado (LONG) / caindo mas não sobrevendido (SHORT)
+        rsi_ok = (
+            rsi > rsi_ant4              # subindo
+            and rsi < 68                # não sobrecomprado
+            and rsi_ant2 < rsi         # acelerando (não desacelerando)
+        ) if direcao=="LONG" else (
+            rsi < rsi_ant4
+            and rsi > 32
+            and rsi_ant2 > rsi
+        )
         adx_cresc = adx > float(df["adx"].iloc[-5])
 
         motivos = []
