@@ -14,8 +14,6 @@ async def main():
     try:
         from k10_engine import K10Engine
         from watchlist import get_watchlist, WATCHLIST_FALLBACK
-        from formatter import formatar_cartao
-
         engine = K10Engine()
         wl = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
 
@@ -26,21 +24,43 @@ async def main():
                 resultados.append(r)
             except Exception as e:
                 resultados.append({"symbol":sym,"score":0,"aprovado":False,
-                    "motivos_rejeicao":[str(e)[:50]],"timeframe":"?","direcao":"?"})
+                    "motivos_rejeicao":[str(e)[:60]],"timeframe":"?","direcao":"?",
+                    "rvol":0,"adx":0,"nivel_decisao":0,"log_reversao":""})
 
         resultados.sort(key=lambda x: x.get("score",0), reverse=True)
         aprovados = [r for r in resultados if r.get("aprovado")]
 
-        linhas = [f"K11 DIAG — {len(aprovados)} aprovados de {len(resultados)}:\n"]
-        for r in resultados[:8]:
+        linhas = [f"K11 DIAG V4.3.1 — {len(aprovados)} aprovados de {len(resultados)}:\n"]
+
+        for r in resultados[:10]:
             sym    = r["symbol"].replace("/USDT:USDT","")
-            ok     = "OK" if r.get("aprovado") else "X"
-            motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:40]
-            linhas.append(f"{ok} {sym} s={r.get('score')} rr={r.get('rr',0)} -> {motivo}")
+            ok     = "✅" if r.get("aprovado") else "❌"
+            motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:45]
+            nivel  = r.get("nivel_decisao", 0)
+            log    = r.get("log_reversao","")
+
+            linha = f"{ok} {sym} s={r.get('score')} rr={r.get('rr',0)} rvol={r.get('rvol',0):.2f}"
+            if nivel > 0:
+                linha += f" [N{nivel}]"
+            linha += f"\n   -> {motivo}"
+
+            # Log de decisão de reversão
+            if log:
+                parts = {p.split("=")[0]:p.split("=")[1] for p in log.replace("__LOG_REVERSAO__ ","").split() if "=" in p}
+                linha += (
+                    f"\n   DECISÃO:"
+                    f"\n   ADX H4: {parts.get('adx4h','?')}"
+                    f"\n   H1 contra: {parts.get('h1_contra','?')}"
+                    f"\n   BOS/CHoCH: {parts.get('bos','?')}"
+                    f"\n   RVOL: {parts.get('rvol','?')}"
+                    f"\n   Nível: {parts.get('nivel','?')}"
+                )
+            linhas.append(linha)
 
         await tg("\n".join(linhas))
 
         if aprovados:
+            from formatter import formatar_cartao
             cartao = formatar_cartao(aprovados[0], bot_name="K11")
             if cartao:
                 await tg(cartao)
