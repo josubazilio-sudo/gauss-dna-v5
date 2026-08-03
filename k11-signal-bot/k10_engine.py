@@ -486,7 +486,22 @@ class K10Engine:
             rvol_auditado=rvol, rvol_valido=rvol_valido,
             market_low_volume=market_low_volume
         )
-        motivos.extend(falhas)
+        # Processar penalidades especiais (RFC V4.1)
+        penalidade_extra = 0
+        falhas_reais = []
+        for f in falhas:
+            if f == "__PENALIDADE_REVERSAO_5__":
+                penalidade_extra += 5
+            else:
+                falhas_reais.append(f)
+        motivos.extend(falhas_reais)
+        if penalidade_extra > 0:
+            score = max(0, score - penalidade_extra)
+            # Recalcular tier após penalidade
+            if score >= 82:   tier = "OURO"
+            elif score >= 72: tier = "PRATA"
+            elif score >= 62: tier = "BRONZE"
+            else:             tier = "ABAIXO"
 
         # Penalidade de score se RVOL baixo mas qualidade alta
         if rvol < 0.70 and rvol_valido:
