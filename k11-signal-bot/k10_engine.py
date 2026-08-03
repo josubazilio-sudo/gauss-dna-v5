@@ -288,6 +288,86 @@ class K10Engine:
     # ─────────────────────────────────────────────────────────────────────────
     # ANÁLISE POR TIMEFRAME
     # ─────────────────────────────────────────────────────────────────────────
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # K11 — FILTRO INSTITUCIONAL BALANCEADO
+    # Tendência + Volume obrigatórios
+    # SMC: mínimo 2 de 5 | Momentum: mínimo 2 de 3
+    # ─────────────────────────────────────────────────────────────────────────
+    def _filtro_tf_institucional(self, df, direcao, entrada, tp1):
+        r    = df.iloc[-1]
+        motivos = []
+
+        e10  = float(r["ema10"]); e21 = float(r["ema21"]); e50 = float(r["ema50"])
+        adx  = float(r["adx"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        macd_h = float(r["macd_hist"])
+        vwap   = float(r["vwap"])
+        atr    = float(r["atr"])
+        c      = float(r["close"])
+        rsi    = float(r["rsi"])
+
+        # 1. TENDÊNCIA obrigatória
+        if direcao == "LONG":
+            if not (e10 > e21 > e50): motivos.append("EMAs 10/21/50 desalinhadas")
+        else:
+            if not (e10 < e21 < e50): motivos.append("EMAs 10/21/50 desalinhadas")
+
+        if adx < 20: motivos.append(f"ADX {adx:.1f} < 20")
+        if adx < float(df["adx"].iloc[-4]): motivos.append("ADX enfraquecendo")
+
+        # 2. VOLUME obrigatório
+        if rvol < 0.4: motivos.append(f"RVOL {rvol:.2f} < 0.4")
+        if float(df["volume"].iloc[-1]) < float(df["volume"].iloc[-3]):
+            motivos.append("Volume diminuindo")
+
+        # 3. SMC — mínimo 2 de 5
+        smc = 0
+        highs = df["high"].rolling(10).max().iloc[-5]
+        lows  = df["low"].rolling(10).min().iloc[-5]
+        if (c > highs) if direcao=="LONG" else (c < lows): smc += 1
+
+        sh = df["high"].iloc[-20:-1].max(); sl = df["low"].iloc[-20:-1].min()
+        if (c > sh) if direcao=="LONG" else (c < sl): smc += 1
+
+        for i in range(-6, -1):
+            forte = abs(df["close"].iloc[i]-df["open"].iloc[i]) > atr*0.6
+            inst  = df["volume"].iloc[i] > df["vol_ma"].iloc[i]*1.2
+            if forte and inst:
+                if direcao=="LONG" and df["close"].iloc[i]>df["open"].iloc[i]: smc+=1; break
+                if direcao=="SHORT" and df["close"].iloc[i]<df["open"].iloc[i]: smc+=1; break
+
+        if len(df)>=4:
+            c1h=df["high"].iloc[-3]; c1l=df["low"].iloc[-3]
+            c3h=df["high"].iloc[-1]; c3l=df["low"].iloc[-1]
+            if (c3l>c1h) if direcao=="LONG" else (c3h<c1l): smc+=1
+
+        eq_high=df["high"].iloc[-20:-1].max(); eq_low=df["low"].iloc[-20:-1].min()
+        lh=df["high"].iloc[-1]; ll=df["low"].iloc[-1]; lc=df["close"].iloc[-1]
+        if (ll<eq_low and lc>eq_low) if direcao=="LONG" else (lh>eq_high and lc<eq_high): smc+=1
+
+        if smc < 2: motivos.append(f"SMC insuficiente {smc}/5 (mínimo 2)")
+
+        # 4. MOMENTUM — mínimo 2 de 3
+        mom = 0
+        if direcao=="LONG":
+            if macd_h > 0: mom += 1
+            if 45 <= rsi <= 70: mom += 1
+            if c > vwap: mom += 1
+        else:
+            if macd_h < 0: mom += 1
+            if 30 <= rsi <= 55: mom += 1
+            if c < vwap: mom += 1
+
+        if mom < 2: motivos.append(f"Momentum fraco {mom}/3 (mínimo 2)")
+
+        # 5. ENTRADA — máximo 25% até TP1
+        if tp1 != entrada:
+            pct = abs(c - entrada) / abs(tp1 - entrada) * 100
+            if pct > 25: motivos.append(f"Entrada atrasada {pct:.0f}% do TP1")
+
+        return motivos
+
     def _analisar_tf(self, symbol, tf="1h"):
         lim = 200 if tf in ("4h","1d") else 300
         try:
@@ -311,25 +391,24 @@ class K10Engine:
         score, tier = self._score_final(score_virada, rr, rvol, adx, len(confirmacoes))
 
         motivos = []
-        if rr < 1.5:          motivos.append(f"RR {rr} insuficiente")
-        if rvol < 0.4:        motivos.append(f"Volume ausente RVOL {rvol:.2f}")
-        if score < 62:        motivos.append(f"Score {score} insuficiente")
+
+        # Aplicar filtro institucional K11
+        falhas_inst = self._filtro_tf_institucional(df, direcao, entrada, tp1)
+        motivos.extend(falhas_inst)
+
+        if rr < 1.5:   motivos.append(f"RR {rr} insuficiente")
+        if rvol < 0.4: motivos.append(f"Volume ausente RVOL {rvol:.2f}")
+        if score < 62: motivos.append(f"Score {score} insuficiente")
 
         aprovado = len(motivos) == 0
 
         e10_v = float(r["ema10"]); e21_v = float(r["ema21"]); e50_v = float(r["ema50"])
-        if e10_v > e21_v > e50_v and direcao == "LONG":
-            regime_label = "Tendência Alta ↑"
-        elif e10_v < e21_v < e50_v and direcao == "SHORT":
-            regime_label = "Tendência Baixa ↓"
-        elif e10_v < e21_v < e50_v and direcao == "LONG":
-            regime_label = "Reversão ↗ (contra tendência)"
-        elif e10_v > e21_v > e50_v and direcao == "SHORT":
-            regime_label = "Reversão ↘ (contra tendência)"
-        elif adx < 18:
-            regime_label = "Lateral ↔"
-        else:
-            regime_label = "Transição"
+        if e10_v > e21_v > e50_v and direcao=="LONG":   regime_label = "Tendência Alta ↑"
+        elif e10_v < e21_v < e50_v and direcao=="SHORT": regime_label = "Tendência Baixa ↓"
+        elif e10_v < e21_v < e50_v and direcao=="LONG":  regime_label = "Reversão ↗ (contra tendência)"
+        elif e10_v > e21_v > e50_v and direcao=="SHORT": regime_label = "Reversão ↘ (contra tendência)"
+        elif adx < 18: regime_label = "Lateral ↔"
+        else:          regime_label = "Transição"
 
         conv_map = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}
         gb = self._gestao_banca(score, entrada, stop, atr)
@@ -362,9 +441,7 @@ class K10Engine:
             **gb,
         }
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # ANÁLISE PRINCIPAL — testa 30m, 1h, 4h
-    # ─────────────────────────────────────────────────────────────────────────
+
     def analisar(self, symbol, timeframe=None):
         tfs = [timeframe] if timeframe else ["30m","1h","4h"]
         resultados = [self._analisar_tf(symbol, tf) for tf in tfs]
