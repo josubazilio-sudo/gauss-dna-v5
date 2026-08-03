@@ -231,7 +231,7 @@ class K10Engine:
             return False, f"Distância entrada: {dist_entrada:.2f} ATR > 0.35 (entrada atrasada)"
 
         dist_vwap = abs(c - vwap) / atr if atr > 0 else 0
-        if dist_vwap > 3.0:
+        if dist_vwap > 5.0:
             return False, f"Preço muito distante da VWAP: {dist_vwap:.2f} ATR"
 
         return True, ""
@@ -669,11 +669,11 @@ class K10Engine:
         sc          = calcular_score(score_data)
         score_final = max(0, min(100, sc["score_final"] + bonus_precoce + bonus_vol + penalizacao_tend))
         tier        = sc["tier"]
-        aprovado_sc = score_final >= 70
+        aprovado_sc = score_final >= 65
 
         if not aprovado_sc:
-            motivos.append(f"Score {score_final} < 70")
-            falta.append("Score ≥ 70")
+            motivos.append(f"Score {score_final} < 65")
+            falta.append("Score ≥ 65")
 
         # ── Exaustão detectada (para exibir no cartão) ────────────────────────
         exaustao_label = exaustao_msg if not exaustao_ok else "Nenhuma"

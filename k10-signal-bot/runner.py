@@ -32,7 +32,7 @@ async def main():
     scanner = K10Scanner(max_workers=6)
 
     # Scan completo
-    aprovados = scanner.scan(min_score=70, max_ativos=300)
+    aprovados = scanner.scan(min_score=65, max_ativos=500)
 
     if not aprovados:
         logger.info("Nenhum sinal aprovado — sem envio")
