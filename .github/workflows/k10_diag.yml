@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install ccxt httpx pandas numpy python-dotenv
-      - name: Rodar diagnostico K10
+      - name: Diagnostico K10
         env:
           BOT_TOKEN: ${{ secrets.TG_TOKEN }}
           ALLOWED_CHAT_IDS: ${{ secrets.TG_CHATID }}
