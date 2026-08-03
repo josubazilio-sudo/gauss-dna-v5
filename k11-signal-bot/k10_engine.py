@@ -338,7 +338,7 @@ class K10Engine:
         except Exception as e:
             return 1.0, False, f"Erro RVOL: {e}"
 
-    def _filtro_tf_institucional(self, df, direcao, entrada, tp1, df4h=None,
+    def _filtro_tf_institucional(self, df, direcao, entrada, tp1, df4h=None, rr=0,
                                   rvol_auditado=None, rvol_valido=True,
                                   market_low_volume=False):
         r       = df.iloc[-1]
@@ -482,7 +482,7 @@ class K10Engine:
 
         # Filtro V4.0
         falhas, conf = self._filtro_tf_institucional(
-            df, direcao, entrada, tp1, df4h,
+            df, direcao, entrada, tp1, df4h, rr=rr,
             rvol_auditado=rvol, rvol_valido=rvol_valido,
             market_low_volume=market_low_volume
         )
