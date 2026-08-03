@@ -506,6 +506,14 @@ class K10Engine:
         # RVOL auditado
         rvol, rvol_valido, rvol_det = self._calcular_rvol_auditado(df, symbol, tf)
 
+        # Adaptativo V1 — detector de regime
+        try:
+            regime_mercado, _, score_minimo, prioridade_regime = self._detectar_regime_mercado(df)
+        except Exception:
+            regime_mercado = "NEUTRO"
+            score_minimo   = 70
+            prioridade_regime = "NORMAL"
+
         direcao, tipo, score_virada, confirmacoes = self._detectar_virada(df)
         if direcao is None:
             return {"symbol":symbol,"aprovado":False,"score":0,
