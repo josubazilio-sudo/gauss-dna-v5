@@ -517,8 +517,35 @@ class K10Engine:
         if rvol < 0.70 and rvol_valido:
             score = max(0, score - 5)
 
-        if score < 68:
-            motivos.append(f"Score {score} < 68")
+        # RFC V4.3.2 — Zona de Aproximação de Score
+        nivel_bloqueio1 = any("Reversão fraca bloqueada" in m for m in motivos)
+
+        if score >= 70:
+            pass  # aprovação normal
+        elif 67 <= score <= 69:
+            # Zona de oportunidade — aprovar só com alta qualidade
+            r_now    = df.iloc[-1]
+            rvol_now = float(r_now["rvol"]) if not np.isnan(r_now["rvol"]) else 0
+            macd_now = float(r_now["macd_hist"])
+            macd_ant = float(df["macd_hist"].iloc[-3])
+            rsi_now  = float(r_now["rsi"])
+            rsi_ant  = float(df["rsi"].iloc[-3])
+            e21_now  = float(r_now["ema21"])
+            atr_now  = float(r_now["atr"])
+            c_now    = float(r_now["close"])
+
+            macd_zona = (macd_now>0 and macd_now>macd_ant) if direcao=="LONG" else (macd_now<0 and macd_now<macd_ant)
+            rsi_zona  = rsi_now > rsi_ant if direcao=="LONG" else rsi_now < rsi_ant
+            pull_zona = abs(c_now - e21_now)/atr_now <= 1.5 if atr_now > 0 else False
+
+            zona_ok = (rvol_now >= 2.0 and macd_zona and rsi_zona and pull_zona and not nivel_bloqueio1)
+
+            if not zona_ok:
+                motivos.append(f"Score {score} zona 67-69 — RVOL={rvol_now:.2f} qualidade insuficiente")
+        else:
+            motivos.append(f"Score {score} < 67")
+
+        # RR mínimo 2.0
         if rr < 2.0:
             motivos.append(f"RR {rr} < 2.0")
 
