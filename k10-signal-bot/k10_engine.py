@@ -205,11 +205,22 @@ class K10Engine:
         atr = float(r["atr"])
 
         if direcao == "LONG":
-            stop = round(min(float(df["low"].iloc[-8:].min()) - atr*0.2, c - atr*1.3), 6)
-            tp1  = round(c + atr*2.0, 6)
+            # Stop: mínimo dos últimos 5 candles - 0.1 ATR (stop justo)
+            swing_low  = float(df["low"].iloc[-5:].min())
+            stop = round(swing_low - atr*0.1, 6)
+            # Se stop ficou muito longe, usar 1.0 ATR fixo
+            if abs(c - stop) > atr * 1.5:
+                stop = round(c - atr*1.0, 6)
+            # TP1: 2.5x o risco real
+            risco = abs(c - stop)
+            tp1 = round(c + risco * 2.5, 6)
         else:
-            stop = round(max(float(df["high"].iloc[-8:].max()) + atr*0.2, c + atr*1.3), 6)
-            tp1  = round(c - atr*2.0, 6)
+            swing_high = float(df["high"].iloc[-5:].max())
+            stop = round(swing_high + atr*0.1, 6)
+            if abs(stop - c) > atr * 1.5:
+                stop = round(c + atr*1.0, 6)
+            risco = abs(stop - c)
+            tp1 = round(c - risco * 2.5, 6)
 
         rr = round(abs(tp1 - c) / abs(stop - c), 2) if stop != c else 0
         return c, stop, tp1, atr
@@ -223,7 +234,7 @@ class K10Engine:
         # RR bom dá bônus
         if rr >= 2.5: score += 10
         elif rr >= 2.0: score += 5
-        elif rr < 1.8: score -= 15
+        elif rr < 1.5: score -= 15
 
         # Volume
         if rvol >= 1.5: score += 8
@@ -310,7 +321,7 @@ class K10Engine:
         motivos = []
 
         # Gates obrigatórios
-        if rr < 1.8:
+        if rr < 1.5:
             motivos.append(f"RR {rr} insuficiente")
 
         # Espaço até TP1 — verificar se há obstáculo
