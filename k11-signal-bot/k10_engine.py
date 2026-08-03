@@ -314,88 +314,29 @@ class K10Engine:
         c   = float(r["close"])
         atr = float(r["atr"])
 
-        # Stop atrás da estrutura
         if direcao == "LONG":
-            swing_low  = float(df["low"].iloc[-10:].min())
-            stop = round(min(swing_low - atr*0.3, c - atr*1.5), 6)
-            tp1  = round(c + atr*1.5, 6)
-            tp2  = round(c + atr*3.0, 6)
-            tp3  = round(c + atr*4.5, 6)
+            # Stop: mínimo dos últimos 5 candles - 0.1 ATR (stop justo)
+            swing_low  = float(df["low"].iloc[-5:].min())
+            stop = round(swing_low - atr*0.1, 6)
+            # Se stop ficou muito longe, usar 1.0 ATR fixo
+            if abs(c - stop) > atr * 1.5:
+                stop = round(c - atr*1.0, 6)
+            # TP1: 2.5x o risco real
+            risco = abs(c - stop)
+            tp1 = round(c + risco * 2.5, 6)
         else:
-            swing_high = float(df["high"].iloc[-10:].max())
-            stop = round(max(swing_high + atr*0.3, c + atr*1.5), 6)
-            tp1  = round(c - atr*1.5, 6)
-            tp2  = round(c - atr*3.0, 6)
-            tp3  = round(c - atr*4.5, 6)
+            swing_high = float(df["high"].iloc[-5:].max())
+            stop = round(swing_high + atr*0.1, 6)
+            if abs(stop - c) > atr * 1.5:
+                stop = round(c + atr*1.0, 6)
+            risco = abs(stop - c)
+            tp1 = round(c - risco * 2.5, 6)
 
-        rr = round(abs(tp2 - c) / abs(stop - c), 2) if stop != c else 0
-        return c, stop, tp1, tp2, tp3, rr, atr
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # SCORE ADAPTATIVO (RFC seção 12/13)
-    # ─────────────────────────────────────────────────────────────────────────
-    def _calcular_score(self, df, direcao, regime, smc_pts, falhas_tend,
-                        falhas_mom, falhas_vol, dist_score, rr, atr):
-        r    = df.iloc[-1]
-        adx  = float(r["adx"])
-        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
-        rsi  = float(r["rsi"])
-
-        componentes = {}
-
-        # Tendência (20pts)
-        tend_pts = max(0, 20 - len(falhas_tend)*8)
-        componentes["Tendência"] = tend_pts
-
-        # Momentum (20pts)
-        mom_pts = max(0, 20 - len(falhas_mom)*7)
-        componentes["Momentum"] = mom_pts
-
-        # Volume (15pts)
-        vol_pts = max(0, 15 - len(falhas_vol)*6)
-        componentes["Volume"] = vol_pts
-
-        # SMC (25pts)
-        smc_norm = round(smc_pts * 0.25)
-        componentes["SMC"] = smc_norm
-
-        # Entrada/Distância (10pts)
-        entrada_pts = round(dist_score * 0.10)
-        componentes["Entrada"] = entrada_pts
-
-        # RR (10pts)
-        rr_pts = 10 if rr >= 2.0 else (8 if rr >= 1.8 else (6 if rr >= 1.5 else 3))
-        componentes["RR"] = rr_pts
-
-        score = sum(componentes.values())
-
-        # Penalidades
-        penais = []
-        if adx < 18:
-            score -= 10; penais.append(("ADX fraco", -10))
-        if rvol < 0.6:
-            score -= 8;  penais.append(("Volume fraco", -8))
-        if len(falhas_tend) > 0:
-            score -= 5 * len(falhas_tend); penais.append((f"Contra tendência ({len(falhas_tend)}x)", -5*len(falhas_tend)))
-        if rr < 1.8:
-            score -= 5;  penais.append(("RR < 1.8", -5))
-        if regime in ("INDEFINIDO", "COMPRESSÃO"):
-            score -= 15; penais.append(("Regime desfavorável", -15))
-
-        score = max(0, min(100, score))
-
-        # Classificação RFC seção 15
-        if score >= 95:   tier = "DIAMANTE"
-        elif score >= 90: tier = "PLATINA"
-        elif score >= 85: tier = "OURO"
-        elif score >= 80: tier = "PRATA"
-        elif score >= 75: tier = "BRONZE"
-        else:             tier = "ABAIXO"
-
-        return score, tier, componentes, penais
+        rr = round(abs(tp1 - c) / abs(stop - c), 2) if stop != c else 0
+        return c, stop, tp1, atr
 
     # ─────────────────────────────────────────────────────────────────────────
-    # GESTÃO DE BANCA
+    # SCORE FINAL
     # ─────────────────────────────────────────────────────────────────────────
     def _gestao_banca(self, regime, entrada, stop, atr):
         regime_map = {
@@ -630,8 +571,8 @@ class K10Engine:
             motivos.append(f"ATR excessivo ({atr_pct:.1f}%) — risco alto")
 
         # ── 9. RR ──────────────────────────────────────────────────────────
-        if rr < 1.8:
-            motivos.append(f"RR {rr} < 1.8")
+        if rr < 1.5:
+            motivos.append(f"RR {rr} insuficiente")
 
         # ── 10. Score ──────────────────────────────────────────────────────
         score, tier, componentes, penais = self._calcular_score(
