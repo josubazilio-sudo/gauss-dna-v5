@@ -345,15 +345,30 @@ class K10Engine:
             "BRONZE": "MODERADA 🔶",
         }
 
-        regime_label = "Alta ↑" if direcao == "LONG" else "Baixa ↓"
         e21 = float(r["ema21"])
         e50 = float(r["ema50"])
-        if float(r["ema10"]) > e21 > e50:
+        e10_v = float(r["ema10"])
+        adx_v = float(r["adx"])
+
+        if e10_v > e21 > e50:
+            tend = "ALTA"
+        elif e10_v < e21 < e50:
+            tend = "BAIXA"
+        else:
+            tend = "LATERAL"
+
+        if tend == "ALTA" and direcao == "LONG":
             regime_label = "Tendência Alta ↑"
-        elif float(r["ema10"]) < e21 < e50:
+        elif tend == "BAIXA" and direcao == "SHORT":
             regime_label = "Tendência Baixa ↓"
-        elif adx < 18:
+        elif tend == "BAIXA" and direcao == "LONG":
+            regime_label = "Reversão ↗ (contra tendência)"
+        elif tend == "ALTA" and direcao == "SHORT":
+            regime_label = "Reversão ↘ (contra tendência)"
+        elif adx_v < 18:
             regime_label = "Lateral ↔"
+        else:
+            regime_label = "Transição"
 
         return {
             "symbol":           symbol,
