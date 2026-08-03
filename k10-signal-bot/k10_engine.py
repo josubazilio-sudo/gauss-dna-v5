@@ -228,40 +228,44 @@ class K10Engine:
     # ─────────────────────────────────────────────────────────────────────────
     # SCORE FINAL
     # ─────────────────────────────────────────────────────────────────────────
-    def _score_final(self, score_virada, rr, rvol, adx, n_confs):
+    def _score_final(self, score_virada, rr, rvol, adx, n_confs,
+                      eh_reversao=False, bos_ok=False, pullback_ok=False):
         """
-        Score realista — máximo ~80 para sinal comum, ~88 para excelente
-        Pesos por tipo de virada:
-          MACD cruzou = 30pts base
-          RSI virada  = 25pts
-          Pullback    = 20pts
-          Volume      = 15pts
-          Total base max = 90pts (raro ter todos)
-        Bônus/penais limitados para não inflar
+        Score RFC V4 — penalidade de reversão + bônus RVOL institucional
         """
-        score = score_virada  # já vem calculado pelo _detectar_virada
+        score = score_virada
 
-        # RR — sem bônus, só penaliza se ruim
+        # RR
         if rr < 1.5:
             score -= 15
 
-        # Volume — penaliza fraco, bônus pequeno se bom
-        if rvol >= 1.5:
-            score += 3
+        # RVOL — bônus por volume institucional (RFC V4)
+        if rvol >= 3.0:
+            score += 8    # bônus máximo
+        elif rvol >= 2.0:
+            score += 5    # bônus qualidade
+        elif rvol >= 1.2:
+            score += 2
         elif rvol < 0.8:
             score -= 8
 
-        # ADX — penaliza sem força
+        # ADX
         if adx < 15:
             score -= 8
 
-        # Confirmações extras — máximo +6
+        # Confirmações extras
         score += min(n_confs, 3) * 2
 
-        # Cap: nunca passa de 90
+        # Penalidade de reversão (RFC V4)
+        if eh_reversao:
+            penalidade = 4  # padrão 3-5 pts
+            # Remover penalidade se BOS/CHoCH + Pullback + RVOL >= 2.0
+            if bos_ok and pullback_ok and rvol >= 2.0:
+                penalidade = 0
+            score -= penalidade
+
         score = max(0, min(90, score))
 
-        # Tier exigente
         if score >= 82:   tier = "OURO"
         elif score >= 72: tier = "PRATA"
         elif score >= 62: tier = "BRONZE"
@@ -308,7 +312,20 @@ class K10Engine:
 
         entrada, stop, tp1, atr = self._calcular_niveis(df, direcao)
         rr = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
-        score, tier = self._score_final(score_virada, rr, rvol, adx, len(confirmacoes))
+        # RFC V4: detectar reversão e BOS/Pullback para score
+        e10_s = float(df.iloc[-1]["ema10"])
+        e21_s = float(df.iloc[-1]["ema21"])
+        e50_s = float(df.iloc[-1]["ema50"])
+        atr_s = float(df.iloc[-1]["atr"])
+        c_s   = float(df.iloc[-1]["close"])
+        tendencia_local = (e10_s > e21_s > e50_s) if direcao=="LONG" else (e10_s < e21_s < e50_s)
+        eh_reversao_s   = not tendencia_local
+        highs_s = float(df["high"].rolling(10).max().iloc[-5])
+        lows_s  = float(df["low"].rolling(10).min().iloc[-5])
+        bos_s   = (c_s > highs_s) if direcao=="LONG" else (c_s < lows_s)
+        pull_s  = abs(c_s - e21_s) / atr_s <= 1.5 if atr_s > 0 else False
+        score, tier = self._score_final(score_virada, rr, rvol, adx, len(confirmacoes),
+                                        eh_reversao=eh_reversao_s, bos_ok=bos_s, pullback_ok=pull_s)
 
         motivos = []
         if rr < 1.5:          motivos.append(f"RR {rr} insuficiente")
@@ -355,6 +372,9 @@ class K10Engine:
             "vwap":             float(r["vwap"]),
             "ema21":            float(r["ema21"]),
             "confirmacoes_smc": confirmacoes,
+            "timing_pct":       0,
+            "confluencia":      len(confirmacoes),
+            "rvol_bonus":       rvol >= 2.0,
             "motivos_rejeicao": motivos,
             "o_que_falta":      motivos,
             "timeframe":        tf,
