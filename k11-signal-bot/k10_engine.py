@@ -279,7 +279,9 @@ class K10Engine:
         else:             alav = 8
         risco = round(BANCA * RISCO_PCT / 100, 2)
         dist  = abs(entrada - stop) / entrada if entrada else 0.01
+        # Posição = risco / distância, limitada a 3x a banca
         pos   = round(risco / dist, 2) if dist > 0 else 0
+        pos   = min(pos, BANCA * 3)  # nunca mais que 3x a banca
         return {"alavancagem": alav, "capital": BANCA, "posicao": pos,
                 "risco_usdt": risco, "banca": BANCA}
 
@@ -310,7 +312,7 @@ class K10Engine:
 
         motivos = []
         if rr < 1.5:          motivos.append(f"RR {rr} insuficiente")
-        if rvol < 0.6:        motivos.append(f"Volume ausente RVOL {rvol:.2f}")
+        if rvol < 0.4:        motivos.append(f"Volume ausente RVOL {rvol:.2f}")
         if score < 62:        motivos.append(f"Score {score} insuficiente")
 
         aprovado = len(motivos) == 0
