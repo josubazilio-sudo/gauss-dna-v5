@@ -8,7 +8,7 @@ async def tg(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.post(url, json={"chat_id": CHAT_ID, "text": msg[:4000]})
-        print(f"TG: {r.status_code}")
+        print(f"TG: {r.status_code} {r.text[:80]}")
 
 async def main():
     try:
@@ -24,25 +24,27 @@ async def main():
                 resultados.append(r)
             except Exception as e:
                 resultados.append({"symbol":sym,"score":0,"aprovado":False,
-                    "motivos_rejeicao":[str(e)],"timeframe":"?"})
+                    "motivos_rejeicao":[str(e)[:60]],"timeframe":"?","direcao":"?"})
 
         resultados.sort(key=lambda x: x.get("score",0), reverse=True)
-
-        linhas = ["K10 DIAG — top 10 scores:\n"]
-        for r in resultados[:10]:
-            sym    = r["symbol"].replace("/USDT:USDT","")
-            ok     = "✅" if r.get("aprovado") else "❌"
-            motivo = (r.get("motivos_rejeicao") or ["?"])[0][:50]
-            confs  = r.get("confirmacoes_smc",[])
-            linhas.append(
-                f"{ok} {sym} score={r.get('score')} tf={r.get('timeframe','?')} dir={r.get('direcao','?')}\n"
-                f"   {motivo}\n"
-                f"   confs: {confs}"
-            )
-
         aprovados = [r for r in resultados if r.get("aprovado")]
-        linhas.append(f"\n{len(aprovados)} aprovados de {len(resultados)} analisados")
+
+        linhas = [f"K10 DIAG — {len(aprovados)} aprovados de {len(resultados)}:\n"]
+        for r in resultados[:8]:
+            sym    = r["symbol"].replace("/USDT:USDT","")
+            ok     = "OK" if r.get("aprovado") else "X"
+            rr     = r.get("rr", 0)
+            motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:40]
+            linhas.append(f"{ok} {sym} s={r.get('score')} rr={rr} tf={r.get('timeframe','?')} -> {motivo}")
+
         await tg("\n".join(linhas))
+
+        # Se tiver aprovado, mandar o cartão
+        if aprovados:
+            from formatter import formatar_cartao
+            cartao = formatar_cartao(aprovados[0], bot_name="K10")
+            if cartao:
+                await tg(cartao)
 
     except Exception:
         await tg("ERRO:\n" + traceback.format_exc()[-2000:])
