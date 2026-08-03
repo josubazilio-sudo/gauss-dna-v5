@@ -430,10 +430,6 @@ class K10Engine:
             r4h    = df4h.iloc[-1]
             adx_4h = float(r4h["adx"])
             tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
-            if direcao=="LONG" and not tend_h4 and adx_4h > 30 and not forte_conf:
-                motivos.append(f"H4 queda forte (ADX {adx_4h:.0f})")
-            if direcao=="SHORT" and tend_h4 and adx_4h > 30 and not forte_conf:
-                motivos.append(f"H4 alta forte (ADX {adx_4h:.0f})")
 
         return motivos, conf
 
