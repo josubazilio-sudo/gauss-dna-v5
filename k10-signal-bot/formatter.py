@@ -1,5 +1,5 @@
 """
-K10/K11 Formatter — Cartão final
+K10/K11 Formatter — Cartão limpo: Entrada, TP1, Stop
 """
 
 def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
@@ -21,7 +21,9 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     capital = r.get("capital", 0)
     posicao = r.get("posicao", 0)
     alav    = r.get("alavancagem", 8)
+    risco   = r.get("risco_usdt", 2.7)
     duracao = {"30m":"4–8h","1h":"6–12h","4h":"24–48h","1d":"3–7d"}.get(tf,"6–12h")
+    prioridade = r.get("prioridade","")
 
     dir_emoji = "🟢 LONG" if direcao == "LONG" else "🔴 SHORT"
 
@@ -44,13 +46,16 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
         "RANGE_TRADING":   "Range Trading",
         "BREAKOUT":        "Breakout",
         "MEAN_REVERSION":  "Mean Reversion",
+        "VIRADA":          "Virada",
     }.get(setup, setup)
 
-    smc_block = "\n".join(f"✅ {item}" for item in smc) if smc else "✅ Estrutura confirmada"
+    smc_block = "\n".join(f"✅ {item}" for item in smc) if smc else ""
     sep = "━━━━━━━━━━━━━━"
+    prioridade_line = f"{prioridade}\n\n" if prioridade else ""
 
     return (
         f"🏆 {symbol}\n\n"
+        f"{prioridade_line}"
         f"{dir_emoji} | {tf} | {tier_map.get(tier,'🥉 BRONZE')}\n\n"
         f"⭐ Score: {score} | {conv_map.get(tier,'MODERADA 🔶')}\n\n"
         f"{sep}\n\n"
@@ -59,15 +64,14 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
         f"🛑 Stop: {stop}\n"
         f"⚖️ RR: {rr}\n\n"
         f"💵 Banca: {capital} USDT | 🚀 {alav}x\n"
-        f"⚠️ Risco: {r.get('risco_usdt', 2.70)} USDT (3%)\n"
+        f"⚠️ Risco: {risco} USDT (3%)\n"
         f"📦 Posição: {posicao} USDT\n\n"
         f"{sep}\n\n"
         f"🌍 {regime}\n"
         f"📊 {setup_label} | ⏱️ {duracao}\n\n"
-        f"{smc_block}\n\n"
+        f"{smc_block + chr(10) + chr(10) if smc_block else ''}"
         f"{bot_name}"
     )
-
 
 def formatar_rejeicao(r: dict) -> str:
     return None
