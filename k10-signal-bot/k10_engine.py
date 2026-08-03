@@ -78,6 +78,12 @@ class K10Engine:
         dn   = (-diff.clip(upper=0)).rolling(14).sum()
         df["cmo"] = 100 * (up - dn) / (up + dn).replace(0, np.nan)
 
+        # StochRSI
+        rsi_series = df["rsi"]
+        rsi_min = rsi_series.rolling(14).min()
+        rsi_max = rsi_series.rolling(14).max()
+        df["stoch_rsi"] = (rsi_series - rsi_min) / (rsi_max - rsi_min).replace(0, np.nan)
+
         return df
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -86,7 +92,8 @@ class K10Engine:
     def _gate_exaustao(self, df: pd.DataFrame, direcao: str) -> tuple[bool, str]:
         r   = df.iloc[-1]
         rsi = float(r["rsi"])
-        cmo = float(r["cmo"]) if not np.isnan(r["cmo"]) else 0.0
+        cmo      = float(r["cmo"])      if not np.isnan(r["cmo"])      else 0.0
+        stoch_rsi = float(r["stoch_rsi"]) if not np.isnan(r["stoch_rsi"]) else 0.5
         c   = float(r["close"])
         atr = float(r["atr"])
         e21 = float(r["ema21"])
@@ -97,6 +104,18 @@ class K10Engine:
         ultimos = df["close"].iloc[-5:].values
         candles_alta  = sum(1 for i in range(1, len(ultimos)) if ultimos[i] > ultimos[i-1])
         candles_baixa = sum(1 for i in range(1, len(ultimos)) if ultimos[i] < ultimos[i-1])
+
+        # Movimento consumido: quanto o preço já andou desde a última reversão
+        high_recente = float(df["high"].iloc[-20:].max())
+        low_recente  = float(df["low"].iloc[-20:].min())
+        range_total  = high_recente - low_recente
+        if range_total > 0 and atr > 0:
+            if direcao == "LONG":
+                movimento_consumido = (c - low_recente) / range_total  # 0=fundo, 1=topo
+            else:
+                movimento_consumido = (high_recente - c) / range_total  # 0=topo, 1=fundo
+        else:
+            movimento_consumido = 0.5
 
         if direcao == "LONG":
             if rsi > 68:
@@ -109,6 +128,10 @@ class K10Engine:
                 return False, f"Exaustão: {candles_alta} candles consecutivos de alta"
             if cmo > 60:
                 return False, f"Exaustão: CMO {cmo:.1f} > 60"
+            if movimento_consumido > 0.75:
+                return False, f"Movimento consumido: preço já está {movimento_consumido*100:.0f}% do range — compra no topo"
+            if stoch_rsi > 0.90:
+                return False, f"StochRSI {stoch_rsi*100:.0f}% — sobrecomprado extremo, aguardar pullback"
         else:
             if rsi < 32:
                 return False, f"Exaustão: RSI {rsi:.1f} < 32"
@@ -120,6 +143,10 @@ class K10Engine:
                 return False, f"Exaustão: {candles_baixa} candles consecutivos de queda"
             if cmo < -60:
                 return False, f"Exaustão: CMO {cmo:.1f} < -60"
+            if movimento_consumido > 0.75:
+                return False, f"Movimento consumido: preço já está {movimento_consumido*100:.0f}% do range — venda no fundo"
+            if stoch_rsi < 0.10:
+                return False, f"StochRSI {stoch_rsi*100:.0f}% — sobrevendido extremo, aguardar bounce"
 
         return True, ""
 
