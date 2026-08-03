@@ -1,6 +1,7 @@
 """
-K10 Engine — Entrada na Virada ou Início do Movimento
-Foco: MACD cruzando, RSI saindo do extremo, espaço limpo até TP1
+K11 Engine — Motor Adaptativo por Setup V1
+5 setups: Continuação | Reversão | Cruzamento | Lateral | Transição
+Cada regime ativa filtros e pesos diferentes.
 """
 
 import ccxt
@@ -16,6 +17,9 @@ class K10Engine:
             "options": {"defaultType": "swap"},
         })
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # DADOS
+    # ─────────────────────────────────────────────────────────────────────────
     def _fetch(self, symbol, tf, limit=300):
         try:
             raw = self.exchange.fetch_ohlcv(symbol, tf, limit=limit)
@@ -25,6 +29,9 @@ class K10Engine:
         except Exception as e:
             raise RuntimeError(f"Fetch {symbol} {tf}: {e}")
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # INDICADORES
+    # ─────────────────────────────────────────────────────────────────────────
     def _calc(self, df):
         c, h, l, v = df["close"], df["high"], df["low"], df["volume"]
 
@@ -42,7 +49,9 @@ class K10Engine:
         di_p  = 100 * dm_p.ewm(span=14, adjust=False).mean() / atr14
         di_n  = 100 * dm_n.ewm(span=14, adjust=False).mean() / atr14
         dx    = 100*(di_p-di_n).abs()/(di_p+di_n).replace(0, np.nan)
-        df["adx"] = dx.ewm(span=14, adjust=False).mean()
+        df["adx"]  = dx.ewm(span=14, adjust=False).mean()
+        df["di_p"] = di_p
+        df["di_n"] = di_n
 
         delta = c.diff()
         gain  = delta.clip(lower=0).ewm(span=14, adjust=False).mean()
@@ -62,148 +71,222 @@ class K10Engine:
         df["bb_mid"]   = sma20
         df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / sma20.replace(0, np.nan)
 
-        # RVOL auditado — RFC V4.0
-        # SMA20 usando apenas velas fechadas, sem divisão por zero, sem NaN
         vol_sma20 = v.rolling(20, min_periods=10).mean()
-        vol_valido = vol_sma20 > 0
-        rvol_raw = v / vol_sma20.where(vol_valido, np.nan)
-        # Clamp para evitar valores absurdos
         df["vol_ma"] = vol_sma20
-        df["rvol"]   = rvol_raw.clip(lower=0, upper=50)
+        df["rvol"]   = (v / vol_sma20.replace(0, np.nan)).clip(lower=0, upper=50)
 
         return df
 
     # ─────────────────────────────────────────────────────────────────────────
-    # DETECÇÃO DA VIRADA / INÍCIO DO MOVIMENTO
+    # PASSO 1 — IDENTIFICAR REGIME
     # ─────────────────────────────────────────────────────────────────────────
-    def _detectar_virada(self, df):
-        """
-        Detecta se o momento atual é uma virada ou início de movimento.
-        Retorna: (direcao, tipo_entrada, score_virada, motivos)
-        """
+    def _identificar_regime(self, df):
         r    = df.iloc[-1]
-        c    = float(r["close"])
-        rsi  = float(r["rsi"])
         adx  = float(r["adx"])
-        atr  = float(r["atr"])
+        e10  = float(r["ema10"])
         e21  = float(r["ema21"])
         e50  = float(r["ema50"])
+        e200 = float(r["ema200"])
+        macd_h  = float(r["macd_hist"])
+        macd_h2 = float(df["macd_hist"].iloc[-4])
         rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        vol_cresc = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
 
-        macd_hist_0 = float(df["macd_hist"].iloc[-1])
-        macd_hist_1 = float(df["macd_hist"].iloc[-2])
-        macd_hist_2 = float(df["macd_hist"].iloc[-3])
-        macd_0      = float(df["macd"].iloc[-1])
-        macd_sig_0  = float(df["macd_signal"].iloc[-1])
-        macd_0_ant  = float(df["macd"].iloc[-2])
-        macd_sig_ant= float(df["macd_signal"].iloc[-2])
+        emas_long  = e10 > e21 and e50 > e200
+        emas_short = e10 < e21 and e50 < e200
+        ema_alinha = emas_long or emas_short
 
-        rsi_0 = float(df["rsi"].iloc[-1])
-        rsi_1 = float(df["rsi"].iloc[-2])
-        rsi_2 = float(df["rsi"].iloc[-3])
-        rsi_3 = float(df["rsi"].iloc[-4])
+        macd_virando = (macd_h > 0 and macd_h2 <= 0) or (macd_h < 0 and macd_h2 >= 0)
+        adx_subindo  = adx > float(df["adx"].iloc[-5])
 
-        score = 0
-        sinais_long  = []
-        sinais_short = []
+        # EMA10 cruzando EMA21 recentemente
+        e10_ant = float(df["ema10"].iloc[-4])
+        e21_ant = float(df["ema21"].iloc[-4])
+        ema_cruzou = (e10_ant <= e21_ant and e10 > e21) or (e10_ant >= e21_ant and e10 < e21)
 
-        # ── MACD: cruzamento recente ou acabou de cruzar ──────────────────────
-        # LONG: macd cruzou signal para cima agora ou 1-2 velas atrás
-        macd_cruz_long  = (macd_0 > macd_sig_0 and macd_0_ant <= macd_sig_ant)
-        macd_cruz_short = (macd_0 < macd_sig_0 and macd_0_ant >= macd_sig_ant)
+        # SETUP 4 — LATERAL
+        if adx < 18 and not ema_alinha:
+            return "LATERAL"
 
-        # Histograma: virou de negativo para positivo (LONG) ou contrário (SHORT)
-        hist_virou_long  = macd_hist_1 < 0 and macd_hist_0 > 0
-        hist_virou_short = macd_hist_1 > 0 and macd_hist_0 < 0
+        # SETUP 5 — TRANSIÇÃO
+        if adx_subindo and macd_virando and not ema_alinha:
+            return "TRANSICAO"
 
-        # Histograma crescendo após cruzamento (início do movimento)
-        hist_acelerando_long  = macd_hist_0 > macd_hist_1 > macd_hist_2 and macd_hist_0 > 0
-        hist_acelerando_short = macd_hist_0 < macd_hist_1 < macd_hist_2 and macd_hist_0 < 0
+        # SETUP 3 — CRUZAMENTO
+        if ema_cruzou and vol_cresc:
+            return "CRUZAMENTO"
 
-        if macd_cruz_long or hist_virou_long:
-            sinais_long.append("MACD cruzou para cima")
-            score += 30
-        elif hist_acelerando_long:
-            sinais_long.append("MACD acelerando para cima")
-            score += 20
+        # SETUP 2 — REVERSÃO
+        c   = float(r["close"])
+        atr = float(r["atr"])
+        highs = float(df["high"].rolling(10).max().iloc[-5])
+        lows  = float(df["low"].rolling(10).min().iloc[-5])
+        bos = c > highs or c < lows
+        rsi = float(r["rsi"])
+        rsi_extremo = rsi > 65 or rsi < 35
+        if bos and macd_virando and rsi_extremo:
+            return "REVERSAO"
 
-        if macd_cruz_short or hist_virou_short:
-            sinais_short.append("MACD cruzou para baixo")
-            score += 30
-        elif hist_acelerando_short:
-            sinais_short.append("MACD acelerando para baixo")
-            score += 20
+        # SETUP 1 — CONTINUAÇÃO
+        if adx >= 25 and ema_alinha and vol_cresc:
+            return "CONTINUACAO"
 
-        # ── RSI: saindo do extremo, não no topo/fundo ─────────────────────────
-        # LONG: RSI vinha abaixo de 40 e está subindo
-        rsi_virada_long  = rsi_2 < 38 and rsi_1 < rsi_0 and rsi_0 < 60
-        # SHORT: RSI vinha acima de 60 e está caindo
-        rsi_virada_short = rsi_2 > 62 and rsi_1 > rsi_0 and rsi_0 > 40
-
-        # RSI no meio com força (45-65 para LONG, 35-55 para SHORT)
-        rsi_bom_long  = 42 <= rsi_0 <= 65 and rsi_0 > rsi_1
-        rsi_bom_short = 35 <= rsi_0 <= 58 and rsi_0 < rsi_1
-
-        if rsi_virada_long:
-            sinais_long.append("RSI saindo da sobrevenda")
-            score += 25
-        elif rsi_bom_long:
-            sinais_long.append("RSI com força para cima")
-            score += 15
-
-        if rsi_virada_short:
-            sinais_short.append("RSI saindo da sobrecompra")
-            score += 25
-        elif rsi_bom_short:
-            sinais_short.append("RSI com força para baixo")
-            score += 15
-
-        # ── Pullback na EMA21 (entrada no reteste) ────────────────────────────
-        dist_ema21 = abs(c - e21) / atr if atr > 0 else 99
-        pullback_long  = dist_ema21 <= 1.0 and c > e21
-        pullback_short = dist_ema21 <= 1.0 and c < e21
-
-        if pullback_long:
-            sinais_long.append("Pullback na EMA21")
-            score += 20
-        if pullback_short:
-            sinais_short.append("Pullback na EMA21")
-            score += 20
-
-        # ── Volume confirmando ────────────────────────────────────────────────
-        if rvol >= 1.0:
-            if sinais_long:  sinais_long.append(f"Volume confirmado RVOL {rvol:.2f}")
-            if sinais_short: sinais_short.append(f"Volume confirmado RVOL {rvol:.2f}")
-            score += 15
-        elif rvol < 0.7:
-            score -= 15
-
-        # ── Espaço até o TP1 (ATR) — sem obstáculos ──────────────────────────
-        bb_mid = float(r["bb_mid"])
-        dist_resistencia = abs(c - bb_mid) / atr if atr > 0 else 0
-
-        # ── Decidir direção ───────────────────────────────────────────────────
-        # Preferir LONG se mais sinais LONG, SHORT se mais SHORT
-        n_long  = len(sinais_long)
-        n_short = len(sinais_short)
-
-        if n_long == 0 and n_short == 0:
-            return None, "SEM_VIRADA", 0, ["Sem virada ou início de movimento detectado"]
-
-        if n_long >= n_short:
-            direcao = "LONG"
-            confirmacoes = sinais_long
-        else:
-            direcao = "SHORT"
-            confirmacoes = sinais_short
-
-        # Score mínimo para considerar válido
-        score_final = min(score, 100)
-
-        return direcao, "VIRADA", score_final, confirmacoes
+        return "REVERSAO"  # default
 
     # ─────────────────────────────────────────────────────────────────────────
-    # NÍVEIS: Stop atrás da estrutura, TP com espaço real
+    # PASSO 2 — DIREÇÃO
+    # ─────────────────────────────────────────────────────────────────────────
+    def _definir_direcao(self, df, regime):
+        r   = df.iloc[-1]
+        e10 = float(r["ema10"])
+        e21 = float(r["ema21"])
+        e50 = float(r["ema50"])
+        rsi = float(r["rsi"])
+        macd_h = float(r["macd_hist"])
+
+        if regime == "CONTINUACAO":
+            return "LONG" if e10 > e21 > e50 else "SHORT"
+
+        if regime in ("REVERSAO", "CRUZAMENTO", "TRANSICAO"):
+            # Direção da virada
+            macd_h_ant = float(df["macd_hist"].iloc[-4])
+            if macd_h > 0 and macd_h > macd_h_ant:
+                return "LONG"
+            if macd_h < 0 and macd_h < macd_h_ant:
+                return "SHORT"
+            return "LONG" if e10 > e21 else "SHORT"
+
+        if regime == "LATERAL":
+            # Direção do rompimento
+            c = float(r["close"])
+            highs = float(df["high"].rolling(20).max().iloc[-3])
+            lows  = float(df["low"].rolling(20).min().iloc[-3])
+            return "LONG" if c > highs else "SHORT"
+
+        return "LONG" if e10 > e21 else "SHORT"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASSO 3 — FILTROS POR SETUP
+    # ─────────────────────────────────────────────────────────────────────────
+    def _filtrar_por_setup(self, df, df4h, regime, direcao):
+        r    = df.iloc[-1]
+        c    = float(r["close"])
+        e10  = float(r["ema10"])
+        e21  = float(r["ema21"])
+        e50  = float(r["ema50"])
+        e200 = float(r["ema200"])
+        adx  = float(r["adx"])
+        rsi  = float(r["rsi"])
+        atr  = float(r["atr"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        macd_h  = float(r["macd_hist"])
+        macd_h2 = float(df["macd_hist"].iloc[-4])
+        vol_cresc = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
+        pullback  = abs(c - e21) / atr <= 1.5 if atr > 0 else False
+        highs = float(df["high"].rolling(10).max().iloc[-5])
+        lows  = float(df["low"].rolling(10).min().iloc[-5])
+        bos   = (c > highs) if direcao=="LONG" else (c < lows)
+        macd_ok = (macd_h > 0 and macd_h > macd_h2) if direcao=="LONG" else (macd_h < 0 and macd_h < macd_h2)
+        rsi_ok  = (rsi > float(df["rsi"].iloc[-4])) if direcao=="LONG" else (rsi < float(df["rsi"].iloc[-4]))
+
+        motivos = []
+        confirmacoes = []
+
+        # ── SETUP 1: CONTINUAÇÃO ─────────────────────────────────────────────
+        if regime == "CONTINUACAO":
+            emas_ok = (e10>e21>e50>e200) if direcao=="LONG" else (e10<e21<e50<e200)
+            if not emas_ok:    motivos.append("EMAs não alinhadas para continuação")
+            else:              confirmacoes.append("EMAs alinhadas")
+            if adx < 25:       motivos.append(f"ADX {adx:.1f} < 25")
+            else:              confirmacoes.append(f"ADX {adx:.1f} forte")
+            if not pullback:   motivos.append("Sem pullback na EMA21")
+            else:              confirmacoes.append("Pullback EMA21")
+            if not macd_ok:    motivos.append("MACD não confirmando")
+            else:              confirmacoes.append("MACD confirmado")
+            if rvol < 1.2:     motivos.append(f"RVOL {rvol:.2f} < 1.2")
+            else:              confirmacoes.append(f"RVOL {rvol:.2f}")
+            score_min = 75
+            rvol_min  = 1.2
+
+        # ── SETUP 2: REVERSÃO ────────────────────────────────────────────────
+        elif regime == "REVERSAO":
+            if not bos:        motivos.append("BOS/CHoCH não confirmado")
+            else:              confirmacoes.append("BOS/CHoCH confirmado")
+            if not macd_ok:    motivos.append("MACD não virou")
+            else:              confirmacoes.append("MACD virando")
+            if not rsi_ok:     motivos.append("RSI não alinhado")
+            else:              confirmacoes.append("RSI alinhado")
+            if not pullback:   motivos.append("Sem pullback EMA21")
+            else:              confirmacoes.append("Pullback EMA21")
+
+            # Reversão forte — RVOL >= 3.0 tem prioridade
+            reversao_forte = rvol >= 3.0 and macd_ok and rsi_ok and pullback
+            if reversao_forte:
+                confirmacoes.append(f"REVERSÃO FORTE RVOL {rvol:.2f}")
+                motivos = []  # limpa motivos — aprovação direta
+            elif rvol < 1.5:
+                motivos.append(f"RVOL {rvol:.2f} < 1.5")
+            else:
+                confirmacoes.append(f"RVOL {rvol:.2f}")
+
+            # Bloqueio extremo H4
+            if df4h is not None:
+                r4h    = df4h.iloc[-1]
+                adx_4h = float(r4h["adx"])
+                tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
+                h1_contra = (e10 < e21) if direcao=="LONG" else (e10 > e21)
+                contra_h4 = (direcao=="LONG" and not tend_h4) or (direcao=="SHORT" and tend_h4)
+                if contra_h4 and adx_4h > 35 and h1_contra and not bos and rvol < 1.2:
+                    motivos.append(f"Bloqueio extremo H4 ADX={adx_4h:.0f}")
+
+            score_min = 75
+            rvol_min  = 1.5
+
+        # ── SETUP 3: CRUZAMENTO ──────────────────────────────────────────────
+        elif regime == "CRUZAMENTO":
+            e10_ant = float(df["ema10"].iloc[-4])
+            e21_ant = float(df["ema21"].iloc[-4])
+            cruzou = (e10_ant<=e21_ant and e10>e21) if direcao=="LONG" else (e10_ant>=e21_ant and e10<e21)
+            if not cruzou:     motivos.append("EMA10/21 não cruzou recentemente")
+            else:              confirmacoes.append("EMA10 cruzou EMA21")
+            if not macd_ok:    motivos.append("MACD não acelerando")
+            else:              confirmacoes.append("MACD acelerando")
+            if not vol_cresc:  motivos.append("Volume não crescente")
+            else:              confirmacoes.append("Volume crescente")
+            if rvol < 1.3:     motivos.append(f"RVOL {rvol:.2f} < 1.3")
+            else:              confirmacoes.append(f"RVOL {rvol:.2f}")
+            # Timing — máximo 3 velas após cruzamento
+            dist_ema = abs(c - e21) / atr if atr > 0 else 0
+            if dist_ema > 2.0: motivos.append(f"Entrada atrasada {dist_ema:.1f} ATR da EMA21")
+            score_min = 70
+            rvol_min  = 1.3
+
+        # ── SETUP 4: LATERAL ─────────────────────────────────────────────────
+        elif regime == "LATERAL":
+            if not bos:        motivos.append("Sem rompimento confirmado (BOS)")
+            else:              confirmacoes.append("Rompimento BOS")
+            if not vol_cresc:  motivos.append("Volume fraco para rompimento")
+            else:              confirmacoes.append("Volume forte")
+            if rvol < 2.0:     motivos.append(f"RVOL {rvol:.2f} < 2.0 (lateral exige volume)")
+            else:              confirmacoes.append(f"RVOL {rvol:.2f}")
+            score_min = 80
+            rvol_min  = 2.0
+
+        # ── SETUP 5: TRANSIÇÃO ───────────────────────────────────────────────
+        else:  # TRANSICAO
+            if not bos:        motivos.append("Aguardar BOS/CHoCH de confirmação")
+            else:              confirmacoes.append("BOS confirmado")
+            if not vol_cresc:  motivos.append("Aguardar volume")
+            else:              confirmacoes.append("Volume aumentando")
+            if rvol < 1.2:     motivos.append(f"RVOL {rvol:.2f} insuficiente")
+            else:              confirmacoes.append(f"RVOL {rvol:.2f}")
+            score_min = 72
+            rvol_min  = 1.2
+
+        return motivos, confirmacoes, score_min, rvol_min
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASSO 4 — NÍVEIS
     # ─────────────────────────────────────────────────────────────────────────
     def _calcular_niveis(self, df, direcao):
         r   = df.iloc[-1]
@@ -211,70 +294,58 @@ class K10Engine:
         atr = float(r["atr"])
 
         if direcao == "LONG":
-            # Stop: mínimo dos últimos 5 candles - 0.1 ATR (stop justo)
-            swing_low  = float(df["low"].iloc[-5:].min())
+            swing_low = float(df["low"].iloc[-5:].min())
             stop = round(swing_low - atr*0.1, 6)
-            # Se stop ficou muito longe, usar 1.0 ATR fixo
-            if abs(c - stop) > atr * 1.5:
-                stop = round(c - atr*1.0, 6)
-            # TP1: 2.5x o risco real
+            if abs(c - stop) > atr*1.5: stop = round(c - atr*1.0, 6)
             risco = abs(c - stop)
-            tp1 = round(c + risco * 2.5, 6)
+            tp1 = round(c + risco*2.5, 6)
         else:
             swing_high = float(df["high"].iloc[-5:].max())
             stop = round(swing_high + atr*0.1, 6)
-            if abs(stop - c) > atr * 1.5:
-                stop = round(c + atr*1.0, 6)
+            if abs(stop - c) > atr*1.5: stop = round(c + atr*1.0, 6)
             risco = abs(stop - c)
-            tp1 = round(c - risco * 2.5, 6)
+            tp1 = round(c - risco*2.5, 6)
 
-        rr = round(abs(tp1 - c) / abs(stop - c), 2) if stop != c else 0
-        return c, stop, tp1, atr
+        rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
+        return c, stop, tp1, atr, rr
 
     # ─────────────────────────────────────────────────────────────────────────
-    # SCORE FINAL
+    # PASSO 5 — SCORE
     # ─────────────────────────────────────────────────────────────────────────
-    def _score_final(self, score_virada, rr, rvol, adx, n_confs,
-                      eh_reversao=False, bos_ok=False, pullback_ok=False):
-        """
-        Score RFC V4 — penalidade de reversão + bônus RVOL institucional
-        """
-        score = score_virada
+    def _calcular_score(self, df, regime, direcao, rvol, adx, rr, n_confs):
+        r   = df.iloc[-1]
+        rsi = float(r["rsi"])
+        macd_h  = float(r["macd_hist"])
+        macd_h2 = float(df["macd_hist"].iloc[-4])
 
-        # RR
-        if rr < 1.5:
-            score -= 15
+        # Base por confirmações
+        score = n_confs * 12
 
-        # RVOL — bônus por volume institucional (RFC V4)
-        if rvol >= 3.0:
-            score += 10   # bônus máximo
-        elif rvol >= 2.0:
-            score += 7    # bônus qualidade
-        elif rvol >= 1.2:
-            score += 4    # bônus moderado
-        elif rvol >= 0.8:
-            score += 1    # pequeno bônus
-        elif rvol < 0.6:
-            score -= 8
+        # Bônus RVOL
+        if rvol >= 3.0:   score += 10
+        elif rvol >= 2.0: score += 7
+        elif rvol >= 1.5: score += 4
+        elif rvol >= 1.2: score += 2
 
-        # ADX
-        if adx < 15:
-            score -= 8
+        # Bônus ADX
+        if adx >= 30:     score += 8
+        elif adx >= 25:   score += 5
+        elif adx < 15:    score -= 8
 
-        # Confirmações extras
-        score += min(n_confs, 3) * 2
+        # Bônus RR
+        if rr >= 2.5:     score += 5
+        elif rr < 2.0:    score -= 10
 
-        # Penalidade de reversão (RFC V4)
-        if eh_reversao:
-            penalidade = 4  # padrão 3-5 pts
-            # Remover penalidade se BOS/CHoCH + Pullback + RVOL >= 2.0
-            if bos_ok and pullback_ok and rvol >= 2.0:
-                penalidade = 0
-            score -= penalidade
+        # MACD acelerando
+        macd_acel = (macd_h > macd_h2 and macd_h > 0) if direcao=="LONG" else (macd_h < macd_h2 and macd_h < 0)
+        if macd_acel: score += 5
+
+        # RSI zona certa
+        if direcao=="LONG"  and 40 <= rsi <= 65: score += 3
+        if direcao=="SHORT" and 35 <= rsi <= 60: score += 3
 
         score = max(0, min(90, score))
 
-        # RFC Core Freeze V1 — Classificação padrão
         if score >= 85:   tier = "OURO"
         elif score >= 75: tier = "PRATA"
         elif score >= 70: tier = "BRONZE"
@@ -286,343 +357,94 @@ class K10Engine:
     # GESTÃO DE BANCA
     # ─────────────────────────────────────────────────────────────────────────
     def _gestao_banca(self, score, entrada, stop, atr):
-        if score >= 82:   alav = 20
-        elif score >= 72: alav = 15
-        elif score >= 62: alav = 10
+        if score >= 85:   alav = 20
+        elif score >= 75: alav = 15
+        elif score >= 70: alav = 10
         else:             alav = 8
         risco = round(BANCA * RISCO_PCT / 100, 2)
         dist  = abs(entrada - stop) / entrada if entrada else 0.01
-        # Posição = risco / distância, limitada a 3x a banca
-        pos   = round(risco / dist, 2) if dist > 0 else 0
-        pos   = min(pos, BANCA * 3)  # nunca mais que 3x a banca
-        return {"alavancagem": alav, "capital": BANCA, "posicao": pos,
-                "risco_usdt": risco, "banca": BANCA}
+        pos   = round(min(risco / dist, BANCA * 3), 2) if dist > 0 else 0
+        return {"alavancagem":alav,"capital":BANCA,"posicao":pos,"risco_usdt":risco,"banca":BANCA}
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ANÁLISE POR TIMEFRAME
+    # ANÁLISE PRINCIPAL
     # ─────────────────────────────────────────────────────────────────────────
+    def analisar(self, symbol, timeframe=None):
+        tfs = [timeframe] if timeframe else ["30m","1h"]
+        resultados = [self._analisar_tf(symbol, tf) for tf in tfs]
+        aprovados  = [r for r in resultados if r.get("aprovado")]
+        if aprovados:
+            return max(aprovados, key=lambda x: x["score"])
+        return max(resultados, key=lambda x: x["score"])
 
-
-
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # RFC K11 V4.0 — RVOL AUDITADO + ADAPTATIVO
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _calcular_rvol_auditado(self, df, symbol, tf):
-        """
-        Calcula RVOL com validações completas.
-        Retorna (rvol, valido, detalhes)
-        """
-        try:
-            v        = df["close"].copy()  # usar volume
-            vol_ser  = df["volume"]
-            
-            # Usar penúltima vela (fechada), não a atual (em formação)
-            vol_atual = float(vol_ser.iloc[-2])
-            sma20     = float(vol_ser.iloc[-21:-1].mean())  # 20 velas fechadas
-
-            # Validações
-            if sma20 <= 0 or np.isnan(sma20):
-                return 1.0, False, "SMA20=0 ou NaN — RVOL_INVALID"
-            if vol_atual <= 0 or np.isnan(vol_atual):
-                return 1.0, False, "Volume=0 ou NaN — RVOL_INVALID"
-            if len(vol_ser) < 21:
-                return 1.0, False, "Menos de 21 velas — RVOL_INVALID"
-
-            rvol = round(vol_atual / sma20, 3)
-            detalhes = {
-                "vol_atual": round(vol_atual, 0),
-                "sma20":     round(sma20, 0),
-                "rvol":      rvol,
-            }
-            return rvol, True, detalhes
-
-        except Exception as e:
-            return 1.0, False, f"Erro RVOL: {e}"
-
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # RFC ADAPTATIVO CONTROLADO V1 — DETECTOR DE REGIME
-    # ─────────────────────────────────────────────────────────────────────────
-    def _detectar_regime_mercado(self, df):
-        """
-        Detecta o regime atual do mercado para adaptar filtros.
-        Retorna: (regime, rvol_min, score_min, prioridade)
-        Regras base nunca mudam — só limites de RVOL e score mínimo.
-        """
-        r    = df.iloc[-1]
-        adx  = float(r["adx"])
-        e10  = float(r["ema10"])
-        e21  = float(r["ema21"])
-        e50  = float(r["ema50"])
-        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
-        macd_h  = float(r["macd_hist"])
-        macd_h2 = float(df["macd_hist"].iloc[-3])
-        c    = float(r["close"])
-        atr  = float(r["atr"])
-
-        vol_crescente = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
-        emas_alinhadas = (e10 > e21 > e50) or (e10 < e21 < e50)
-
-        # CHoCH/BOS
-        highs = float(df["high"].rolling(10).max().iloc[-5])
-        lows  = float(df["low"].rolling(10).min().iloc[-5])
-        bos   = c > highs or c < lows
-        macd_virando = (macd_h > 0 and macd_h2 <= 0) or (macd_h < 0 and macd_h2 >= 0)
-        pullback = abs(c - e21) / atr <= 1.5 if atr > 0 else False
-
-        # 1. TENDÊNCIA
-        if adx >= 25 and emas_alinhadas and vol_crescente:
-            return "TENDENCIA", 1.2, 70, "CONTINUACAO"
-
-        # 2. REVERSÃO
-        if bos and macd_virando and pullback and vol_crescente:
-            return "REVERSAO", 1.5, 70, "REVERSAO_FORTE" if rvol >= 3.0 else "REVERSAO"
-
-        # 3. LATERAL
-        if adx < 18 and not emas_alinhadas:
-            return "LATERAL", 1.5, 80, "LATERAL"
-
-        # 4. DEFAULT
-        return "NEUTRO", 1.2, 70, "NORMAL"
-
-    def _ajustar_rvol_baixo_volume(self, rvol_min, rvol_mercado):
-        """
-        Se mercado com volume baixo: reduzir exigência até 20%, nunca abaixo de 0.6
-        """
-        if rvol_mercado < 0.8:
-            return max(0.6, rvol_min * 0.80)
-        return rvol_min
-
-    def _filtro_tf_institucional(self, df, direcao, entrada, tp1, df4h=None, rr=0,
-                                  rvol_auditado=None, rvol_valido=True,
-                                  market_low_volume=False):
-        r       = df.iloc[-1]
-        motivos = []
-
-        c       = float(r["close"])
-        e10     = float(r["ema10"])
-        e21     = float(r["ema21"])
-        e50     = float(r["ema50"])
-        atr     = float(r["atr"])
-        adx     = float(r["adx"])
-        rsi     = float(r["rsi"])
-        rvol    = rvol_auditado if rvol_auditado is not None else (
-                  float(r["rvol"]) if not np.isnan(r["rvol"]) else 1.0)
-        macd_h  = float(r["macd_hist"])
-        macd_h2 = float(df["macd_hist"].iloc[-3])
-        rsi_ant = float(df["rsi"].iloc[-3])
-
-        # ── CONFLUÊNCIA BASE ─────────────────────────────────────────────────
-        conf = 0
-        ema_virando  = (e10 > e21) if direcao=="LONG" else (e10 < e21)
-        macd_ok      = (macd_h > 0 and macd_h > macd_h2) if direcao=="LONG" else (macd_h < 0 and macd_h < macd_h2)
-        rsi_ok       = (rsi > rsi_ant) if direcao=="LONG" else (rsi < rsi_ant)
-        highs        = float(df["high"].rolling(10).max().iloc[-5])
-        lows         = float(df["low"].rolling(10).min().iloc[-5])
-        bos_ok       = (c > highs) if direcao=="LONG" else (c < lows)
-        dist_ema21   = abs(c - e21) / atr if atr > 0 else 99
-        pullback_ok  = dist_ema21 <= 1.5
-        vol_crescente= float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-2])
-
-        if ema_virando:   conf += 1
-        if macd_ok:       conf += 1
-        if rsi_ok:        conf += 1
-        if bos_ok:        conf += 1
-        if pullback_ok:   conf += 1
-        if vol_crescente: conf += 1
-
-        forte_conf = conf >= 4
-
-        # Score estimado para regra de decisão RVOL
-        score_alto = False  # será preenchido pelo caller se score >= 80
-
-        # ── 1. RVOL ADAPTATIVO ───────────────────────────────────────────────
-        tendencia_local = (e10 > e21 > e50) if direcao=="LONG" else (e10 < e21 < e50)
-        eh_reversao = not tendencia_local
-
-        # Limite base
-        rvol_base = 1.15 if eh_reversao else 0.90
-        # Reduzir 20% em MARKET_LOW_VOLUME, nunca abaixo de 0.60
-        if market_low_volume:
-            rvol_base = max(0.60, rvol_base * 0.80)
-        # Alta confluência reduz o exigido
-        if forte_conf:
-            rvol_base = max(0.60, rvol_base * 0.75)
-
-        # Se RVOL inválido — não reprovar
-        if not rvol_valido:
-            pass  # RVOL_INVALID — não reprovar
-        elif rvol < rvol_base:
-            # RFC V4.0 regra 6: nunca bloquear se score alto + confluências fortes
-            qualidade_alta = (forte_conf and bos_ok and pullback_ok and macd_ok and rsi_ok and adx >= 20)
-            if qualidade_alta:
-                pass  # penalidade de score aplicada pelo caller (-5 pts)
-            elif conf < 3:
-                motivos.append(f"RVOL {rvol:.2f} < {rvol_base:.2f} com confluência fraca ({conf}/6)")
-
-        # ── 2. ADX ──────────────────────────────────────────────────────────
-        di_p = float(r["di_p"]) if "di_p" in df.columns else 0
-        di_n = float(r["di_n"]) if "di_n" in df.columns else 0
-        di_sem_dir = abs(di_p - di_n) < 5
-        if adx < 18 and di_sem_dir and conf < 3:
-            motivos.append(f"Mercado lateral (ADX {adx:.1f}) sem confluência")
-
-        # ── 3. EMAs ──────────────────────────────────────────────────────────
-        # V4.3.1: bloqueio de EMAs removido — tratado na hierarquia H4
-
-        # ── 4. MACD ──────────────────────────────────────────────────────────
-        if not macd_ok and conf < 3:
-            motivos.append("MACD sem direção e confluência insuficiente")
-
-        # ── 5. TIMING ────────────────────────────────────────────────────────
-        if tp1 != entrada:
-            pct = abs(c - entrada) / abs(tp1 - entrada) * 100
-            if pct > 30:
-                motivos.append(f"Sinal atrasado {pct:.0f}%")
-
-        # ── 6. H4 ───────────────────────────────────────────────────────────
-        if df4h is not None:
-            r4h    = df4h.iloc[-1]
-            adx_4h = float(r4h["adx"])
-            tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
-
-        return motivos, conf
-
-    def _analisar_tf(self, symbol, tf="1h", market_low_volume=False):
-        lim = 200 if tf in ("4h","1d") else 300
+    def _analisar_tf(self, symbol, tf="1h"):
+        lim = 300
         try:
             df   = self._calc(self._fetch(symbol, tf, limit=lim))
             df4h = self._calc(self._fetch(symbol, "4h", limit=100))
         except Exception as e:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0,
-                    "rvol":0,"adx":0,"vol_atual":0,"sma20_vol":0}
+                    "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0,"rvol":0}
 
         r    = df.iloc[-1]
         adx  = float(r["adx"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
 
-        # RVOL auditado
-        rvol, rvol_valido, rvol_det = self._calcular_rvol_auditado(df, symbol, tf)
+        # PASSO 1: Regime
+        regime = self._identificar_regime(df)
 
-        # Adaptativo V1 — detector de regime
-        try:
-            regime_mercado, _, score_minimo, prioridade_regime = self._detectar_regime_mercado(df)
-        except Exception:
-            regime_mercado = "NEUTRO"
-            score_minimo   = 70
-            prioridade_regime = "NORMAL"
+        # Transição: modo observação — não emitir sinal
+        if regime == "TRANSICAO":
+            return {"symbol":symbol,"aprovado":False,"score":0,"regime":regime,
+                    "motivos_rejeicao":["Transição — aguardar confirmação"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
 
-        direcao, tipo, score_virada, confirmacoes = self._detectar_virada(df)
-        if direcao is None:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":confirmacoes,"timeframe":tf,"direcao":"—","rr":0,
-                    "rvol":rvol,"adx":adx,"vol_atual":0,"sma20_vol":0}
+        # PASSO 2: Direção
+        direcao = self._definir_direcao(df, regime)
 
-        entrada, stop, tp1, atr = self._calcular_niveis(df, direcao)
-        rr = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
-        # RFC V4: detectar reversão e BOS/Pullback para score
-        e10_s = float(df.iloc[-1]["ema10"])
-        e21_s = float(df.iloc[-1]["ema21"])
-        e50_s = float(df.iloc[-1]["ema50"])
-        atr_s = float(df.iloc[-1]["atr"])
-        c_s   = float(df.iloc[-1]["close"])
-        tendencia_local = (e10_s > e21_s > e50_s) if direcao=="LONG" else (e10_s < e21_s < e50_s)
-        eh_reversao_s   = not tendencia_local
-        highs_s = float(df["high"].rolling(10).max().iloc[-5])
-        lows_s  = float(df["low"].rolling(10).min().iloc[-5])
-        bos_s   = (c_s > highs_s) if direcao=="LONG" else (c_s < lows_s)
-        pull_s  = abs(c_s - e21_s) / atr_s <= 1.5 if atr_s > 0 else False
-        score, tier = self._score_final(score_virada, rr, rvol, adx, len(confirmacoes),
-                                        eh_reversao=eh_reversao_s, bos_ok=bos_s, pullback_ok=pull_s)
+        # PASSO 3: Filtros do setup
+        motivos, confirmacoes, score_min, rvol_min = self._filtrar_por_setup(df, df4h, regime, direcao)
 
-        motivos = []
+        # PASSO 4: Níveis
+        entrada, stop, tp1, atr, rr = self._calcular_niveis(df, direcao)
 
-        # Filtro V4.0
-        falhas, conf = self._filtro_tf_institucional(
-            df, direcao, entrada, tp1, df4h, rr=rr,
-            rvol_auditado=rvol, rvol_valido=rvol_valido,
-            market_low_volume=market_low_volume
-        )
-        # Processar marcadores RFC V4.3.1
-        penalidade_extra = 0
-        falhas_reais     = []
-        nivel_decisao    = 0
-        log_reversao     = ""
+        # PASSO 5: Score
+        score, tier = self._calcular_score(df, regime, direcao, rvol, adx, rr, len(confirmacoes))
 
-        for f in falhas:
-            if f == "__PENALIDADE_REVERSAO_5__":
-                penalidade_extra += 5
-            elif f.startswith("__NIVEL_1__"):
-                falhas_reais.append(f.replace("__NIVEL_1__ ",""))
-                nivel_decisao = 1
-            elif f == "__NIVEL_2_OK__":
-                nivel_decisao = 2   # aprovado
-            elif f == "__NIVEL_3_OK__":
-                nivel_decisao = 3   # aprovado
-            elif f.startswith("__LOG_REVERSAO__"):
-                log_reversao = f    # guardar para retorno
-            else:
-                falhas_reais.append(f)
-
-        motivos.extend(falhas_reais)
-
-        if penalidade_extra > 0:
-            score = max(0, score - penalidade_extra)
-            nivel_decisao = 4
-            if score >= 82:   tier = "OURO"
-            elif score >= 72: tier = "PRATA"
-            elif score >= 62: tier = "BRONZE"
-            else:             tier = "ABAIXO"
-
-        # Penalidade de score se RVOL baixo mas qualidade alta
-        if rvol < 0.70 and rvol_valido:
-            score = max(0, score - 5)
-
-        # Adaptativo V1 — Score mínimo por regime
-        try:
-            regime_mercado, _, score_minimo, _ = self._detectar_regime_mercado(df)
-        except Exception:
-            regime_mercado = "NEUTRO"
-            score_minimo   = 70
-
-        if score < score_minimo:
-            motivos.append(f"Score {score} < {score_minimo} (regime {regime_mercado})")
-
-        # RR mínimo 2.0
+        # Checagem final
+        if score < score_min:
+            motivos.append(f"Score {score} < {score_min} ({regime})")
         if rr < 2.0:
             motivos.append(f"RR {rr} < 2.0")
 
         aprovado = len(motivos) == 0
 
-        e10_v = float(r["ema10"]); e21_v = float(r["ema21"]); e50_v = float(r["ema50"])
-        if   e10_v > e21_v > e50_v and direcao=="LONG":   regime_label = "Tendência Alta ↑"
-        elif e10_v < e21_v < e50_v and direcao=="SHORT":  regime_label = "Tendência Baixa ↓"
-        elif e10_v < e21_v < e50_v and direcao=="LONG":   regime_label = "Reversão ↗"
-        elif e10_v > e21_v > e50_v and direcao=="SHORT":  regime_label = "Reversão ↘"
-        elif adx < 18:                                     regime_label = "Lateral ↔"
-        else:                                              regime_label = "Transição"
-
-        if score >= 80:   prioridade = "🔥 PREMIUM"
-        elif score >= 75: prioridade = "⭐ PRIORITÁRIO"
-        else:             prioridade = ""
-
+        # Labels
+        regime_labels = {
+            "CONTINUACAO": "Continuação ↑" if direcao=="LONG" else "Continuação ↓",
+            "REVERSAO":    "Reversão ↗" if direcao=="LONG" else "Reversão ↘",
+            "CRUZAMENTO":  "Cruzamento EMA",
+            "LATERAL":     "Lateral ↔",
+            "TRANSICAO":   "Transição",
+        }
         conv_map = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}
-        gb = self._gestao_banca(score, entrada, stop, atr)
 
-        vol_det = rvol_det if isinstance(rvol_det, dict) else {}
+        if score >= 85 and rvol >= 3.0:   prioridade = "🔥 REVERSÃO FORTE"
+        elif score >= 85:                  prioridade = "🔥 PREMIUM"
+        elif score >= 75:                  prioridade = "⭐ PRIORITÁRIO"
+        else:                              prioridade = ""
+
+        gb = self._gestao_banca(score, entrada, stop, atr)
 
         return {
             "symbol":           symbol,
             "aprovado":         aprovado,
-            "setup_nome":       tipo,
-            "regime":           regime_label,
-            "prioridade":       prioridade,
+            "setup_nome":       regime,
+            "regime":           regime_labels.get(regime, regime),
             "direcao":          direcao,
             "score":            score,
             "tier":             tier,
             "conviccao":        conv_map.get(tier,"MODERADA 🔶"),
+            "prioridade":       prioridade,
             "entrada":          entrada,
             "stop":             stop,
             "tp1":              tp1,
@@ -632,20 +454,10 @@ class K10Engine:
             "rsi":              float(r["rsi"]),
             "atr":              atr,
             "rvol":             rvol,
-            "rvol_valido":      rvol_valido,
-            "vol_atual":        vol_det.get("vol_atual", 0),
-            "sma20_vol":        vol_det.get("sma20", 0),
-            "confluencia":      conf,
             "vwap":             float(r["vwap"]),
             "ema21":            float(r["ema21"]),
             "confirmacoes_smc": confirmacoes,
-            "nivel_decisao":    nivel_decisao,
-            "log_reversao":     log_reversao,
-            "regime_mercado":   regime_mercado,
-            "prioridade_regime":prioridade_regime,
-            "timing_pct":       0,
             "confluencia":      len(confirmacoes),
-            "rvol_bonus":       rvol >= 2.0,
             "motivos_rejeicao": motivos,
             "o_que_falta":      motivos,
             "timeframe":        tf,
@@ -653,20 +465,11 @@ class K10Engine:
             **gb,
         }
 
-
-    def analisar(self, symbol, timeframe=None):
-        # Core Freeze V1: 30m e 1h para entradas, 4h apenas contexto
-        tfs = [timeframe] if timeframe else ["30m","1h"]
-        resultados = [self._analisar_tf(symbol, tf) for tf in tfs]
-        aprovados  = [r for r in resultados if r.get("aprovado")]
-        if aprovados:
-            return max(aprovados, key=lambda x: x["score"])
-        return max(resultados, key=lambda x: x["score"])
-
     def analisar_tf(self, symbol, tf):
         return self._analisar_tf(symbol, tf)
 
     def obter_regime(self, symbol):
         df = self._calc(self._fetch(symbol, "1h"))
         r  = df.iloc[-1]
-        return {"regime":"K10","adx":float(r["adx"]),"atr":float(r["atr"])}
+        regime = self._identificar_regime(df)
+        return {"regime":regime,"adx":float(r["adx"]),"atr":float(r["atr"])}
