@@ -106,8 +106,8 @@ class K10Engine:
         candles_baixa = sum(1 for i in range(1, len(ultimos)) if ultimos[i] < ultimos[i-1])
 
         # Movimento consumido: quanto o preço já andou desde a última reversão
-        high_recente = float(df["high"].iloc[-20:].max())
-        low_recente  = float(df["low"].iloc[-20:].min())
+        high_recente = float(df["high"].iloc[-30:].max())
+        low_recente  = float(df["low"].iloc[-30:].min())
         range_total  = high_recente - low_recente
         if range_total > 0 and atr > 0:
             if direcao == "LONG":
@@ -118,34 +118,34 @@ class K10Engine:
             movimento_consumido = 0.5
 
         if direcao == "LONG":
-            if rsi > 68:
-                return False, f"Exaustão: RSI {rsi:.1f} > 68"
+            if rsi > 72:
+                return False, f"Exaustão: RSI {rsi:.1f} > 72"
             if c > float(r["bb_upper"]):
                 return False, "Exaustão: Preço acima da Banda Superior"
             if dist_ema21 > 1.5:
                 return False, f"Exaustão: Distância EMA21 = {dist_ema21:.2f} ATR > 1.5"
             if candles_alta >= 3:
                 return False, f"Exaustão: {candles_alta} candles consecutivos de alta"
-            if cmo > 60:
-                return False, f"Exaustão: CMO {cmo:.1f} > 60"
-            if movimento_consumido > 0.75:
+            if cmo > 70:
+                return False, f"Exaustão: CMO {cmo:.1f} > 70"
+            if movimento_consumido > 0.85:
                 return False, f"Movimento consumido: preço já está {movimento_consumido*100:.0f}% do range — compra no topo"
-            if stoch_rsi > 0.90:
+            if stoch_rsi > 0.95:
                 return False, f"StochRSI {stoch_rsi*100:.0f}% — sobrecomprado extremo, aguardar pullback"
         else:
-            if rsi < 32:
-                return False, f"Exaustão: RSI {rsi:.1f} < 32"
+            if rsi < 28:
+                return False, f"Exaustão: RSI {rsi:.1f} < 28"
             if c < float(r["bb_lower"]):
                 return False, "Exaustão: Preço abaixo da Banda Inferior"
             if dist_ema21 > 1.5:
                 return False, f"Exaustão: Distância EMA21 = {dist_ema21:.2f} ATR > 1.5"
             if candles_baixa >= 3:
                 return False, f"Exaustão: {candles_baixa} candles consecutivos de queda"
-            if cmo < -60:
-                return False, f"Exaustão: CMO {cmo:.1f} < -60"
-            if movimento_consumido > 0.75:
+            if cmo < -70:
+                return False, f"Exaustão: CMO {cmo:.1f} < -70"
+            if movimento_consumido > 0.85:
                 return False, f"Movimento consumido: preço já está {movimento_consumido*100:.0f}% do range — venda no fundo"
-            if stoch_rsi < 0.10:
+            if stoch_rsi < 0.05:
                 return False, f"StochRSI {stoch_rsi*100:.0f}% — sobrevendido extremo, aguardar bounce"
 
         return True, ""
@@ -214,7 +214,7 @@ class K10Engine:
         elif direcao == "SHORT" and c < o and candle_confirmacao:
             checklist.append("Candle de confirmação fechado")
 
-        aprovado = len(checklist) >= 3
+        aprovado = len(checklist) >= 2
         return aprovado, checklist, len(checklist)
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -276,13 +276,14 @@ class K10Engine:
             return True, ""
 
         if direcao == "LONG":
-            acelerando = hist[-1] > hist[-2] > hist[-3]
-            if not acelerando and hist[-1] < hist[-2]:
-                return False, "Momentum desacelerando (MACD histograma caindo)"
+            # Bloquear apenas se 3 candles seguidos desacelerando E histograma negativo
+            desacelerando = hist[-1] < hist[-2] < hist[-3] and hist[-1] < 0
+            if desacelerando:
+                return False, "Momentum desacelerando (MACD negativo e caindo há 3 períodos)"
         else:
-            acelerando = hist[-1] < hist[-2] < hist[-3]
-            if not acelerando and hist[-1] > hist[-2]:
-                return False, "Momentum desacelerando (MACD histograma subindo)"
+            desacelerando = hist[-1] > hist[-2] > hist[-3] and hist[-1] > 0
+            if desacelerando:
+                return False, "Momentum desacelerando (MACD positivo e subindo há 3 períodos)"
 
         return True, ""
 
@@ -566,8 +567,8 @@ class K10Engine:
         # ── GATE 2: ENTRADA PRECOCE ───────────────────────────────────────────
         precoce_ok, precoce_confs, precoce_cnt = self._gate_entrada_precoce(df30, direcao)
         if not precoce_ok:
-            motivos.append(f"Entrada precoce: apenas {precoce_cnt}/3 critérios confirmados")
-            falta.append("Mínimo 3 de: Pullback, BOS/CHoCH, Reteste, Volume, RVOL, MACD, EMA10x21, Candle")
+            motivos.append(f"Entrada precoce: apenas {precoce_cnt}/2 critérios confirmados")
+            falta.append("Mínimo 2 de: Pullback, BOS/CHoCH, Reteste, Volume, RVOL, MACD, EMA10x21, Candle")
 
         # ── GATE 3: DISTÂNCIA ─────────────────────────────────────────────────
         dist_ok, dist_msg = self._gate_distancia(df30, direcao, entrada, stop)
