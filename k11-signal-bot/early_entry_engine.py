@@ -16,7 +16,7 @@ class EarlyEntryEngine:
     Compara com engine principal para validar win rate.
     """
 
-    SHADOW_MODE = True  # True = só registra, False = envia sinal
+    SHADOW_MODE = False  # True = só registra, False = envia sinal
 
     def __init__(self):
         self.exchange = ccxt.mexc({
