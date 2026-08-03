@@ -1,10 +1,10 @@
 """
-K10 Formatter — Modo Adaptativo Institucional V1.0
+K10/K11 Formatter — Cartão limpo, só informações aprovadas
 """
 
-def formatar_cartao(r: dict) -> str:
+def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     if not r.get("aprovado"):
-        return formatar_rejeicao(r)
+        return None  # Não formatar rejeitados
 
     symbol  = r["symbol"].replace("/USDT:USDT","").replace("/USDT","")
     direcao = r["direcao"]
@@ -18,16 +18,17 @@ def formatar_cartao(r: dict) -> str:
     rr      = r["rr"]
     regime  = r.get("regime","—")
     setup   = r.get("setup_nome","—")
-    rsi     = r.get("rsi",0)
-    adx     = r.get("adx",0)
-    rvol    = r.get("rvol",0)
-    vwap_v  = r.get("vwap",entrada)
-    macd_h  = r.get("macd_hist",0)
-    smc     = r.get("confirmacoes_smc",[])
-    dist    = r.get("dist_entrada","—")
-    convicc = r.get("conviccao","—")
+    rsi     = r.get("rsi", 0)
+    adx     = r.get("adx", 0)
+    rvol    = r.get("rvol", 0)
+    smc     = r.get("confirmacoes_smc", [])
+    banca   = r.get("banca", 90)
+    capital = r.get("capital", 0)
+    posicao = r.get("posicao", 0)
+    alav    = r.get("alavancagem", 8)
+    duracao = {"30m":"4–8h","1h":"6–12h","4h":"24–48h","1d":"3–7d"}.get(tf,"6–12h")
 
-    dir_emoji = "🟢" if direcao=="LONG" else "🔴"
+    dir_emoji = "🟢 LONG" if direcao == "LONG" else "🔴 SHORT"
 
     tier_map = {
         "DIAMANTE": "💎 DIAMANTE",
@@ -35,9 +36,17 @@ def formatar_cartao(r: dict) -> str:
         "OURO":     "🥇 OURO",
         "PRATA":    "🥈 PRATA",
         "BRONZE":   "🥉 BRONZE",
-        "ABAIXO":   "⚪ BRONZE",
     }
-    tier_label = tier_map.get(tier,"🥉 BRONZE")
+    tier_label = tier_map.get(tier, "🥉 BRONZE")
+
+    conv_map = {
+        "DIAMANTE": "ELITE 🔥",
+        "PLATINA":  "MUITO ALTA 💎",
+        "OURO":     "ALTA ✅",
+        "PRATA":    "BOA ⚡",
+        "BRONZE":   "MODERADA 🔶",
+    }
+    convicc = conv_map.get(tier, "MODERADA 🔶")
 
     setup_label = {
         "TREND_FOLLOWING": "Trend Following",
@@ -46,29 +55,15 @@ def formatar_cartao(r: dict) -> str:
         "MEAN_REVERSION":  "Mean Reversion",
     }.get(setup, setup)
 
-    dist_emoji = {"EXCELENTE":"🟢","BOA":"🟡","ACEITÁVEL":"🟠","RUIM":"🔴"}.get(dist,"⚪")
+    # Só confirmações SMC aprovadas
+    smc_block = "\n".join(f"✅ {item}" for item in smc) if smc else "✅ Estrutura confirmada"
 
-    rsi_ok   = "✅" if 30 <= rsi <= 70 else "⚠️"
-    adx_ok   = "✅" if adx >= 20 else "⚠️"
-    rvol_ok  = "✅" if rvol >= 1.0 else "⚠️"
-    # MACD: em Range/Lateral, perto de zero é normal — só alerta se muito contra
-    if "Range" in setup or "Reversion" in setup:
-        macd_ok = "✅" if abs(macd_h) < abs(macd_h)*2 + 0.0001 else "⚠️"
-        macd_ok = "✅"  # em range, MACD neutro é esperado
-    else:
-        macd_ok = "✅" if (macd_h>0 and direcao=="LONG") or (macd_h<0 and direcao=="SHORT") else "⚠️"
-    vwap_pos = "Acima ✅" if (entrada>vwap_v and direcao=="LONG") or (entrada<vwap_v and direcao=="SHORT") else "Abaixo ⚠️"
-
-    smc_items = ["BOS","CHoCH","Order Block","FVG","Liquidity Sweep","Reteste EMA21","Breaker Block"]
-    smc_block = "\n".join(f"{'✅' if item in smc else '—'} {item}" for item in smc_items)
-
-    duracao = {"30m":"4–8h","1h":"6–12h","4h":"24–48h","1d":"3–7d"}.get(tf,"6–12h")
     sep = "━━━━━━━━━━━━━━"
 
     return (
-        f"🏆 K10\n\n"
+        f"🏆 {bot_name}\n\n"
         f"{symbol}\n\n"
-        f"{dir_emoji} {direcao} | {tf} | {tier_label}\n\n"
+        f"{dir_emoji} | {tf} | {tier_label}\n\n"
         f"⭐ Score: {score}\n"
         f"🤖 Convicção: {convicc}\n\n"
         f"{sep}\n\n"
@@ -78,44 +73,20 @@ def formatar_cartao(r: dict) -> str:
         f"🛑 Stop: {stop}\n"
         f"⚖️ RR: {rr}\n\n"
         f"{sep}\n\n"
-        f"📍 Distância: {dist_emoji} {dist}\n"
-        f"🌍 Regime: {regime}\n"
-        f"📊 Setup: {setup_label}\n"
-        f"⏱️ Duração: {duracao}\n\n"
+        f"🌍 {regime} | 📊 {setup_label}\n"
+        f"⏱️ {duracao}\n\n"
         f"{sep}\n\n"
-        f"{smc_label}\n\n"
+        f"📊 RSI: {rsi:.0f} | ADX: {adx:.0f} | RVOL: {rvol:.2f}\n\n"
         f"{smc_block}\n\n"
         f"{sep}\n\n"
-        f"Indicadores\n\n"
-        f"RSI: {rsi:.0f} {rsi_ok}\n"
-        f"ADX: {adx:.0f} {adx_ok}\n"
-        f"RVOL: {rvol:.2f} {rvol_ok}\n"
-        f"MACD: {macd_status}\n"
-        f"VWAP: {vwap_pos}\n\n"
+        f"💵 Capital: {capital} USDT | {alav}x\n"
+        f"📦 Posição: {posicao} USDT\n\n"
         f"{sep}\n\n"
-        f"INVALIDAR\n\n"
-        f"❌ Stop atingido antes da entrada\n"
-        f"❌ Preço percorreu >30% até TP1\n"
-        f"❌ Volume desaparece\n"
-        f"❌ Estrutura SMC invalidada\n\n"
-        f"{sep}\n\n"
-        f"K10 | Adaptativo Institucional"
+        f"❌ Invalidar se stop atingido\n"
+        f"❌ Invalidar se preço >30% do TP1\n\n"
+        f"{bot_name} | Adaptativo Institucional"
     )
 
 
 def formatar_rejeicao(r: dict) -> str:
-    symbol  = r["symbol"].replace("/USDT:USDT","").replace("/USDT","")
-    score   = r.get("score",0)
-    regime  = r.get("regime","—")
-    motivos = "\n".join(f"❌ {m}" for m in r.get("motivos_rejeicao",[]))
-    sep     = "━━━━━━━━━━━━━━"
-    return (
-        f"🔴 REJEITADO\n\n"
-        f"{symbol}\n\n"
-        f"{sep}\n\n"
-        f"Score: {score} | Regime: {regime}\n\n"
-        f"{sep}\n\n"
-        f"{motivos}\n\n"
-        f"{sep}\n\n"
-        f"K10 | Adaptativo Institucional"
-    )
+    return None  # Rejeitados não geram cartão
