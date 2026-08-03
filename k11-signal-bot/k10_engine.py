@@ -206,10 +206,10 @@ class K10Engine:
             else:              confirmacoes.append("Pullback EMA21")
             if not macd_ok:    motivos.append("MACD não confirmando")
             else:              confirmacoes.append("MACD confirmado")
-            if rvol < 1.2:     motivos.append(f"RVOL {rvol:.2f} < 1.2")
+            if rvol < 0.8:     motivos.append(f"RVOL {rvol:.2f} < 0.8")
             else:              confirmacoes.append(f"RVOL {rvol:.2f}")
             score_min = 75
-            rvol_min  = 1.2
+            rvol_min  = 0.8
 
         # ── SETUP 2: REVERSÃO ────────────────────────────────────────────────
         elif regime == "REVERSAO":
@@ -242,7 +242,7 @@ class K10Engine:
                     motivos.append(f"Bloqueio extremo H4 ADX={adx_4h:.0f}")
 
             score_min = 75
-            rvol_min  = 1.5
+            rvol_min  = 0.8
 
         # ── SETUP 3: CRUZAMENTO ──────────────────────────────────────────────
         elif regime == "CRUZAMENTO":
@@ -255,13 +255,13 @@ class K10Engine:
             else:              confirmacoes.append("MACD acelerando")
             if not vol_cresc:  motivos.append("Volume não crescente")
             else:              confirmacoes.append("Volume crescente")
-            if rvol < 1.3:     motivos.append(f"RVOL {rvol:.2f} < 1.3")
+            if rvol < 0.8:     motivos.append(f"RVOL {rvol:.2f} < 0.8")
             else:              confirmacoes.append(f"RVOL {rvol:.2f}")
             # Timing — máximo 3 velas após cruzamento
             dist_ema = abs(c - e21) / atr if atr > 0 else 0
             if dist_ema > 2.0: motivos.append(f"Entrada atrasada {dist_ema:.1f} ATR da EMA21")
             score_min = 70
-            rvol_min  = 1.3
+            rvol_min  = 0.8
 
         # ── SETUP 4: LATERAL ─────────────────────────────────────────────────
         elif regime == "LATERAL":
