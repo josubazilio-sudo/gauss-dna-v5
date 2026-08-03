@@ -71,7 +71,16 @@ class K10Scanner:
                 if result and result.get("aprovado") and result.get("score", 0) >= min_score:
                     aprovados.append(result)
 
-        aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
+        # RFC V4: Priorização — Score > RVOL > Timing > Confluência
+        def prioridade_v4(r):
+            score     = r.get("score", 0)
+            rvol      = r.get("rvol", 0)
+            timing    = 100 - r.get("timing_pct", 0)  # menor % = melhor timing
+            confluencia = r.get("confluencia", 0)
+            # Pesos: score (40%) + rvol (30%) + timing (20%) + confluencia (10%)
+            return score * 0.4 + min(rvol * 10, 30) * 0.3 + timing * 0.2 + confluencia * 0.1
+
+        aprovados.sort(key=prioridade_v4, reverse=True)
         logger.info(f"✅ Scan concluído: {len(aprovados)}/{total} ativos aprovados")
         return aprovados
 
@@ -87,7 +96,16 @@ class K10Scanner:
                 if result and result.get("aprovado") and result.get("score", 0) >= min_score:
                     aprovados.append(result)
 
-        aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
+        # RFC V4: Priorização — Score > RVOL > Timing > Confluência
+        def prioridade_v4(r):
+            score     = r.get("score", 0)
+            rvol      = r.get("rvol", 0)
+            timing    = 100 - r.get("timing_pct", 0)  # menor % = melhor timing
+            confluencia = r.get("confluencia", 0)
+            # Pesos: score (40%) + rvol (30%) + timing (20%) + confluencia (10%)
+            return score * 0.4 + min(rvol * 10, 30) * 0.3 + timing * 0.2 + confluencia * 0.1
+
+        aprovados.sort(key=prioridade_v4, reverse=True)
         return aprovados
 
     def formatar_resumo(self, aprovados: list, timeframe: str = "multi-tf") -> str:
