@@ -408,11 +408,19 @@ class K10Engine:
         base  = ALAVANCAGEM_POR_REGIME.get(r_key, 10)
         fator = max(0.5, min(1.0, 0.002/atr if atr > 0 else 1.0))
         alav  = max(8, min(25, round(base * fator)))
+        # Risco = 3% da banca
         risco = round(BANCA * RISCO_PCT / 100, 2)
+        # Posição = risco / distância percentual do stop
         dist  = abs(entrada - stop) / entrada if entrada else 0.01
-        pos   = round(min(risco/dist, BANCA*alav), 2) if dist > 0 else 0
-        cap   = round(pos/alav, 2)
-        return {"alavancagem":alav,"capital":cap,"posicao":pos,"risco_usdt":risco,"banca":BANCA}
+        pos   = round(risco / dist, 2) if dist > 0 else 0
+        # Capital = banca total disponível (90 USDT)
+        return {
+            "alavancagem": alav,
+            "capital":     BANCA,       # 90 USDT — banca total
+            "posicao":     pos,          # tamanho da posição pelo risco
+            "risco_usdt":  risco,        # 3% = 2.70 USDT em risco
+            "banca":       BANCA
+        }
 
     # ─────────────────────────────────────────────────────────────────────────
     # ANÁLISE PRINCIPAL
