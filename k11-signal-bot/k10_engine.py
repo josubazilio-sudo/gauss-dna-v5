@@ -548,7 +548,7 @@ class K10Engine:
             "direcao":          direcao,
             "score":            score,
             "tier":             tier,
-            "conviccao":        conv(score),
+            "conviccao":        conv(score, tier),
             "entrada":          entrada,
             "stop":             stop,
             "tp1":              tp1,
