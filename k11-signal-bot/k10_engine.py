@@ -537,7 +537,10 @@ class K10Engine:
                 motivos.append(f"Contra tendência H4={tend_4h} D1={tend_1d}")
 
         # ── 4. Níveis ──────────────────────────────────────────────────────
-        entrada, stop, tp1, tp2, tp3, rr, atr = self._calcular_niveis(df, direcao)
+        entrada, stop, tp1, atr = self._calcular_niveis(df, direcao)
+        rr = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
+        tp2 = tp1
+        tp3 = tp1
 
         # ── 5. Distância ───────────────────────────────────────────────────
         dist_label, dist_score = self._avaliar_distancia(entrada, entrada, tp1)
