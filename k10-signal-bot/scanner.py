@@ -1,9 +1,8 @@
 """
-K10 Scanner — Varredura multi-timeframe em paralelo
-Analisa 300-500 futuros USDT com rate limit respeitado
+K10 Scanner V11 — MEXC Futuros USDT
+Escaneia 300-500 pares nos timeframes 30m | 1h | 4h | 1d
 """
 
-import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -12,38 +11,39 @@ from watchlist import get_watchlist, WATCHLIST_FALLBACK
 
 logger = logging.getLogger(__name__)
 
+TIMEFRAMES = ["30m", "1h", "4h", "1d"]
+
 
 class K10Scanner:
-    def __init__(self, max_workers: int = 8):
-        self.engine     = K10Engine()
+    def __init__(self, max_workers: int = 6):
+        self.engine      = K10Engine()
         self.max_workers = max_workers
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Análise de um único ativo (thread-safe)
-    # ─────────────────────────────────────────────────────────────────────────
-    def _analisar_safe(self, symbol: str) -> dict | None:
+    def _analisar_safe(self, symbol: str, tf: str = None) -> dict | None:
         try:
-            result = self.engine.analisar(symbol)
+            result = self.engine.analisar(symbol, tf)
             return result
         except Exception as e:
             logger.warning(f"Erro {symbol}: {e}")
             return None
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Scan completo
-    # ─────────────────────────────────────────────────────────────────────────
     def scan(
         self,
-        min_score: int = 60,
-        min_volume: float = 1_000_000,
+        min_score: int  = 70,
+        min_volume: float = 500_000,
         max_ativos: int = 500,
+        timeframes: list = None,
         progress_callback=None,
     ) -> list:
         """
-        Varre até max_ativos futuros USDT.
-        Retorna lista de sinais aprovados ordenados por score.
+        Varre até max_ativos futuros USDT na MEXC.
+        Para cada ativo analisa 30m, 1h, 4h e 1d.
+        Retorna os melhores sinais aprovados por ativo, ordenados por score.
         """
-        logger.info("🔍 Buscando watchlist de futuros...")
+        if timeframes is None:
+            timeframes = TIMEFRAMES
+
+        logger.info("🔍 Buscando watchlist MEXC futuros...")
         watchlist = get_watchlist(min_volume_usdt=min_volume)
 
         if not watchlist:
@@ -52,13 +52,14 @@ class K10Scanner:
 
         watchlist = watchlist[:max_ativos]
         total     = len(watchlist)
-        logger.info(f"📋 {total} ativos para analisar")
+        logger.info(f"📋 {total} ativos × {len(timeframes)} TFs = {total*len(timeframes)} análises")
 
+        # Para cada ativo, pega o melhor sinal entre os TFs
         aprovados  = []
         analisados = 0
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {executor.submit(self._analisar_safe, s): s for s in watchlist}
+            futures = {executor.submit(self._analisar_safe, s, None): s for s in watchlist}
 
             for future in as_completed(futures):
                 analisados += 1
@@ -71,24 +72,28 @@ class K10Scanner:
                     aprovados.append(result)
 
         aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
-        logger.info(f"✅ Scan concluído: {len(aprovados)}/{total} aprovados")
+        logger.info(f"✅ Scan concluído: {len(aprovados)}/{total} ativos aprovados")
         return aprovados
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Scan por timeframe específico
-    # ─────────────────────────────────────────────────────────────────────────
-    def scan_timeframe(self, tf: str = "30m", **kwargs) -> list:
-        """Permite filtrar sinais de um timeframe específico"""
-        results = self.scan(**kwargs)
-        return [r for r in results if r.get("timeframe") == tf]
+    def scan_tf(self, tf: str, min_score: int = 70, max_ativos: int = 500) -> list:
+        """Scan em um timeframe específico"""
+        watchlist = get_watchlist()[:max_ativos] or WATCHLIST_FALLBACK
+        aprovados = []
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Resumo formatado para Telegram
-    # ─────────────────────────────────────────────────────────────────────────
-    def formatar_resumo(self, aprovados: list, timeframe: str = "todos") -> str:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {executor.submit(self._analisar_safe, s, tf): s for s in watchlist}
+            for future in as_completed(futures):
+                result = future.result()
+                if result and result.get("aprovado") and result.get("score", 0) >= min_score:
+                    aprovados.append(result)
+
+        aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
+        return aprovados
+
+    def formatar_resumo(self, aprovados: list, timeframe: str = "multi-tf") -> str:
         if not aprovados:
             return (
-                "🔎 *K10 SCAN CONCLUÍDO*\n\n"
+                "🔎 *K10 SCAN MEXC — SEM SINAIS*\n\n"
                 "Nenhum sinal aprovado no momento.\n"
                 "Mercado sem confluência suficiente.\n\n"
                 f"⏰ `{datetime.now().strftime('%d/%m/%Y %H:%M')}`"
@@ -96,26 +101,25 @@ class K10Scanner:
 
         sep = "━━━━━━━━━━━━━━━━━━━━"
         linhas = [
-            f"🏆 *K10 SCAN — {len(aprovados)} SINAL(IS) APROVADO(S)*\n",
+            f"🏆 *K10 SCAN MEXC — {len(aprovados)} SINAL(IS)*\n",
             f"⏰ `{datetime.now().strftime('%d/%m/%Y %H:%M')}` | TF: {timeframe}\n",
             sep,
         ]
 
-        for i, r in enumerate(aprovados[:10], 1):  # top 10
+        for i, r in enumerate(aprovados[:10], 1):
             dir_emoji = "🟢" if r["direcao"] == "LONG" else "🔴"
-            tier = "💎" if r["score"] >= 90 else "⭐" if r["score"] >= 80 else "✔️"
+            tier = r.get("tier","BRONZE")
+            tier_e = "💎" if tier=="DIAMANTE" else "🥇" if tier=="OURO" else "🥈" if tier=="PRATA" else "🥉"
+            sym = r["symbol"].replace("/USDT:USDT","").replace("/USDT","")
+            tf  = r.get("timeframe","30m")
             linhas.append(
-                f"\n{i}. {tier} *{r['symbol'].replace('/','').replace(':USDT','')}* "
-                f"{dir_emoji} {r['direcao']}\n"
-                f"   Setup: {r['setup_nome']}\n"
+                f"\n{i}. {tier_e} *{sym}* {dir_emoji} {r['direcao']} | {tf}\n"
                 f"   Score: {r['score']} | RR: {r['rr']}\n"
-                f"   Entrada: `{r['entrada']}` | Stop: `{r['stop']}`\n"
-                f"   TP1: `{r['tp1']}` | TP2: `{r.get('tp2','—')}`"
+                f"   Entrada: `{r['entrada']}` → TP1: `{r['tp1']}`"
             )
 
         if len(aprovados) > 10:
-            linhas.append(f"\n\n_...e mais {len(aprovados)-10} sinais. Use /analisar SYMBOL para detalhes._")
+            linhas.append(f"\n\n_...e mais {len(aprovados)-10} sinais._")
 
-        linhas.append(f"\n\n{sep}")
-        linhas.append("\nUse `/analisar SYMBOL` para o cartão completo.")
+        linhas.append(f"\n\n{sep}\nUse `/analisar SYMBOL` para o cartão completo.")
         return "\n".join(linhas)

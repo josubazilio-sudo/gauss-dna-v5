@@ -13,7 +13,7 @@ from scoring import calcular_score, TIER_EMOJI, TIER_RANK
 
 class K10Engine:
     def __init__(self):
-        self.exchange = ccxt.binance({"enableRateLimit": True})
+        self.exchange = ccxt.mexc({"enableRateLimit": True, "options": {"defaultType": "swap"}})
 
     # ─────────────────────────────────────────────────────────────────────────
     # DADOS
@@ -529,21 +529,40 @@ class K10Engine:
     # ─────────────────────────────────────────────────────────────────────────
     # ANÁLISE PRINCIPAL V11
     # ─────────────────────────────────────────────────────────────────────────
-    def analisar(self, symbol: str) -> dict:
+    def analisar(self, symbol: str, timeframe: str = None) -> dict:
+        """
+        Se timeframe=None, analisa 30m/1h/4h/1d e retorna o melhor sinal aprovado.
+        Se timeframe específico, analisa apenas aquele.
+        """
+        tfs_para_analisar = [timeframe] if timeframe else ["30m", "1h", "4h", "1d"]
+        resultados = []
+        for tf in tfs_para_analisar:
+            r = self._analisar_tf(symbol, tf)
+            resultados.append(r)
+        # Retornar o melhor aprovado, ou o de maior score se nenhum aprovado
+        aprovados = [r for r in resultados if r.get("aprovado")]
+        if aprovados:
+            return max(aprovados, key=lambda x: x["score"])
+        return max(resultados, key=lambda x: x["score"])
+
+    def _analisar_tf(self, symbol: str, tf: str = "30m") -> dict:
+        limit_superior = 200 if tf in ("4h","1d") else 300
         try:
-            df30 = self._calc(self._fetch(symbol, "30m"))
-            df4h = self._calc(self._fetch(symbol, "4h",  limit=200))
-            df1d = self._calc(self._fetch(symbol, "1d",  limit=200))
+            df_tf = self._calc(self._fetch(symbol, tf, limit=limit_superior))
+            df4h  = self._calc(self._fetch(symbol, "4h", limit=200))
+            df1d  = self._calc(self._fetch(symbol, "1d", limit=200))
         except Exception as e:
             return {"symbol":symbol,"aprovado":False,"setup_nome":"—","regime":"Erro",
-                    "score":0,"motivos_rejeicao":[str(e)],"o_que_falta":[],"setup_alternativo":"—"}
+                    "score":0,"motivos_rejeicao":[str(e)],"o_que_falta":[],"setup_alternativo":"—",
+                    "timeframe":tf}
 
-        regime   = self._regime(df30)
+        regime   = self._regime(df_tf)
         tend_4h  = self._tendencia_tf(df4h)
         tend_1d  = self._tendencia_tf(df1d)
-        r30      = df30.iloc[-1]
+        r30      = df_tf.iloc[-1]
 
         direcao = "LONG" if r30["ema10"] > r30["ema21"] else "SHORT"
+        df30 = df_tf  # alias para o resto do código
 
         # Níveis antecipados para gates de distância
         c   = float(r30["close"])
@@ -726,10 +745,14 @@ class K10Engine:
             "setup_alternativo": "—",
             "tend_4h":           tend_4h,
             "tend_1d":           tend_1d,
-            "timeframe":         "30m",
+            "timeframe":         tf,
             "preco_atual":       c,
             **gb,
         }
+
+    def analisar_tf(self, symbol: str, tf: str) -> dict:
+        """Analisa um símbolo em um timeframe específico"""
+        return self._analisar_tf(symbol, tf)
 
     def obter_regime(self, symbol: str) -> dict:
         df30 = self._calc(self._fetch(symbol, "30m"))
