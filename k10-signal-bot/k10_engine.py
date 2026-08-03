@@ -519,8 +519,11 @@ class K10Engine:
 
         def conv(s):
             if s >= 95: return "ELITE 🔥"
+            if s >= 90: return "MUITO ALTA 💎"
             if s >= 85: return "ALTA ✅"
-            if s >= 75: return "BOA ⚡"
+            if s >= 80: return "BOA ✅"
+            if s >= 75: return "MODERADA ⚡"
+            if s >= 72: return "ACEITÁVEL ⚡"
             return "BAIXA ❌"
 
         regime_label = {
