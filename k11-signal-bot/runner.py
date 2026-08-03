@@ -1,5 +1,5 @@
 """
-K11 Runner — GitHub Actions, a cada 15min
+K11 Runner
 """
 import asyncio, logging, os, httpx, traceback
 from scanner import K10Scanner
@@ -22,7 +22,7 @@ async def main():
     logger.info("K11 iniciado")
     try:
         scanner = K10Scanner(max_workers=6)
-        aprovados = scanner.scan(min_score=72, max_ativos=500)
+        aprovados = scanner.scan(min_score=75, max_ativos=500)
         logger.info(f"K11: {len(aprovados)} aprovados")
     except Exception:
         logger.error(traceback.format_exc())
@@ -33,11 +33,11 @@ async def main():
         return
 
     for sinal in aprovados[:3]:
-        cartao = formatar_cartao(sinal)
-        cartao = cartao.replace("K10 | Adaptativo Institucional", "K11 | Adaptativo Institucional")
-        await enviar(cartao)
-        logger.info(f"K11 enviado: {sinal['symbol']} score={sinal['score']}")
-        await asyncio.sleep(2)
+        cartao = formatar_cartao(sinal, bot_name="K11")
+        if cartao:
+            await enviar(cartao)
+            logger.info(f"K11 enviado: {sinal['symbol']} score={sinal['score']}")
+            await asyncio.sleep(2)
 
 if __name__ == "__main__":
     asyncio.run(main())
