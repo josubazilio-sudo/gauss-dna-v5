@@ -1,6 +1,6 @@
 """
-K10 Engine — Modo Adaptativo Institucional V1.0
-RFC: Regime → Estratégia → Filtros → Score → Sinal
+K10 Engine — Entrada na Virada ou Início do Movimento
+Foco: MACD cruzando, RSI saindo do extremo, espaço limpo até TP1
 """
 
 import ccxt
@@ -16,9 +16,6 @@ class K10Engine:
             "options": {"defaultType": "swap"},
         })
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # DADOS
-    # ─────────────────────────────────────────────────────────────────────────
     def _fetch(self, symbol, tf, limit=300):
         try:
             raw = self.exchange.fetch_ohlcv(symbol, tf, limit=limit)
@@ -28,9 +25,6 @@ class K10Engine:
         except Exception as e:
             raise RuntimeError(f"Fetch {symbol} {tf}: {e}")
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # INDICADORES
-    # ─────────────────────────────────────────────────────────────────────────
     def _calc(self, df):
         c, h, l, v = df["close"], df["high"], df["low"], df["volume"]
 
@@ -48,9 +42,7 @@ class K10Engine:
         di_p  = 100 * dm_p.ewm(span=14, adjust=False).mean() / atr14
         di_n  = 100 * dm_n.ewm(span=14, adjust=False).mean() / atr14
         dx    = 100*(di_p-di_n).abs()/(di_p+di_n).replace(0, np.nan)
-        df["adx"]  = dx.ewm(span=14, adjust=False).mean()
-        df["di_p"] = di_p
-        df["di_n"] = di_n
+        df["adx"] = dx.ewm(span=14, adjust=False).mean()
 
         delta = c.diff()
         gain  = delta.clip(lower=0).ewm(span=14, adjust=False).mean()
@@ -73,241 +65,139 @@ class K10Engine:
         df["vol_ma"] = v.rolling(20).mean()
         df["rvol"]   = v / df["vol_ma"].replace(0, np.nan)
 
-        # Chande Momentum
-        up = delta.clip(lower=0).rolling(14).sum()
-        dn = (-delta.clip(upper=0)).rolling(14).sum()
-        df["cmo"] = 100 * (up - dn) / (up + dn).replace(0, np.nan)
-
-        # StochRSI
-        rsi_min = df["rsi"].rolling(14).min()
-        rsi_max = df["rsi"].rolling(14).max()
-        df["stoch_rsi"] = (df["rsi"] - rsi_min) / (rsi_max - rsi_min).replace(0, np.nan)
-
-        # ROC (Rate of Change 10)
-        df["roc"] = c.pct_change(10) * 100
-
-        # Choppiness Index
-        atr_sum = tr.rolling(14).sum()
-        hl_range = h.rolling(14).max() - l.rolling(14).min()
-        df["chop"] = 100 * np.log10(atr_sum / hl_range.replace(0, np.nan)) / np.log10(14)
-
-        # Volume delta aproximado
-        df["delta"] = (c - l) / (h - l).replace(0, np.nan) * v * 2 - v
-
         return df
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 1. DETECÇÃO DE REGIME
+    # DETECÇÃO DA VIRADA / INÍCIO DO MOVIMENTO
     # ─────────────────────────────────────────────────────────────────────────
-    def _detectar_regime(self, df):
+    def _detectar_virada(self, df):
+        """
+        Detecta se o momento atual é uma virada ou início de movimento.
+        Retorna: (direcao, tipo_entrada, score_virada, motivos)
+        """
         r    = df.iloc[-1]
-        adx  = float(r["adx"])
-        chop = float(r["chop"]) if not np.isnan(r["chop"]) else 50
-        bw   = float(r["bb_width"]) if not np.isnan(r["bb_width"]) else 0
-        bw_ma = float(df["bb_width"].rolling(20).mean().iloc[-1]) if not np.isnan(df["bb_width"].rolling(20).mean().iloc[-1]) else bw
-        atr  = float(r["atr"])
-        atr_ma = float(df["atr"].rolling(20).mean().iloc[-1])
         c    = float(r["close"])
-        e50  = float(r["ema50"])
-        e200 = float(r["ema200"])
-        rsi  = float(r["rsi"])
-
-        # Exaustão — RSI nos extremos com ADX caindo
-        adx_caindo = adx < float(df["adx"].iloc[-5])
-        if (rsi > 78 or rsi < 22) and adx_caindo:
-            return "EXAUSTÃO"
-
-        # Rompimento — ATR expandindo forte + BOS
-        if atr > atr_ma * 1.4 and bw > bw_ma * 1.3 and adx > 20:
-            return "ROMPIMENTO"
-
-        # Compressão — BB muito estreita + ADX baixo
-        if bw < bw_ma * 0.7 and adx < 18 and chop > 61:
-            return "COMPRESSÃO"
-
-        # Lateralização — chop alto + adx baixo
-        if chop > 58 and adx < 22:
-            return "LATERAL"
-
-        # Tendência forte
-        if adx > 28 and chop < 50:
-            if e50 > e200 and c > e50:
-                return "TENDÊNCIA_ALTA"
-            if e50 < e200 and c < e50:
-                return "TENDÊNCIA_BAIXA"
-
-        # Tendência fraca
-        if adx > 18 and chop < 58:
-            if e50 > e200:
-                return "TENDÊNCIA_FRACA_ALTA"
-            return "TENDÊNCIA_FRACA_BAIXA"
-
-        return "INDEFINIDO"
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # 2. ESTRATÉGIA POR REGIME
-    # ─────────────────────────────────────────────────────────────────────────
-    def _estrategia_por_regime(self, regime):
-        mapa = {
-            "TENDÊNCIA_ALTA":        ("TREND_FOLLOWING", "LONG"),
-            "TENDÊNCIA_BAIXA":       ("TREND_FOLLOWING", "SHORT"),
-            "TENDÊNCIA_FRACA_ALTA":  ("TREND_FOLLOWING", "LONG"),
-            "TENDÊNCIA_FRACA_BAIXA": ("TREND_FOLLOWING", "SHORT"),
-            "LATERAL":               ("RANGE_TRADING",   None),
-            "ROMPIMENTO":            ("BREAKOUT",        None),
-            "EXAUSTÃO":              ("MEAN_REVERSION",  None),
-            "COMPRESSÃO":            ("AGUARDAR",        None),
-            "INDEFINIDO":            ("REJEITAR",        None),
-        }
-        return mapa.get(regime, ("REJEITAR", None))
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # 3. FILTROS POR ESTRATÉGIA
-    # ─────────────────────────────────────────────────────────────────────────
-    def _filtro_tendencia(self, df, direcao):
-        r   = df.iloc[-1]
-        c   = float(r["close"])
-        e50 = float(r["ema50"])
-        e200= float(r["ema200"])
-        vwap= float(r["vwap"])
-        falhas = []
-        if direcao == "LONG":
-            if not e50 > e200:   falhas.append("EMA50 < EMA200 (sem tendência de alta)")
-            if not c > e50:      falhas.append("Preço abaixo EMA50")
-            if not c > vwap:     falhas.append("Preço abaixo VWAP")
-        else:
-            if not e50 < e200:   falhas.append("EMA50 > EMA200 (sem tendência de baixa)")
-            if not c < e50:      falhas.append("Preço acima EMA50")
-            if not c < vwap:     falhas.append("Preço acima VWAP")
-        return falhas
-
-    def _filtro_momentum(self, df, direcao):
-        r    = df.iloc[-1]
         rsi  = float(r["rsi"])
         adx  = float(r["adx"])
-        cmo  = float(r["cmo"]) if not np.isnan(r["cmo"]) else 0
-        roc  = float(r["roc"]) if not np.isnan(r["roc"]) else 0
-        mhist= float(r["macd_hist"])
-        falhas = []
-
-        if direcao == "LONG":
-            # RSI adaptativo: em tendência, comprar quando RSI volta a subir
-            rsi_subindo = float(df["rsi"].iloc[-1]) > float(df["rsi"].iloc[-3])
-            if not rsi_subindo and rsi < 50:
-                falhas.append(f"RSI {rsi:.1f} não está subindo")
-            if mhist < 0:
-                falhas.append("MACD histograma negativo")
-            if cmo < -20:
-                falhas.append(f"CMO {cmo:.1f} fraco para LONG")
-            if roc < 0 and adx < 25:
-                falhas.append(f"ROC negativo sem tendência forte")
-        else:
-            rsi_caindo = float(df["rsi"].iloc[-1]) < float(df["rsi"].iloc[-3])
-            if not rsi_caindo and rsi > 50:
-                falhas.append(f"RSI {rsi:.1f} não está caindo")
-            if mhist > 0:
-                falhas.append("MACD histograma positivo")
-            if cmo > 20:
-                falhas.append(f"CMO {cmo:.1f} fraco para SHORT")
-            if roc > 0 and adx < 25:
-                falhas.append(f"ROC positivo sem tendência forte")
-        return falhas
-
-    def _filtro_volume(self, df, direcao):
-        r    = df.iloc[-1]
+        atr  = float(r["atr"])
+        e21  = float(r["ema21"])
+        e50  = float(r["ema50"])
         rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
-        delta= float(r["delta"]) if not np.isnan(r["delta"]) else 0
-        vol_crescente = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-4:-1].mean())
-        falhas = []
-        if rvol < 0.7:
-            falhas.append(f"RVOL {rvol:.2f} < 0.7")
-        if not vol_crescente:
-            falhas.append("Volume decrescente")
-        if direcao == "LONG" and delta < 0:
-            falhas.append("Delta negativo (pressão vendedora)")
-        if direcao == "SHORT" and delta > 0:
-            falhas.append("Delta positivo (pressão compradora)")
-        return falhas
+
+        macd_hist_0 = float(df["macd_hist"].iloc[-1])
+        macd_hist_1 = float(df["macd_hist"].iloc[-2])
+        macd_hist_2 = float(df["macd_hist"].iloc[-3])
+        macd_0      = float(df["macd"].iloc[-1])
+        macd_sig_0  = float(df["macd_signal"].iloc[-1])
+        macd_0_ant  = float(df["macd"].iloc[-2])
+        macd_sig_ant= float(df["macd_signal"].iloc[-2])
+
+        rsi_0 = float(df["rsi"].iloc[-1])
+        rsi_1 = float(df["rsi"].iloc[-2])
+        rsi_2 = float(df["rsi"].iloc[-3])
+        rsi_3 = float(df["rsi"].iloc[-4])
+
+        score = 0
+        sinais_long  = []
+        sinais_short = []
+
+        # ── MACD: cruzamento recente ou acabou de cruzar ──────────────────────
+        # LONG: macd cruzou signal para cima agora ou 1-2 velas atrás
+        macd_cruz_long  = (macd_0 > macd_sig_0 and macd_0_ant <= macd_sig_ant)
+        macd_cruz_short = (macd_0 < macd_sig_0 and macd_0_ant >= macd_sig_ant)
+
+        # Histograma: virou de negativo para positivo (LONG) ou contrário (SHORT)
+        hist_virou_long  = macd_hist_1 < 0 and macd_hist_0 > 0
+        hist_virou_short = macd_hist_1 > 0 and macd_hist_0 < 0
+
+        # Histograma crescendo após cruzamento (início do movimento)
+        hist_acelerando_long  = macd_hist_0 > macd_hist_1 > macd_hist_2 and macd_hist_0 > 0
+        hist_acelerando_short = macd_hist_0 < macd_hist_1 < macd_hist_2 and macd_hist_0 < 0
+
+        if macd_cruz_long or hist_virou_long:
+            sinais_long.append("MACD cruzou para cima")
+            score += 30
+        elif hist_acelerando_long:
+            sinais_long.append("MACD acelerando para cima")
+            score += 20
+
+        if macd_cruz_short or hist_virou_short:
+            sinais_short.append("MACD cruzou para baixo")
+            score += 30
+        elif hist_acelerando_short:
+            sinais_short.append("MACD acelerando para baixo")
+            score += 20
+
+        # ── RSI: saindo do extremo, não no topo/fundo ─────────────────────────
+        # LONG: RSI vinha abaixo de 40 e está subindo
+        rsi_virada_long  = rsi_2 < 38 and rsi_1 < rsi_0 and rsi_0 < 60
+        # SHORT: RSI vinha acima de 60 e está caindo
+        rsi_virada_short = rsi_2 > 62 and rsi_1 > rsi_0 and rsi_0 > 40
+
+        # RSI no meio com força (45-65 para LONG, 35-55 para SHORT)
+        rsi_bom_long  = 42 <= rsi_0 <= 65 and rsi_0 > rsi_1
+        rsi_bom_short = 35 <= rsi_0 <= 58 and rsi_0 < rsi_1
+
+        if rsi_virada_long:
+            sinais_long.append("RSI saindo da sobrevenda")
+            score += 25
+        elif rsi_bom_long:
+            sinais_long.append("RSI com força para cima")
+            score += 15
+
+        if rsi_virada_short:
+            sinais_short.append("RSI saindo da sobrecompra")
+            score += 25
+        elif rsi_bom_short:
+            sinais_short.append("RSI com força para baixo")
+            score += 15
+
+        # ── Pullback na EMA21 (entrada no reteste) ────────────────────────────
+        dist_ema21 = abs(c - e21) / atr if atr > 0 else 99
+        pullback_long  = dist_ema21 <= 1.0 and c > e21
+        pullback_short = dist_ema21 <= 1.0 and c < e21
+
+        if pullback_long:
+            sinais_long.append("Pullback na EMA21")
+            score += 20
+        if pullback_short:
+            sinais_short.append("Pullback na EMA21")
+            score += 20
+
+        # ── Volume confirmando ────────────────────────────────────────────────
+        if rvol >= 1.0:
+            if sinais_long:  sinais_long.append(f"Volume confirmado RVOL {rvol:.2f}")
+            if sinais_short: sinais_short.append(f"Volume confirmado RVOL {rvol:.2f}")
+            score += 15
+        elif rvol < 0.7:
+            score -= 15
+
+        # ── Espaço até o TP1 (ATR) — sem obstáculos ──────────────────────────
+        bb_mid = float(r["bb_mid"])
+        dist_resistencia = abs(c - bb_mid) / atr if atr > 0 else 0
+
+        # ── Decidir direção ───────────────────────────────────────────────────
+        # Preferir LONG se mais sinais LONG, SHORT se mais SHORT
+        n_long  = len(sinais_long)
+        n_short = len(sinais_short)
+
+        if n_long == 0 and n_short == 0:
+            return None, "SEM_VIRADA", 0, ["Sem virada ou início de movimento detectado"]
+
+        if n_long >= n_short:
+            direcao = "LONG"
+            confirmacoes = sinais_long
+        else:
+            direcao = "SHORT"
+            confirmacoes = sinais_short
+
+        # Score mínimo para considerar válido
+        score_final = min(score, 100)
+
+        return direcao, "VIRADA", score_final, confirmacoes
 
     # ─────────────────────────────────────────────────────────────────────────
-    # SMC
-    # ─────────────────────────────────────────────────────────────────────────
-    def _smc_score(self, df, direcao):
-        r   = df.iloc[-1]
-        c   = float(r["close"])
-        atr = float(r["atr"])
-        pontos = 0
-        confs  = []
-
-        # BOS
-        highs = df["high"].rolling(10).max().iloc[-5]
-        lows  = df["low"].rolling(10).min().iloc[-5]
-        bos = (c > highs) if direcao=="LONG" else (c < lows)
-        if bos: pontos += 15; confs.append("BOS")
-
-        # CHoCH
-        swing_high = df["high"].iloc[-20:-1].max()
-        swing_low  = df["low"].iloc[-20:-1].min()
-        choch = (c > swing_high) if direcao=="LONG" else (c < swing_low)
-        if choch: pontos += 15; confs.append("CHoCH")
-
-        # Order Block
-        vol_ma = df["vol_ma"]
-        for i in range(-6, -1):
-            forte = abs(df["close"].iloc[i]-df["open"].iloc[i]) > atr*0.7
-            inst  = df["volume"].iloc[i] > vol_ma.iloc[i]*1.3
-            if forte and inst:
-                if direcao=="LONG" and df["close"].iloc[i]>df["open"].iloc[i]:
-                    pontos += 15; confs.append("Order Block"); break
-                if direcao=="SHORT" and df["close"].iloc[i]<df["open"].iloc[i]:
-                    pontos += 15; confs.append("Order Block"); break
-
-        # FVG
-        if len(df) >= 4:
-            c1h = df["high"].iloc[-3]; c1l = df["low"].iloc[-3]
-            c3h = df["high"].iloc[-1]; c3l = df["low"].iloc[-1]
-            fvg = (c3l > c1h) if direcao=="LONG" else (c3h < c1l)
-            if fvg: pontos += 10; confs.append("FVG")
-
-        # Liquidity Sweep
-        eq_high = df["high"].iloc[-20:-1].max()
-        eq_low  = df["low"].iloc[-20:-1].min()
-        lh = df["high"].iloc[-1]; ll = df["low"].iloc[-1]; lc = df["close"].iloc[-1]
-        sweep = (ll < eq_low and lc > eq_low) if direcao=="LONG" else (lh > eq_high and lc < eq_high)
-        if sweep: pontos += 15; confs.append("Liquidity Sweep")
-
-        # Mitigação / Reteste
-        e21 = float(r["ema21"])
-        reteste = abs(c - e21) / atr <= 1.0 if atr > 0 else False
-        if reteste: pontos += 10; confs.append("Reteste EMA21")
-
-        # Breaker Block (candle de reversão forte)
-        o = float(r["open"]); h = float(r["high"]); l = float(r["low"])
-        corpo = abs(c-o); total = h-l
-        if total > 0:
-            breaker = corpo > total*0.6
-            if breaker and ((direcao=="LONG" and c>o) or (direcao=="SHORT" and c<o)):
-                pontos += 10; confs.append("Breaker Block")
-
-        return min(pontos, 100), confs
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # DISTÂNCIA DA ENTRADA (RFC seção 9)
-    # ─────────────────────────────────────────────────────────────────────────
-    def _avaliar_distancia(self, preco_atual, entrada, tp1):
-        if tp1 == entrada: return "REJEITAR", 100
-        pct_percorrido = abs(preco_atual - entrada) / abs(tp1 - entrada) * 100
-        dist_pct = abs(preco_atual - entrada) / entrada * 100
-
-        if pct_percorrido >= 30:    return "REJEITAR",   0
-        if dist_pct <= 5:           return "EXCELENTE",  100
-        if dist_pct <= 15:          return "BOA",        80
-        if dist_pct <= 25:          return "ACEITÁVEL",  60
-        if dist_pct <= 30:          return "RUIM",       30
-        return "REJEITAR", 0
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # STOP ADAPTATIVO (RFC seção 10)
+    # NÍVEIS: Stop atrás da estrutura, TP com espaço real
     # ─────────────────────────────────────────────────────────────────────────
     def _calcular_niveis(self, df, direcao):
         r   = df.iloc[-1]
@@ -338,163 +228,46 @@ class K10Engine:
     # ─────────────────────────────────────────────────────────────────────────
     # SCORE FINAL
     # ─────────────────────────────────────────────────────────────────────────
-    def _gestao_banca(self, regime, entrada, stop, atr):
-        regime_map = {
-            "TENDÊNCIA_ALTA": "Bull Trend", "TENDÊNCIA_BAIXA": "Bear Trend",
-            "TENDÊNCIA_FRACA_ALTA": "Transição", "TENDÊNCIA_FRACA_BAIXA": "Transição",
-            "LATERAL": "Range", "ROMPIMENTO": "Compressão",
-            "EXAUSTÃO": "Alta Volatilidade",
-        }
-        r_key = regime_map.get(regime, "Range")
-        base  = ALAVANCAGEM_POR_REGIME.get(r_key, 10)
-        fator = max(0.5, min(1.0, 0.002/atr if atr > 0 else 1.0))
-        alav  = max(8, min(25, round(base * fator)))
-        # Risco = 3% da banca
-        risco = round(BANCA * RISCO_PCT / 100, 2)
-        # Posição = risco / distância percentual do stop
-        dist  = abs(entrada - stop) / entrada if entrada else 0.01
-        pos   = round(risco / dist, 2) if dist > 0 else 0
-        # Capital = banca total disponível (90 USDT)
-        return {
-            "alavancagem": alav,
-            "capital":     BANCA,       # 90 USDT — banca total
-            "posicao":     pos,          # tamanho da posição pelo risco
-            "risco_usdt":  risco,        # 3% = 2.70 USDT em risco
-            "banca":       BANCA
-        }
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # ANÁLISE PRINCIPAL
-    # ─────────────────────────────────────────────────────────────────────────
-    def analisar(self, symbol, timeframe=None):
-        tfs = [timeframe] if timeframe else ["30m","1h","4h","1d"]
-        resultados = []
-        for tf in tfs:
-            r = self._analisar_tf(symbol, tf)
-            resultados.append(r)
-        aprovados = [r for r in resultados if r.get("aprovado")]
-        if aprovados:
-            return max(aprovados, key=lambda x: x["score"])
-        return max(resultados, key=lambda x: x["score"])
-
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # RFC K11 — FILTRO INSTITUCIONAL TREND FOLLOWING
-    # ─────────────────────────────────────────────────────────────────────────
-    def _filtro_tf_institucional(self, df, direcao, entrada, tp1):
+    def _score_final(self, score_virada, rr, rvol, adx, n_confs):
         """
-        K11 — Filtro institucional balanceado.
-        Tendência + Volume obrigatórios.
-        SMC: mínimo 2 de 5 confirmações.
-        Momentum: mínimo 2 de 3.
+        Score realista — máximo ~80 para sinal comum, ~88 para excelente
+        Pesos por tipo de virada:
+          MACD cruzou = 30pts base
+          RSI virada  = 25pts
+          Pullback    = 20pts
+          Volume      = 15pts
+          Total base max = 90pts (raro ter todos)
+        Bônus/penais limitados para não inflar
         """
-        r    = df.iloc[-1]
-        motivos = []
+        score = score_virada  # já vem calculado pelo _detectar_virada
 
-        e10  = float(r["ema10"])
-        e21  = float(r["ema21"])
-        e50  = float(r["ema50"])
-        e200 = float(r["ema200"])
-        adx  = float(r["adx"])
-        rsi  = float(r["rsi"])
-        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
-        macd_h = float(r["macd_hist"])
-        vwap   = float(r["vwap"])
-        atr    = float(r["atr"])
-        c      = float(r["close"])
+        # RR — sem bônus, só penaliza se ruim
+        if rr < 1.5:
+            score -= 15
 
-        # ── 1. TENDÊNCIA — obrigatório ────────────────────────────────────────
-        if direcao == "LONG":
-            emas_ok = e10 > e21 > e50
-        else:
-            emas_ok = e10 < e21 < e50
-        if not emas_ok:
-            motivos.append("EMAs 10/21/50 desalinhadas")
+        # Volume — penaliza fraco, bônus pequeno se bom
+        if rvol >= 1.5:
+            score += 3
+        elif rvol < 0.8:
+            score -= 8
 
-        if adx < 20:
-            motivos.append(f"ADX {adx:.1f} < 20 — sem força")
+        # ADX — penaliza sem força
+        if adx < 15:
+            score -= 8
 
-        adx_crescente = adx > float(df["adx"].iloc[-4])
-        if not adx_crescente:
-            motivos.append("ADX enfraquecendo")
+        # Confirmações extras — máximo +6
+        score += min(n_confs, 3) * 2
 
-        # ── 2. VOLUME — obrigatório ───────────────────────────────────────────
-        if rvol < 0.9:
-            motivos.append(f"RVOL {rvol:.2f} < 0.9 — sem participação")
+        # Cap: nunca passa de 90
+        score = max(0, min(90, score))
 
-        v1 = float(df["volume"].iloc[-1])
-        v2 = float(df["volume"].iloc[-2])
-        v3 = float(df["volume"].iloc[-3])
-        if v1 < v3:  # volume caindo no geral
-            motivos.append("Volume diminuindo")
+        # Tier exigente
+        if score >= 82:   tier = "OURO"
+        elif score >= 72: tier = "PRATA"
+        elif score >= 62: tier = "BRONZE"
+        else:             tier = "ABAIXO"
 
-        # ── 3. SMC — mínimo 2 de 5 ───────────────────────────────────────────
-        smc_pts = 0
-
-        highs = df["high"].rolling(10).max().iloc[-5]
-        lows  = df["low"].rolling(10).min().iloc[-5]
-        if (c > highs) if direcao=="LONG" else (c < lows):
-            smc_pts += 1
-
-        swing_high = df["high"].iloc[-20:-1].max()
-        swing_low  = df["low"].iloc[-20:-1].min()
-        if (c > swing_high) if direcao=="LONG" else (c < swing_low):
-            smc_pts += 1
-
-        for i in range(-6, -1):
-            forte = abs(df["close"].iloc[i]-df["open"].iloc[i]) > atr*0.6
-            inst  = df["volume"].iloc[i] > df["vol_ma"].iloc[i]*1.2
-            if forte and inst:
-                if direcao=="LONG" and df["close"].iloc[i] > df["open"].iloc[i]:
-                    smc_pts += 1; break
-                if direcao=="SHORT" and df["close"].iloc[i] < df["open"].iloc[i]:
-                    smc_pts += 1; break
-
-        if len(df) >= 4:
-            c1h = df["high"].iloc[-3]; c1l = df["low"].iloc[-3]
-            c3h = df["high"].iloc[-1]; c3l = df["low"].iloc[-1]
-            if (c3l > c1h) if direcao=="LONG" else (c3h < c1l):
-                smc_pts += 1
-
-        eq_high = df["high"].iloc[-20:-1].max()
-        eq_low  = df["low"].iloc[-20:-1].min()
-        lh = df["high"].iloc[-1]; ll = df["low"].iloc[-1]; lc = df["close"].iloc[-1]
-        if (ll < eq_low and lc > eq_low) if direcao=="LONG" else (lh > eq_high and lc < eq_high):
-            smc_pts += 1
-
-        if smc_pts < 2:
-            motivos.append(f"SMC insuficiente — {smc_pts}/5 confirmações (mínimo 2)")
-
-        # ── 4. MOMENTUM — mínimo 2 de 3 ──────────────────────────────────────
-        mom_pts = 0
-
-        if direcao == "LONG":
-            if macd_h > 0: mom_pts += 1
-            if 45 <= rsi <= 70: mom_pts += 1
-            if c > vwap: mom_pts += 1
-        else:
-            if macd_h < 0: mom_pts += 1
-            if 30 <= rsi <= 55: mom_pts += 1
-            if c < vwap: mom_pts += 1
-
-        if mom_pts < 2:
-            motivos.append(f"Momentum fraco — {mom_pts}/3 confirmações (mínimo 2)")
-
-        # ── 5. ENTRADA ────────────────────────────────────────────────────────
-        if tp1 != entrada:
-            pct = abs(c - entrada) / abs(tp1 - entrada) * 100
-            if pct > 25:
-                motivos.append(f"Entrada atrasada — {pct:.0f}% do caminho até TP1")
-
-        # ── 6. DIVERGÊNCIA (só bloquear se confirmada) ────────────────────────
-        if direcao == "LONG":
-            closes = df["close"].iloc[-8:]
-            rsis   = df["rsi"].iloc[-8:]
-            if closes.iloc[-1] > closes.iloc[0] and rsis.iloc[-1] < rsis.iloc[0] - 5:
-                motivos.append("Divergência de baixa confirmada")
-
-        return motivos
-
+        return score, tier
     def _analisar_tf(self, symbol, tf="30m"):
         lim = 200 if tf in ("4h","1d") else 300
         try:
@@ -656,12 +429,3 @@ class K10Engine:
             **gb,
         }
 
-    def analisar_tf(self, symbol, tf):
-        return self._analisar_tf(symbol, tf)
-
-    def obter_regime(self, symbol):
-        df = self._calc(self._fetch(symbol, "30m"))
-        regime = self._detectar_regime(df)
-        estrategia, _ = self._estrategia_por_regime(regime)
-        r = df.iloc[-1]
-        return {"regime":regime,"estrategia":estrategia,"adx":float(r["adx"]),"atr":float(r["atr"])}
