@@ -247,12 +247,14 @@ class K10Engine:
 
         # RVOL — bônus por volume institucional (RFC V4)
         if rvol >= 3.0:
-            score += 8    # bônus máximo
+            score += 10   # bônus máximo
         elif rvol >= 2.0:
-            score += 5    # bônus qualidade
+            score += 7    # bônus qualidade
         elif rvol >= 1.2:
-            score += 2
-        elif rvol < 0.8:
+            score += 4    # bônus moderado
+        elif rvol >= 0.8:
+            score += 1    # pequeno bônus
+        elif rvol < 0.6:
             score -= 8
 
         # ADX
@@ -515,8 +517,8 @@ class K10Engine:
         if rvol < 0.70 and rvol_valido:
             score = max(0, score - 5)
 
-        if score < 70:
-            motivos.append(f"Score {score} < 70")
+        if score < 68:
+            motivos.append(f"Score {score} < 68")
         if rr < 2.0:
             motivos.append(f"RR {rr} < 2.0")
 
