@@ -50,8 +50,7 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     sep = "━━━━━━━━━━━━━━"
 
     return (
-        f"🏆 {bot_name}\n\n"
-        f"{symbol}\n\n"
+        f"🏆 {symbol}\n\n"
         f"{dir_emoji} | {tf} | {tier_map.get(tier,'🥉 BRONZE')}\n\n"
         f"⭐ Score: {score} | {conv_map.get(tier,'MODERADA 🔶')}\n\n"
         f"{sep}\n\n"
