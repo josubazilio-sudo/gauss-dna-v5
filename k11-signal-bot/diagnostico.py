@@ -30,7 +30,7 @@ async def main():
         resultados.sort(key=lambda x: x.get("score",0), reverse=True)
         aprovados = [r for r in resultados if r.get("aprovado")]
 
-        linhas = [f"K11 DIAG V4.3.1 — {len(aprovados)} aprovados de {len(resultados)}:\n"]
+        linhas = [f"K11 DIAG V4.3.2 — {len(aprovados)} aprovados de {len(resultados)}:\n"]
 
         for r in resultados[:10]:
             sym    = r["symbol"].replace("/USDT:USDT","")
@@ -38,23 +38,29 @@ async def main():
             motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:45]
             nivel  = r.get("nivel_decisao", 0)
             log    = r.get("log_reversao","")
+            rvol   = r.get("rvol", 0)
 
-            linha = f"{ok} {sym} s={r.get('score')} rr={r.get('rr',0)} rvol={r.get('rvol',0):.2f}"
+            linha = f"{ok} {sym} s={r.get('score')} rr={r.get('rr',0):.1f} rvol={rvol:.2f}"
             if nivel > 0:
                 linha += f" [N{nivel}]"
-            linha += f"\n   -> {motivo}"
+            linha += f"\n   {motivo}"
 
-            # Log de decisão de reversão
             if log:
-                parts = {p.split("=")[0]:p.split("=")[1] for p in log.replace("__LOG_REVERSAO__ ","").split() if "=" in p}
-                linha += (
-                    f"\n   DECISÃO:"
-                    f"\n   ADX H4: {parts.get('adx4h','?')}"
-                    f"\n   H1 contra: {parts.get('h1_contra','?')}"
-                    f"\n   BOS/CHoCH: {parts.get('bos','?')}"
-                    f"\n   RVOL: {parts.get('rvol','?')}"
-                    f"\n   Nível: {parts.get('nivel','?')}"
-                )
+                try:
+                    parts = {}
+                    for p in log.replace("__LOG_REVERSAO__ ","").split():
+                        if "=" in p:
+                            k,v = p.split("=",1)
+                            parts[k] = v
+                    linha += (
+                        f"\n   BOS/CHoCH: {'SIM' if parts.get('bos','False')=='True' else 'NÃO'}"
+                        f"\n   H1 contra: {'SIM' if parts.get('h1_contra','False')=='True' else 'NÃO'}"
+                        f"\n   RVOL crítico: {'SIM' if float(parts.get('rvol',1)) < 1.2 else 'NÃO'}"
+                        f"\n   ADX H4: {parts.get('adx4h','?')}"
+                        f"\n   Nível aplicado: {parts.get('nivel','?')}"
+                    )
+                except: pass
+
             linhas.append(linha)
 
         await tg("\n".join(linhas))
@@ -62,8 +68,7 @@ async def main():
         if aprovados:
             from formatter import formatar_cartao
             cartao = formatar_cartao(aprovados[0], bot_name="K11")
-            if cartao:
-                await tg(cartao)
+            if cartao: await tg(cartao)
 
     except Exception:
         await tg("K11 ERRO:\n" + traceback.format_exc()[-2000:])
