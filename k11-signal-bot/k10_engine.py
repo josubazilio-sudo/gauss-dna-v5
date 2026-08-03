@@ -341,6 +341,60 @@ class K10Engine:
         except Exception as e:
             return 1.0, False, f"Erro RVOL: {e}"
 
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # RFC ADAPTATIVO CONTROLADO V1 — DETECTOR DE REGIME
+    # ─────────────────────────────────────────────────────────────────────────
+    def _detectar_regime_mercado(self, df):
+        """
+        Detecta o regime atual do mercado para adaptar filtros.
+        Retorna: (regime, rvol_min, score_min, prioridade)
+        Regras base nunca mudam — só limites de RVOL e score mínimo.
+        """
+        r    = df.iloc[-1]
+        adx  = float(r["adx"])
+        e10  = float(r["ema10"])
+        e21  = float(r["ema21"])
+        e50  = float(r["ema50"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        macd_h  = float(r["macd_hist"])
+        macd_h2 = float(df["macd_hist"].iloc[-3])
+        c    = float(r["close"])
+        atr  = float(r["atr"])
+
+        vol_crescente = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
+        emas_alinhadas = (e10 > e21 > e50) or (e10 < e21 < e50)
+
+        # CHoCH/BOS
+        highs = float(df["high"].rolling(10).max().iloc[-5])
+        lows  = float(df["low"].rolling(10).min().iloc[-5])
+        bos   = c > highs or c < lows
+        macd_virando = (macd_h > 0 and macd_h2 <= 0) or (macd_h < 0 and macd_h2 >= 0)
+        pullback = abs(c - e21) / atr <= 1.5 if atr > 0 else False
+
+        # 1. TENDÊNCIA
+        if adx >= 25 and emas_alinhadas and vol_crescente:
+            return "TENDENCIA", 1.2, 70, "CONTINUACAO"
+
+        # 2. REVERSÃO
+        if bos and macd_virando and pullback and vol_crescente:
+            return "REVERSAO", 1.5, 70, "REVERSAO_FORTE" if rvol >= 3.0 else "REVERSAO"
+
+        # 3. LATERAL
+        if adx < 18 and not emas_alinhadas:
+            return "LATERAL", 1.5, 80, "LATERAL"
+
+        # 4. DEFAULT
+        return "NEUTRO", 1.2, 70, "NORMAL"
+
+    def _ajustar_rvol_baixo_volume(self, rvol_min, rvol_mercado):
+        """
+        Se mercado com volume baixo: reduzir exigência até 20%, nunca abaixo de 0.6
+        """
+        if rvol_mercado < 0.8:
+            return max(0.6, rvol_min * 0.80)
+        return rvol_min
+
     def _filtro_tf_institucional(self, df, direcao, entrada, tp1, df4h=None, rr=0,
                                   rvol_auditado=None, rvol_valido=True,
                                   market_low_volume=False):
@@ -518,9 +572,9 @@ class K10Engine:
         if rvol < 0.70 and rvol_valido:
             score = max(0, score - 5)
 
-        # RFC Core Freeze V1 — Score mínimo 70 fixo
-        if score < 70:
-            motivos.append(f"Score {score} < 70")
+        # Adaptativo V1 — Score mínimo por regime (70 padrão, 80 lateral)
+        if score < score_minimo:
+            motivos.append(f"Score {score} < {score_minimo} (regime {regime_mercado})")
 
         # RR mínimo 2.0
         if rr < 2.0:
@@ -573,6 +627,8 @@ class K10Engine:
             "confirmacoes_smc": confirmacoes,
             "nivel_decisao":    nivel_decisao,
             "log_reversao":     log_reversao,
+            "regime_mercado":   regime_mercado,
+            "prioridade_regime":prioridade_regime,
             "timing_pct":       0,
             "confluencia":      len(confirmacoes),
             "rvol_bonus":       rvol >= 2.0,
