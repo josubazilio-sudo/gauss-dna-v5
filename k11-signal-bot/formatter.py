@@ -35,6 +35,7 @@ def formatar_cartao(r: dict) -> str:
         "OURO":     "🥇 OURO",
         "PRATA":    "🥈 PRATA",
         "BRONZE":   "🥉 BRONZE",
+        "ABAIXO":   "⚪ BRONZE",
     }
     tier_label = tier_map.get(tier,"🥉 BRONZE")
 
@@ -50,7 +51,12 @@ def formatar_cartao(r: dict) -> str:
     rsi_ok   = "✅" if 30 <= rsi <= 70 else "⚠️"
     adx_ok   = "✅" if adx >= 20 else "⚠️"
     rvol_ok  = "✅" if rvol >= 1.0 else "⚠️"
-    macd_ok  = "✅" if (macd_h>0 and direcao=="LONG") or (macd_h<0 and direcao=="SHORT") else "⚠️"
+    # MACD: em Range/Lateral, perto de zero é normal — só alerta se muito contra
+    if "Range" in setup or "Reversion" in setup:
+        macd_ok = "✅" if abs(macd_h) < abs(macd_h)*2 + 0.0001 else "⚠️"
+        macd_ok = "✅"  # em range, MACD neutro é esperado
+    else:
+        macd_ok = "✅" if (macd_h>0 and direcao=="LONG") or (macd_h<0 and direcao=="SHORT") else "⚠️"
     vwap_pos = "Acima ✅" if (entrada>vwap_v and direcao=="LONG") or (entrada<vwap_v and direcao=="SHORT") else "Abaixo ⚠️"
 
     smc_items = ["BOS","CHoCH","Order Block","FVG","Liquidity Sweep","Reteste EMA21","Breaker Block"]
