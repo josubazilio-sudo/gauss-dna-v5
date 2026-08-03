@@ -2,7 +2,7 @@
 K10/K11 Formatter — Cartão final
 """
 
-def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
+def formatar_cartao(r: dict, bot_name: str = "K11") -> str:
     if not r.get("aprovado"):
         return None
 
