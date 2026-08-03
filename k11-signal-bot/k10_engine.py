@@ -413,9 +413,7 @@ class K10Engine:
             motivos.append(f"Mercado lateral (ADX {adx:.1f}) sem confluência")
 
         # ── 3. EMAs ──────────────────────────────────────────────────────────
-        emas_inversas = (e10 < e21 and e21 < e50) if direcao=="LONG" else (e10 > e21 and e21 > e50)
-        if emas_inversas and adx > 28 and not forte_conf:
-            motivos.append(f"Tendência contrária forte (ADX {adx:.1f})")
+        # V4.3.1: bloqueio de EMAs removido — tratado na hierarquia H4
 
         # ── 4. MACD ──────────────────────────────────────────────────────────
         if not macd_ok and conf < 3:
