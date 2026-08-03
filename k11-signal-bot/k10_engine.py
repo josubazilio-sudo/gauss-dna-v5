@@ -486,18 +486,32 @@ class K10Engine:
             rvol_auditado=rvol, rvol_valido=rvol_valido,
             market_low_volume=market_low_volume
         )
-        # Processar penalidades especiais (RFC V4.1)
+        # Processar marcadores RFC V4.3.1
         penalidade_extra = 0
-        falhas_reais = []
+        falhas_reais     = []
+        nivel_decisao    = 0
+        log_reversao     = ""
+
         for f in falhas:
             if f == "__PENALIDADE_REVERSAO_5__":
                 penalidade_extra += 5
+            elif f.startswith("__NIVEL_1__"):
+                falhas_reais.append(f.replace("__NIVEL_1__ ",""))
+                nivel_decisao = 1
+            elif f == "__NIVEL_2_OK__":
+                nivel_decisao = 2   # aprovado
+            elif f == "__NIVEL_3_OK__":
+                nivel_decisao = 3   # aprovado
+            elif f.startswith("__LOG_REVERSAO__"):
+                log_reversao = f    # guardar para retorno
             else:
                 falhas_reais.append(f)
+
         motivos.extend(falhas_reais)
+
         if penalidade_extra > 0:
             score = max(0, score - penalidade_extra)
-            # Recalcular tier após penalidade
+            nivel_decisao = 4
             if score >= 82:   tier = "OURO"
             elif score >= 72: tier = "PRATA"
             elif score >= 62: tier = "BRONZE"
@@ -557,6 +571,8 @@ class K10Engine:
             "vwap":             float(r["vwap"]),
             "ema21":            float(r["ema21"]),
             "confirmacoes_smc": confirmacoes,
+            "nivel_decisao":    nivel_decisao,
+            "log_reversao":     log_reversao,
             "timing_pct":       0,
             "confluencia":      len(confirmacoes),
             "rvol_bonus":       rvol >= 2.0,
