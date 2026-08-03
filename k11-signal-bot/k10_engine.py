@@ -314,9 +314,15 @@ class K10Engine:
         eh_reversao = not tendencia_local
 
         # ── 1. RVOL ──────────────────────────────────────────────────────────
-        rvol_min = 1.30 if eh_reversao else 1.10
+        rvol_min = 0.80 if eh_reversao else 0.60
         if rvol < rvol_min:
             motivos.append(f"RVOL {rvol:.2f} < {rvol_min} ({'reversão' if eh_reversao else 'continuação'})")
+
+        # EMAs — bloquear só se completamente inversas (não apenas desalinhadas)
+        if direcao == "LONG" and e10 < e21 and e21 < e50 and adx > 25:
+            motivos.append("Tendência de baixa forte — LONG bloqueado")
+        if direcao == "SHORT" and e10 > e21 and e21 > e50 and adx > 25:
+            motivos.append("Tendência de alta forte — SHORT bloqueado")
 
         # ── 2. CONFIRMAÇÃO ───────────────────────────────────────────────────
         # MACD cruzado e acelerando
@@ -428,12 +434,12 @@ class K10Engine:
         motivos.extend(falhas)
 
         # Score mínimo 75 (RFC V2)
-        if score < 75:
-            motivos.append(f"Score {score} < 75")
+        if score < 68:
+            motivos.append(f"Score {score} < 68")
 
         # RR mínimo 2.2 (RFC V2)
-        if rr < 2.2:
-            motivos.append(f"RR {rr} < 2.2")
+        if rr < 2.0:
+            motivos.append(f"RR {rr} < 2.0")
 
         aprovado = len(motivos) == 0
 
