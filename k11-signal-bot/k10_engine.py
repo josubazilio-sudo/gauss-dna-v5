@@ -364,7 +364,7 @@ class K10Engine:
         componentes["Entrada"] = entrada_pts
 
         # RR (10pts)
-        rr_pts = 10 if rr >= 2.0 else (7 if rr >= 1.5 else 3)
+        rr_pts = 10 if rr >= 2.0 else (8 if rr >= 1.8 else (6 if rr >= 1.5 else 3))
         componentes["RR"] = rr_pts
 
         score = sum(componentes.values())
@@ -377,8 +377,8 @@ class K10Engine:
             score -= 8;  penais.append(("Volume fraco", -8))
         if len(falhas_tend) > 0:
             score -= 5 * len(falhas_tend); penais.append((f"Contra tendência ({len(falhas_tend)}x)", -5*len(falhas_tend)))
-        if rr < 2.0:
-            score -= 5;  penais.append(("RR < 2.0", -5))
+        if rr < 1.8:
+            score -= 5;  penais.append(("RR < 1.8", -5))
         if regime in ("INDEFINIDO", "COMPRESSÃO"):
             score -= 15; penais.append(("Regime desfavorável", -15))
 
@@ -462,9 +462,11 @@ class K10Engine:
         tend_1d = "ALTA" if float(df1d.iloc[-1]["ema21"]) > float(df1d.iloc[-1]["ema50"]) else "BAIXA"
 
         if estrategia == "TREND_FOLLOWING":
-            if direcao == "LONG" and (tend_4h == "BAIXA" or tend_1d == "BAIXA"):
+            # LONG só aprovado se H4 E D1 são ALTA
+            if direcao == "LONG" and tend_4h == "BAIXA" and tend_1d == "BAIXA":
                 motivos.append(f"Contra tendência H4={tend_4h} D1={tend_1d}")
-            if direcao == "SHORT" and (tend_4h == "ALTA" or tend_1d == "ALTA"):
+            # SHORT só bloqueado se H4 E D1 são ALTA (mercado claramente comprador)
+            if direcao == "SHORT" and tend_4h == "ALTA" and tend_1d == "ALTA":
                 motivos.append(f"Contra tendência H4={tend_4h} D1={tend_1d}")
 
         # ── 4. Níveis ──────────────────────────────────────────────────────
@@ -495,8 +497,8 @@ class K10Engine:
             motivos.append(f"ATR excessivo ({atr_pct:.1f}%) — risco alto")
 
         # ── 9. RR ──────────────────────────────────────────────────────────
-        if rr < 2.0:
-            motivos.append(f"RR {rr} < 2.0")
+        if rr < 1.8:
+            motivos.append(f"RR {rr} < 1.8")
 
         # ── 10. Score ──────────────────────────────────────────────────────
         score, tier, componentes, penais = self._calcular_score(
@@ -506,8 +508,8 @@ class K10Engine:
         )
 
         # Score mínimo por tier (RFC seção 15)
-        if score < 75:
-            motivos.append(f"Score {score} < 75 (mínimo Bronze)")
+        if score < 72:
+            motivos.append(f"Score {score} < 72 (mínimo Bronze)")
 
         # SMC obrigatório
         if smc_pts < 10:
