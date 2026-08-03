@@ -208,8 +208,8 @@ class K10Engine:
             else:              confirmacoes.append("MACD confirmado")
             if rvol < 0.8:     motivos.append(f"RVOL {rvol:.2f} < 0.8")
             else:              confirmacoes.append(f"RVOL {rvol:.2f}")
-            score_min = 75
-            rvol_min  = 0.8
+            score_min = 68
+            rvol_min  = 0.7
 
         # ── SETUP 2: REVERSÃO ────────────────────────────────────────────────
         elif regime == "REVERSAO":
@@ -241,8 +241,8 @@ class K10Engine:
                 if contra_h4 and adx_4h > 35 and h1_contra and not bos and rvol < 1.2:
                     motivos.append(f"Bloqueio extremo H4 ADX={adx_4h:.0f}")
 
-            score_min = 75
-            rvol_min  = 0.8
+            score_min = 68
+            rvol_min  = 0.7
 
         # ── SETUP 3: CRUZAMENTO ──────────────────────────────────────────────
         elif regime == "CRUZAMENTO":
