@@ -170,13 +170,14 @@ class K10Engine:
     # ─────────────────────────────────────────────────────────────────────────
     # PASSO 3 — FILTROS POR SETUP
     # ─────────────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASSO 3 — FILTROS POR SETUP (RFC V2 — Padrão Fixo de Qualidade)
+    # ─────────────────────────────────────────────────────────────────────────
     def _filtrar_por_setup(self, df, df4h, regime, direcao):
         r    = df.iloc[-1]
         c    = float(r["close"])
-        e10  = float(r["ema10"])
-        e21  = float(r["ema21"])
-        e50  = float(r["ema50"])
-        e200 = float(r["ema200"])
+        e10  = float(r["ema10"]); e21 = float(r["ema21"])
+        e50  = float(r["ema50"]); e200= float(r["ema200"])
         adx  = float(r["adx"])
         rsi  = float(r["rsi"])
         atr  = float(r["atr"])
@@ -185,65 +186,63 @@ class K10Engine:
         macd_h2 = float(df["macd_hist"].iloc[-4])
         vol_cresc = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
         pullback  = abs(c - e21) / atr <= 1.5 if atr > 0 else False
-        # BOS: preço superou máxima/mínima recente (últimos 15 candles, excluindo o atual)
         highs = float(df["high"].iloc[-16:-1].max())
         lows  = float(df["low"].iloc[-16:-1].min())
         bos   = (c > highs * 0.998) if direcao=="LONG" else (c < lows * 1.002)
         macd_ok = (macd_h > 0 and macd_h > macd_h2) if direcao=="LONG" else (macd_h < 0 and macd_h < macd_h2)
         rsi_ok  = (rsi > float(df["rsi"].iloc[-4])) if direcao=="LONG" else (rsi < float(df["rsi"].iloc[-4]))
+        adx_cresc = adx > float(df["adx"].iloc[-5])
 
         motivos = []
         confirmacoes = []
 
         # ── SETUP 1: CONTINUAÇÃO ─────────────────────────────────────────────
         if regime == "CONTINUACAO":
-            emas_ok = (e10>e21>e50>e200) if direcao=="LONG" else (e10<e21<e50<e200)
-            if not emas_ok:    motivos.append("EMAs não alinhadas para continuação")
-            else:              confirmacoes.append("EMAs alinhadas")
-            if adx < 25:       motivos.append(f"ADX {adx:.1f} < 25")
-            else:              confirmacoes.append(f"ADX {adx:.1f} forte")
-            if not pullback:   motivos.append("Sem pullback na EMA21")
-            else:              confirmacoes.append("Pullback EMA21")
-            if not macd_ok:    motivos.append("MACD não confirmando")
-            else:              confirmacoes.append("MACD confirmado")
-            if rvol < 0.8:     motivos.append(f"RVOL {rvol:.2f} < 0.8")
-            else:              confirmacoes.append(f"RVOL {rvol:.2f}")
-            score_min = 68
-            rvol_min  = 0.7
+            emas_ok = (e50 > e200) if direcao=="LONG" else (e50 < e200)
+            preco_ema21 = (c > e21) if direcao=="LONG" else (c < e21)
 
-        # ── SETUP 2: REVERSÃO — Classificação de Qualidade V1.1 ──────────────
+            if not emas_ok:       motivos.append("EMA50/200 não alinhadas")
+            else:                 confirmacoes.append("EMA50/200 alinhadas")
+            if adx < 22:          motivos.append(f"ADX {adx:.1f} < 22")
+            else:                 confirmacoes.append(f"ADX {adx:.1f}")
+            if not preco_ema21:   motivos.append("Preço não respeita EMA21")
+            else:                 confirmacoes.append("Preço acima EMA21" if direcao=="LONG" else "Preço abaixo EMA21")
+            if not macd_ok:       motivos.append("MACD contra direção")
+            else:                 confirmacoes.append("MACD confirmado")
+            if not pullback:      motivos.append("Sem pullback EMA21")
+            else:                 confirmacoes.append("Pullback EMA21")
+            if rvol < 1.2:        motivos.append(f"RVOL {rvol:.2f} < 1.2")
+            else:                 confirmacoes.append(f"RVOL {rvol:.2f}")
+            if adx_cresc:         confirmacoes.append("ADX crescente")
+            score_min = 72; rvol_min = 1.2
+
+        # ── SETUP 2: REVERSÃO ────────────────────────────────────────────────
         elif regime == "REVERSAO":
             if bos:     confirmacoes.append("BOS/CHoCH confirmado")
             if macd_ok: confirmacoes.append("MACD virando")
             if rsi_ok:  confirmacoes.append("RSI alinhado")
             if pullback:confirmacoes.append("Pullback EMA21")
+            if rvol >= 1.0: confirmacoes.append(f"RVOL {rvol:.2f}")
 
-            # Reversão Forte — RVOL >= 3.0: aprovação direta
-            reversao_forte = rvol >= 3.0 and macd_ok and rsi_ok and pullback
+            n_confs = len(confirmacoes)
+
+            # Reversão forte — RVOL >= 2.0 + BOS: prioridade máxima
+            reversao_forte = rvol >= 2.0 and bos and macd_ok and pullback
             if reversao_forte:
-                confirmacoes.append(f"🔥 REVERSÃO FORTE RVOL {rvol:.2f}")
+                confirmacoes.append("🔥 REVERSÃO FORTE")
                 motivos = []
-                score_min = 65; rvol_min = 3.0
-
-            # Nível A — Institucional
-            elif rvol >= 2.0 and bos and macd_ok and pullback:
-                confirmacoes.append("🏛️ NÍVEL A — Institucional")
-                score_min = 75; rvol_min = 2.0
-
-            # Nível B — Confirmada
-            elif rvol >= 1.0 and macd_ok and rsi_ok and pullback:
-                confirmacoes.append("✅ NÍVEL B — Confirmada")
+                score_min = 70; rvol_min = 2.0
+            elif n_confs >= 4:
+                # 4+ confirmações: aprovação normal
+                if rvol < 1.0: motivos.append(f"RVOL {rvol:.2f} < 1.0")
                 score_min = 70; rvol_min = 1.0
-
-            # Nível C — Observação (não opera)
+            elif n_confs >= 3:
+                # 3 confirmações: exige score maior
+                if rvol < 1.0: motivos.append(f"RVOL {rvol:.2f} < 1.0")
+                score_min = 73; rvol_min = 1.0
             else:
-                if 65 <= score < 70 or (rvol < 1.0 and not bos):
-                    motivos.append(f"NÍVEL C — Observação (score={score}, rvol={rvol:.2f})")
-                else:
-                    if not macd_ok:  motivos.append("MACD não virou")
-                    if not pullback: motivos.append("Sem pullback EMA21")
-                    if rvol < 0.7:   motivos.append(f"RVOL {rvol:.2f} < 0.7")
-                score_min = 70; rvol_min = 0.7
+                motivos.append(f"Confluência insuficiente — {n_confs}/4 confirmações")
+                score_min = 75; rvol_min = 1.0
 
             # Bloqueio extremo H4
             if df4h is not None:
@@ -255,53 +254,50 @@ class K10Engine:
                 if contra_h4 and adx_4h > 35 and h1_contra and not bos and rvol < 1.2:
                     motivos.append(f"Bloqueio extremo H4 ADX={adx_4h:.0f}")
 
-
         # ── SETUP 3: CRUZAMENTO ──────────────────────────────────────────────
         elif regime == "CRUZAMENTO":
             e10_ant = float(df["ema10"].iloc[-4])
             e21_ant = float(df["ema21"].iloc[-4])
             cruzou = (e10_ant<=e21_ant and e10>e21) if direcao=="LONG" else (e10_ant>=e21_ant and e10<e21)
+
             if not cruzou:     motivos.append("EMA10/21 não cruzou recentemente")
             else:              confirmacoes.append("EMA10 cruzou EMA21")
             if not macd_ok:    motivos.append("MACD não acelerando")
             else:              confirmacoes.append("MACD acelerando")
             if not vol_cresc:  motivos.append("Volume não crescente")
             else:              confirmacoes.append("Volume crescente")
-            if rvol < 0.8:     motivos.append(f"RVOL {rvol:.2f} < 0.8")
+            if rvol < 1.3:     motivos.append(f"RVOL {rvol:.2f} < 1.3")
             else:              confirmacoes.append(f"RVOL {rvol:.2f}")
-            # Timing — máximo 3 velas após cruzamento
+
             dist_ema = abs(c - e21) / atr if atr > 0 else 0
-            if dist_ema > 2.0: motivos.append(f"Entrada atrasada {dist_ema:.1f} ATR da EMA21")
-            score_min = 70
-            rvol_min  = 0.8
+            if dist_ema > 2.0: motivos.append(f"Movimento esticado {dist_ema:.1f} ATR")
+            score_min = 70; rvol_min = 1.3
 
         # ── SETUP 4: LATERAL ─────────────────────────────────────────────────
         elif regime == "LATERAL":
-            if not bos:        motivos.append("Sem rompimento confirmado (BOS)")
-            else:              confirmacoes.append("Rompimento BOS")
-            if not vol_cresc:  motivos.append("Volume fraco para rompimento")
+            if not bos:        motivos.append("Sem rompimento confirmado")
+            else:              confirmacoes.append("Rompimento confirmado")
+            if not vol_cresc:  motivos.append("Volume fraco")
             else:              confirmacoes.append("Volume forte")
-            if rvol < 2.0:     motivos.append(f"RVOL {rvol:.2f} < 2.0 (lateral exige volume)")
+            if rvol < 1.8:     motivos.append(f"RVOL {rvol:.2f} < 1.8")
             else:              confirmacoes.append(f"RVOL {rvol:.2f}")
-            score_min = 80
-            rvol_min  = 2.0
+            score_min = 75; rvol_min = 1.8
 
         # ── SETUP 5: TRANSIÇÃO ───────────────────────────────────────────────
-        else:  # TRANSICAO
-            if not bos:        motivos.append("Aguardar BOS/CHoCH de confirmação")
+        else:
+            if not bos:        motivos.append("Aguardar BOS/CHoCH")
             else:              confirmacoes.append("BOS confirmado")
-            if not vol_cresc:  motivos.append("Aguardar volume")
-            else:              confirmacoes.append("Volume aumentando")
-            if rvol < 1.2:     motivos.append(f"RVOL {rvol:.2f} insuficiente")
+            if not adx_cresc:  motivos.append("ADX não crescente")
+            else:              confirmacoes.append("ADX subindo")
+            if not macd_ok:    motivos.append("MACD não acelerando")
+            else:              confirmacoes.append("MACD acelerando")
+            if rvol < 1.5:     motivos.append(f"RVOL {rvol:.2f} < 1.5")
             else:              confirmacoes.append(f"RVOL {rvol:.2f}")
-            score_min = 72
-            rvol_min  = 1.2
+            score_min = 72; rvol_min = 1.5
 
         return motivos, confirmacoes, score_min, rvol_min
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # PASSO 4 — NÍVEIS
-    # ─────────────────────────────────────────────────────────────────────────
+
     def _calcular_niveis(self, df, direcao):
         r   = df.iloc[-1]
         c   = float(r["close"])
