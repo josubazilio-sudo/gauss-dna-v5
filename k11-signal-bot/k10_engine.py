@@ -227,7 +227,7 @@ class K10Engine:
                 confirmacoes.append(f"REVERSÃO FORTE RVOL {rvol:.2f}")
                 motivos = []  # limpa motivos — aprovação direta
             elif rvol < 1.5:
-                motivos.append(f"RVOL {rvol:.2f} < 1.5")
+                motivos.append(f"RVOL {rvol:.2f} < 0.7")
             else:
                 confirmacoes.append(f"RVOL {rvol:.2f}")
 
