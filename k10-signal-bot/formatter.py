@@ -1,5 +1,5 @@
 """
-K10/K11 Formatter — Cartão mínimo: Entrada, TP1, Stop
+K10/K11 Formatter — Cartão final
 """
 
 def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
@@ -59,14 +59,13 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
         f"🎯 TP1: {tp1}\n"
         f"🛑 Stop: {stop}\n"
         f"⚖️ RR: {rr}\n\n"
+        f"💵 Capital: {capital} USDT\n"
+        f"🚀 Alavancagem: {alav}x\n"
+        f"📦 Posição: {posicao} USDT\n\n"
         f"{sep}\n\n"
         f"🌍 {regime}\n"
         f"📊 {setup_label} | ⏱️ {duracao}\n\n"
         f"{smc_block}\n\n"
-        f"{sep}\n\n"
-        f"💵 {capital} USDT | {alav}x | Posição: {posicao} USDT\n\n"
-        f"❌ Invalidar se stop atingido\n"
-        f"❌ Invalidar se >30% do TP1\n\n"
         f"{bot_name}"
     )
 
