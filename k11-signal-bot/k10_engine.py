@@ -269,3 +269,112 @@ class K10Engine:
 
         return score, tier
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # GESTÃO DE BANCA
+    # ─────────────────────────────────────────────────────────────────────────
+    def _gestao_banca(self, score, entrada, stop, atr):
+        if score >= 82:   alav = 20
+        elif score >= 72: alav = 15
+        elif score >= 62: alav = 10
+        else:             alav = 8
+        risco = round(BANCA * RISCO_PCT / 100, 2)
+        dist  = abs(entrada - stop) / entrada if entrada else 0.01
+        pos   = round(risco / dist, 2) if dist > 0 else 0
+        return {"alavancagem": alav, "capital": BANCA, "posicao": pos,
+                "risco_usdt": risco, "banca": BANCA}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ANÁLISE POR TIMEFRAME
+    # ─────────────────────────────────────────────────────────────────────────
+    def _analisar_tf(self, symbol, tf="1h"):
+        lim = 200 if tf in ("4h","1d") else 300
+        try:
+            df = self._calc(self._fetch(symbol, tf, limit=lim))
+        except Exception as e:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0}
+
+        r    = df.iloc[-1]
+        adx  = float(r["adx"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+
+        direcao, tipo, score_virada, confirmacoes = self._detectar_virada(df)
+
+        if direcao is None:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":confirmacoes,"timeframe":tf,"direcao":"—","rr":0}
+
+        entrada, stop, tp1, atr = self._calcular_niveis(df, direcao)
+        rr = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
+        score, tier = self._score_final(score_virada, rr, rvol, adx, len(confirmacoes))
+
+        motivos = []
+        if rr < 1.5:          motivos.append(f"RR {rr} insuficiente")
+        if rvol < 0.6:        motivos.append(f"Volume ausente RVOL {rvol:.2f}")
+        if score < 62:        motivos.append(f"Score {score} insuficiente")
+
+        aprovado = len(motivos) == 0
+
+        e10_v = float(r["ema10"]); e21_v = float(r["ema21"]); e50_v = float(r["ema50"])
+        if e10_v > e21_v > e50_v and direcao == "LONG":
+            regime_label = "Tendência Alta ↑"
+        elif e10_v < e21_v < e50_v and direcao == "SHORT":
+            regime_label = "Tendência Baixa ↓"
+        elif e10_v < e21_v < e50_v and direcao == "LONG":
+            regime_label = "Reversão ↗ (contra tendência)"
+        elif e10_v > e21_v > e50_v and direcao == "SHORT":
+            regime_label = "Reversão ↘ (contra tendência)"
+        elif adx < 18:
+            regime_label = "Lateral ↔"
+        else:
+            regime_label = "Transição"
+
+        conv_map = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}
+        gb = self._gestao_banca(score, entrada, stop, atr)
+
+        return {
+            "symbol":           symbol,
+            "aprovado":         aprovado,
+            "setup_nome":       tipo,
+            "regime":           regime_label,
+            "direcao":          direcao,
+            "score":            score,
+            "tier":             tier,
+            "conviccao":        conv_map.get(tier,"MODERADA 🔶"),
+            "entrada":          entrada,
+            "stop":             stop,
+            "tp1":              tp1,
+            "tp2":              tp1,
+            "rr":               rr,
+            "adx":              adx,
+            "rsi":              float(r["rsi"]),
+            "atr":              atr,
+            "rvol":             rvol,
+            "vwap":             float(r["vwap"]),
+            "ema21":            float(r["ema21"]),
+            "confirmacoes_smc": confirmacoes,
+            "motivos_rejeicao": motivos,
+            "o_que_falta":      motivos,
+            "timeframe":        tf,
+            "preco_atual":      entrada,
+            **gb,
+        }
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ANÁLISE PRINCIPAL — testa 30m, 1h, 4h
+    # ─────────────────────────────────────────────────────────────────────────
+    def analisar(self, symbol, timeframe=None):
+        tfs = [timeframe] if timeframe else ["30m","1h","4h"]
+        resultados = [self._analisar_tf(symbol, tf) for tf in tfs]
+        aprovados  = [r for r in resultados if r.get("aprovado")]
+        if aprovados:
+            return max(aprovados, key=lambda x: x["score"])
+        return max(resultados, key=lambda x: x["score"])
+
+    def analisar_tf(self, symbol, tf):
+        return self._analisar_tf(symbol, tf)
+
+    def obter_regime(self, symbol):
+        df = self._calc(self._fetch(symbol, "1h"))
+        r  = df.iloc[-1]
+        return {"regime":"K10","adx":float(r["adx"]),"atr":float(r["atr"])}
