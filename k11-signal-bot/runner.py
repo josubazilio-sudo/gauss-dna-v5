@@ -32,6 +32,13 @@ async def main():
         logger.info("K11: nenhum sinal neste ciclo")
         return
 
+    # Log de auditoria RVOL (enviado antes dos sinais)
+    try:
+        auditoria = scanner._gerar_auditoria_rvol(aprovados)
+        logger.info(auditoria)
+    except:
+        pass
+
     for sinal in aprovados[:3]:
         cartao = formatar_cartao(sinal, bot_name="K11")
         if cartao:
