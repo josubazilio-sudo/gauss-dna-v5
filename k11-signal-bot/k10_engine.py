@@ -213,8 +213,7 @@ class K10Engine:
 
         # ── SETUP 2: REVERSÃO ────────────────────────────────────────────────
         elif regime == "REVERSAO":
-            if not bos:        motivos.append("BOS/CHoCH não confirmado")
-            else:              confirmacoes.append("BOS/CHoCH confirmado")
+            if bos:            confirmacoes.append("BOS/CHoCH confirmado")
             if not macd_ok:    motivos.append("MACD não virou")
             else:              confirmacoes.append("MACD virando")
             if not rsi_ok:     motivos.append("RSI não alinhado")
