@@ -83,7 +83,7 @@ def formatar_cartao(r: dict) -> str:
         f"📊 Setup: {setup_label}\n"
         f"⏱️ Duração: {duracao}\n\n"
         f"{sep}\n\n"
-        f"Smart Money\n\n"
+        f"{smc_label}\n\n"
         f"{smc_block}\n\n"
         f"{sep}\n\n"
         f"Indicadores\n\n"
