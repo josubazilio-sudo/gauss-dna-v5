@@ -47,10 +47,13 @@ def formatar_cartao(r: dict, bot_name: str = "K11") -> str:
     }.get(setup, setup)
 
     smc_block = "\n".join(f"✅ {item}" for item in smc) if smc else "✅ Estrutura confirmada"
+    prioridade = r.get("prioridade", "")
     sep = "━━━━━━━━━━━━━━"
+    prioridade_line = f"{prioridade}\n\n" if prioridade else ""
 
     return (
         f"🏆 {symbol}\n\n"
+        f"{prioridade_line}"
         f"{dir_emoji} | {tf} | {tier_map.get(tier,'🥉 BRONZE')}\n\n"
         f"⭐ Score: {score} | {conv_map.get(tier,'MODERADA 🔶')}\n\n"
         f"{sep}\n\n"
