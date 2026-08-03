@@ -211,25 +211,39 @@ class K10Engine:
             score_min = 68
             rvol_min  = 0.7
 
-        # ── SETUP 2: REVERSÃO ────────────────────────────────────────────────
+        # ── SETUP 2: REVERSÃO — Classificação de Qualidade V1.1 ──────────────
         elif regime == "REVERSAO":
-            if bos:            confirmacoes.append("BOS/CHoCH confirmado")
-            if not macd_ok:    motivos.append("MACD não virou")
-            else:              confirmacoes.append("MACD virando")
-            if not rsi_ok:     motivos.append("RSI não alinhado")
-            else:              confirmacoes.append("RSI alinhado")
-            if not pullback:   motivos.append("Sem pullback EMA21")
-            else:              confirmacoes.append("Pullback EMA21")
+            if bos:     confirmacoes.append("BOS/CHoCH confirmado")
+            if macd_ok: confirmacoes.append("MACD virando")
+            if rsi_ok:  confirmacoes.append("RSI alinhado")
+            if pullback:confirmacoes.append("Pullback EMA21")
 
-            # Reversão forte — RVOL >= 3.0 tem prioridade
+            # Reversão Forte — RVOL >= 3.0: aprovação direta
             reversao_forte = rvol >= 3.0 and macd_ok and rsi_ok and pullback
             if reversao_forte:
-                confirmacoes.append(f"REVERSÃO FORTE RVOL {rvol:.2f}")
-                motivos = []  # limpa motivos — aprovação direta
-            elif rvol < 0.7:
-                motivos.append(f"RVOL {rvol:.2f} < 0.7")
+                confirmacoes.append(f"🔥 REVERSÃO FORTE RVOL {rvol:.2f}")
+                motivos = []
+                score_min = 65; rvol_min = 3.0
+
+            # Nível A — Institucional
+            elif rvol >= 2.0 and bos and macd_ok and pullback:
+                confirmacoes.append("🏛️ NÍVEL A — Institucional")
+                score_min = 75; rvol_min = 2.0
+
+            # Nível B — Confirmada
+            elif rvol >= 1.0 and macd_ok and rsi_ok and pullback:
+                confirmacoes.append("✅ NÍVEL B — Confirmada")
+                score_min = 70; rvol_min = 1.0
+
+            # Nível C — Observação (não opera)
             else:
-                confirmacoes.append(f"RVOL {rvol:.2f}")
+                if 65 <= score < 70 or (rvol < 1.0 and not bos):
+                    motivos.append(f"NÍVEL C — Observação (score={score}, rvol={rvol:.2f})")
+                else:
+                    if not macd_ok:  motivos.append("MACD não virou")
+                    if not pullback: motivos.append("Sem pullback EMA21")
+                    if rvol < 0.7:   motivos.append(f"RVOL {rvol:.2f} < 0.7")
+                score_min = 70; rvol_min = 0.7
 
             # Bloqueio extremo H4
             if df4h is not None:
@@ -241,8 +255,6 @@ class K10Engine:
                 if contra_h4 and adx_4h > 35 and h1_contra and not bos and rvol < 1.2:
                     motivos.append(f"Bloqueio extremo H4 ADX={adx_4h:.0f}")
 
-            score_min = 68
-            rvol_min  = 0.7
 
         # ── SETUP 3: CRUZAMENTO ──────────────────────────────────────────────
         elif regime == "CRUZAMENTO":
