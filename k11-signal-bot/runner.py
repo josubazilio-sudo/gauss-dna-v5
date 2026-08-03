@@ -62,18 +62,15 @@ async def main():
         ee_resultados.sort(key=lambda x: x.get("score",0), reverse=True)
         logger.info(f"Early Entry shadow: {len(ee_resultados)} aprovados")
 
-        # Reportar no Telegram como SHADOW (sem executar)
+        # Enviar cartão real do Early Entry
         if ee_resultados:
-            top = ee_resultados[:3]
-            linhas = [f"👁 SHADOW — Early Entry V1 ({len(ee_resultados)} sinais):\n"]
-            for r in top:
-                sym  = r["symbol"].replace("/USDT:USDT","")
-                linhas.append(
-                    f"🔍 {sym} {r['direcao']} | {r['timeframe']} | score={r['score']} rvol={r['rvol']:.2f}\n"
-                    f"   Entrada={r['entrada']} TP1={r['tp1']} Stop={r['stop']}\n"
-                    f"   Confs: {', '.join(r.get('confirmacoes_smc',[]))}"
-                )
-            await enviar("\n".join(linhas))
+            from formatter import formatar_cartao
+            for sinal in ee_resultados[:2]:
+                cartao = formatar_cartao(sinal, bot_name="K11")
+                if cartao:
+                    await enviar(cartao)
+                    logger.info(f"K11 EE: {sinal['symbol']} score={sinal['score']}")
+                    await asyncio.sleep(2)
 
     except Exception as e:
         logger.warning(f"Early Entry shadow erro: {e}")
