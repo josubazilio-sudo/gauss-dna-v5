@@ -219,8 +219,8 @@ class K10Engine:
         delta= float(r["delta"]) if not np.isnan(r["delta"]) else 0
         vol_crescente = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-4:-1].mean())
         falhas = []
-        if rvol < 1.0:
-            falhas.append(f"RVOL {rvol:.2f} < 1.0")
+        if rvol < 0.7:
+            falhas.append(f"RVOL {rvol:.2f} < 0.7")
         if not vol_crescente:
             falhas.append("Volume decrescente")
         if direcao == "LONG" and delta < 0:
@@ -373,7 +373,7 @@ class K10Engine:
         penais = []
         if adx < 18:
             score -= 10; penais.append(("ADX fraco", -10))
-        if rvol < 0.8:
+        if rvol < 0.6:
             score -= 8;  penais.append(("Volume fraco", -8))
         if len(falhas_tend) > 0:
             score -= 5 * len(falhas_tend); penais.append((f"Contra tendência ({len(falhas_tend)}x)", -5*len(falhas_tend)))
@@ -510,7 +510,7 @@ class K10Engine:
             motivos.append(f"Score {score} < 75 (mínimo Bronze)")
 
         # SMC obrigatório
-        if smc_pts < 15:
+        if smc_pts < 10:
             motivos.append("Sem confluência SMC suficiente")
 
         aprovado = len(motivos) == 0
