@@ -512,8 +512,8 @@ class K10Engine:
             motivos.append(f"Score {score} < 72 (mínimo Bronze)")
 
         # SMC obrigatório
-        if smc_pts < 10:
-            motivos.append("Sem confluência SMC suficiente")
+        if smc_pts < 20:
+            motivos.append("Sem confluência SMC — mínimo 2 confirmações")
 
         aprovado = len(motivos) == 0
 
