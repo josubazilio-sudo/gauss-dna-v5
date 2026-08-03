@@ -27,6 +27,30 @@ class K10Scanner:
             logger.warning(f"Erro {symbol}: {e}")
             return None
 
+    def _detectar_market_low_volume(self, resultados_rvol):
+        """Detecta se >80% dos ativos estão com RVOL baixo"""
+        if not resultados_rvol:
+            return False
+        baixos = sum(1 for r in resultados_rvol if r < 0.80)
+        pct = baixos / len(resultados_rvol)
+        return pct > 0.80
+
+    def _gerar_auditoria_rvol(self, resultados):
+        """Gera resumo de auditoria do RVOL"""
+        rvols = [r.get("rvol", 0) for r in resultados if r.get("rvol", 0) > 0]
+        if not rvols:
+            return "Sem dados de RVOL"
+        import statistics
+        return (
+            f"AUDITORIA RVOL ({len(rvols)} ativos):\n"
+            f"Média: {sum(rvols)/len(rvols):.2f}\n"
+            f"Mediana: {statistics.median(rvols):.2f}\n"
+            f"Maior: {max(rvols):.2f}\n"
+            f"Menor: {min(rvols):.2f}\n"
+            f"RVOL < 0.8: {sum(1 for r in rvols if r < 0.8)/len(rvols)*100:.0f}%\n"
+            f"RVOL > 1.2: {sum(1 for r in rvols if r > 1.2)/len(rvols)*100:.0f}%"
+        )
+
     def scan(
         self,
         min_score: int  = 70,
@@ -70,6 +94,12 @@ class K10Scanner:
 
                 if result and result.get("aprovado") and result.get("score", 0) >= min_score:
                     aprovados.append(result)
+
+        # Detectar MARKET_LOW_VOLUME
+        todos_rvol = [r.get("rvol", 0) for r in aprovados]
+        market_low_volume = self._detectar_market_low_volume(todos_rvol)
+        if market_low_volume:
+            logger.info("⚠️ MARKET_LOW_VOLUME ativo — limites de RVOL reduzidos 20%")
 
         aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
         logger.info(f"✅ Scan concluído: {len(aprovados)}/{total} ativos aprovados")
