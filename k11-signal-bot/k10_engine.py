@@ -436,6 +436,155 @@ class K10Engine:
             return max(aprovados, key=lambda x: x["score"])
         return max(resultados, key=lambda x: x["score"])
 
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # RFC K11 — FILTRO INSTITUCIONAL TREND FOLLOWING
+    # ─────────────────────────────────────────────────────────────────────────
+    def _filtro_tf_institucional(self, df, direcao, entrada, tp1):
+        """
+        Filtro rigoroso para Trend Following institucional.
+        Retorna lista de motivos de rejeição (vazia = aprovado).
+        """
+        r    = df.iloc[-1]
+        motivos = []
+
+        e10  = float(r["ema10"])
+        e21  = float(r["ema21"])
+        e50  = float(r["ema50"])
+        e200 = float(r["ema200"])
+        adx  = float(r["adx"])
+        rsi  = float(r["rsi"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        macd_h = float(r["macd_hist"])
+        vwap   = float(r["vwap"])
+        atr    = float(r["atr"])
+        c      = float(r["close"])
+
+        # ── 1. TENDÊNCIA ─────────────────────────────────────────────────────
+        if direcao == "LONG":
+            if not (e10 > e21 > e50 > e200):
+                motivos.append("EMAs desalinhadas — sem tendência de alta")
+        else:
+            if not (e10 < e21 < e50 < e200):
+                motivos.append("EMAs desalinhadas — sem tendência de baixa")
+
+        # ADX >= 25 e crescente
+        if adx < 25:
+            motivos.append(f"ADX {adx:.1f} < 25")
+        adx_crescente = adx > float(df["adx"].iloc[-4])
+        if not adx_crescente:
+            motivos.append("ADX enfraquecendo")
+
+        # ── 2. SMART MONEY (todos obrigatórios) ──────────────────────────────
+        # BOS
+        highs = df["high"].rolling(10).max().iloc[-5]
+        lows  = df["low"].rolling(10).min().iloc[-5]
+        bos = (c > highs) if direcao=="LONG" else (c < lows)
+        if not bos:
+            motivos.append("BOS não confirmado")
+
+        # CHoCH
+        swing_high = df["high"].iloc[-20:-1].max()
+        swing_low  = df["low"].iloc[-20:-1].min()
+        choch = (c > swing_high) if direcao=="LONG" else (c < swing_low)
+        if not choch:
+            motivos.append("CHoCH não confirmado")
+
+        # Order Block
+        ob_ok = False
+        for i in range(-6, -1):
+            forte = abs(df["close"].iloc[i]-df["open"].iloc[i]) > atr*0.7
+            inst  = df["volume"].iloc[i] > df["vol_ma"].iloc[i]*1.3
+            if forte and inst:
+                if direcao=="LONG" and df["close"].iloc[i] > df["open"].iloc[i]:
+                    ob_ok = True; break
+                if direcao=="SHORT" and df["close"].iloc[i] < df["open"].iloc[i]:
+                    ob_ok = True; break
+        if not ob_ok:
+            motivos.append("Order Block institucional ausente")
+
+        # FVG
+        if len(df) >= 4:
+            c1h = df["high"].iloc[-3]; c1l = df["low"].iloc[-3]
+            c3h = df["high"].iloc[-1]; c3l = df["low"].iloc[-1]
+            fvg = (c3l > c1h) if direcao=="LONG" else (c3h < c1l)
+            if not fvg:
+                motivos.append("FVG não identificado")
+
+        # Liquidity Sweep
+        eq_high = df["high"].iloc[-20:-1].max()
+        eq_low  = df["low"].iloc[-20:-1].min()
+        lh = df["high"].iloc[-1]; ll = df["low"].iloc[-1]; lc = df["close"].iloc[-1]
+        sweep = (ll < eq_low and lc > eq_low) if direcao=="LONG" else (lh > eq_high and lc < eq_high)
+        if not sweep:
+            motivos.append("Liquidity Sweep ausente")
+
+        # ── 3. VOLUME ────────────────────────────────────────────────────────
+        if rvol < 1.10:
+            motivos.append(f"RVOL {rvol:.2f} < 1.10")
+
+        # Volume crescente nas últimas 3 velas
+        v1 = float(df["volume"].iloc[-1])
+        v2 = float(df["volume"].iloc[-2])
+        v3 = float(df["volume"].iloc[-3])
+        if not (v1 > v2 > v3):
+            motivos.append("Volume não crescente nas últimas 3 velas")
+
+        # ── 4. MOMENTUM ──────────────────────────────────────────────────────
+        # MACD histograma crescente
+        hist_agora = float(df["macd_hist"].iloc[-1])
+        hist_ant   = float(df["macd_hist"].iloc[-3])
+        if direcao == "LONG":
+            if macd_h <= 0:
+                motivos.append("MACD histograma negativo")
+            if not hist_agora > hist_ant:
+                motivos.append("MACD histograma não crescente")
+            # RSI entre 50 e 65 apontando para cima
+            rsi_subindo = rsi > float(df["rsi"].iloc[-3])
+            if not (50 <= rsi <= 65):
+                motivos.append(f"RSI {rsi:.1f} fora da zona 50–65")
+            if not rsi_subindo:
+                motivos.append("RSI não está subindo")
+            # VWAP
+            if c < vwap:
+                motivos.append("Preço abaixo da VWAP")
+        else:
+            if macd_h >= 0:
+                motivos.append("MACD histograma positivo")
+            if not hist_agora < hist_ant:
+                motivos.append("MACD histograma não decrescente")
+            rsi_caindo = rsi < float(df["rsi"].iloc[-3])
+            if not (35 <= rsi <= 50):
+                motivos.append(f"RSI {rsi:.1f} fora da zona 35–50")
+            if not rsi_caindo:
+                motivos.append("RSI não está caindo")
+            if c > vwap:
+                motivos.append("Preço acima da VWAP")
+
+        # ── 5. ENTRADA ───────────────────────────────────────────────────────
+        # Rejeitar se percorreu >20% até TP1
+        if tp1 != entrada:
+            pct = abs(c - entrada) / abs(tp1 - entrada) * 100
+            if pct > 20:
+                motivos.append(f"Entrada atrasada — {pct:.0f}% do caminho até TP1")
+
+        # Candle de força
+        o = float(r["open"]); h = float(r["high"]); l = float(r["low"])
+        corpo = abs(c - o); total = h - l
+        candle_forca = corpo > total * 0.55 if total > 0 else False
+        if not candle_forca:
+            motivos.append("Sem candle de força para confirmar entrada")
+
+        # ── 6. DIVERGÊNCIA BAIXISTA (invalidar LONG) ─────────────────────────
+        if direcao == "LONG":
+            closes = df["close"].iloc[-10:]
+            rsis   = df["rsi"].iloc[-10:]
+            div_baixa = closes.iloc[-1] > closes.iloc[0] and rsis.iloc[-1] < rsis.iloc[0]
+            if div_baixa:
+                motivos.append("Divergência de baixa detectada")
+
+        return motivos
+
     def _analisar_tf(self, symbol, tf="30m"):
         lim = 200 if tf in ("4h","1d") else 300
         try:
@@ -486,13 +635,20 @@ class K10Engine:
             motivos.append("Entrada atrasada — preço percorreu >30% até TP1")
 
         # ── 6. Filtros ─────────────────────────────────────────────────────
-        falhas_tend = self._filtro_tendencia(df, direcao) if estrategia == "TREND_FOLLOWING" else []
-        falhas_mom  = self._filtro_momentum(df, direcao)
-        falhas_vol  = self._filtro_volume(df, direcao)
-
-        # Volume sempre obrigatório
-        if falhas_vol:
-            motivos.extend(falhas_vol)
+        # RFC K11: Trend Following usa filtro institucional rigoroso
+        if estrategia == "TREND_FOLLOWING":
+            falhas_tf_inst = self._filtro_tf_institucional(df, direcao, entrada, tp1)
+            if falhas_tf_inst:
+                motivos.extend(falhas_tf_inst)
+            falhas_tend = []
+            falhas_mom  = []
+            falhas_vol  = []
+        else:
+            falhas_tend = self._filtro_tendencia(df, direcao)
+            falhas_mom  = self._filtro_momentum(df, direcao)
+            falhas_vol  = self._filtro_volume(df, direcao)
+            if falhas_vol:
+                motivos.extend(falhas_vol)
 
         # ── 7. SMC ─────────────────────────────────────────────────────────
         smc_pts, smc_confs = self._smc_score(df, direcao)
