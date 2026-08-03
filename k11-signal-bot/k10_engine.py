@@ -186,18 +186,8 @@ class K10Engine:
         macd_h2 = float(df["macd_hist"].iloc[-4])
         vol_cresc = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
         dist_ema21 = abs(c - e21) / atr if atr > 0 else 99
-        # Pullback real: preço recuou para EMA21 após movimento
-        c_ant2 = float(df["close"].iloc[-4])
-        c_ant1 = float(df["close"].iloc[-3])
-        dist_ant2 = abs(c_ant2 - float(df["ema21"].iloc[-4])) / atr if atr > 0 else 99
-        dist_ant1 = abs(c_ant1 - float(df["ema21"].iloc[-3])) / atr if atr > 0 else 99
-        # Pullback confirmado: estava longe, recuou, agora próximo
-        pullback = (
-            dist_ema21 <= 1.0           # próximo agora (máx 1 ATR)
-            and dist_ant2 > dist_ema21  # estava mais longe 2 velas atrás
-            and c_ant1 > c if direcao=="LONG"  # price recuou (vela anterior acima)
-            else dist_ema21 <= 1.0 and dist_ant2 > dist_ema21 and c_ant1 < c
-        )
+        # Pullback: preço próximo da EMA21 (dentro de 1.5 ATR)
+        pullback = dist_ema21 <= 1.5
         highs = float(df["high"].iloc[-16:-1].max())
         lows  = float(df["low"].iloc[-16:-1].min())
         bos   = (c > highs * 0.998) if direcao=="LONG" else (c < lows * 1.002)
