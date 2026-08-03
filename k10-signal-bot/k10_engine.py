@@ -118,13 +118,13 @@ class K10Engine:
             movimento_consumido = 0.5
 
         if direcao == "LONG":
-            if rsi > 72:
-                return False, f"Exaustão: RSI {rsi:.1f} > 72"
+            if rsi > 75:
+                return False, f"Exaustão: RSI {rsi:.1f} > 75"
             if c > float(r["bb_upper"]):
                 return False, "Exaustão: Preço acima da Banda Superior"
             if dist_ema21 > 1.5:
                 return False, f"Exaustão: Distância EMA21 = {dist_ema21:.2f} ATR > 1.5"
-            if candles_alta >= 3:
+            if candles_alta >= 4:
                 return False, f"Exaustão: {candles_alta} candles consecutivos de alta"
             if cmo > 70:
                 return False, f"Exaustão: CMO {cmo:.1f} > 70"
@@ -133,13 +133,13 @@ class K10Engine:
             if stoch_rsi > 0.95:
                 return False, f"StochRSI {stoch_rsi*100:.0f}% — sobrecomprado extremo, aguardar pullback"
         else:
-            if rsi < 28:
-                return False, f"Exaustão: RSI {rsi:.1f} < 28"
+            if rsi < 25:
+                return False, f"Exaustão: RSI {rsi:.1f} < 25"
             if c < float(r["bb_lower"]):
                 return False, "Exaustão: Preço abaixo da Banda Inferior"
             if dist_ema21 > 1.5:
                 return False, f"Exaustão: Distância EMA21 = {dist_ema21:.2f} ATR > 1.5"
-            if candles_baixa >= 3:
+            if candles_baixa >= 4:
                 return False, f"Exaustão: {candles_baixa} candles consecutivos de queda"
             if cmo < -70:
                 return False, f"Exaustão: CMO {cmo:.1f} < -70"
@@ -569,9 +569,9 @@ class K10Engine:
         atr = float(r30["atr"])
         entrada = round(c, 4)
         stop    = round(c - atr*1.5, 4) if direcao=="LONG" else round(c + atr*1.5, 4)
-        tp1     = round(c + atr*1.0, 4) if direcao=="LONG" else round(c - atr*1.0, 4)
-        tp2     = round(c + atr*2.0, 4) if direcao=="LONG" else round(c - atr*2.0, 4)
-        tp3     = round(c + atr*3.0, 4) if direcao=="LONG" else round(c - atr*3.0, 4)
+        tp1     = round(c + atr*1.5, 4) if direcao=="LONG" else round(c - atr*1.5, 4)
+        tp2     = round(c + atr*3.0, 4) if direcao=="LONG" else round(c - atr*3.0, 4)
+        tp3     = round(c + atr*4.5, 4) if direcao=="LONG" else round(c - atr*4.5, 4)
         rr      = round(abs(tp2-entrada)/abs(stop-entrada), 2) if stop != entrada else 0
 
         motivos = []
@@ -626,9 +626,9 @@ class K10Engine:
                 motivos.insert(0, f"Contra tendência H4={tend_4h} D1={tend_1d}")
                 falta.insert(0, "Aguardar alinhamento H4 e D1")
 
-        if rr < 2.0:
-            motivos.append(f"RR {rr} < 2.0")
-            falta.append("RR mínimo 1:2")
+        if rr < 1.5:
+            motivos.append(f"RR {rr} < 1.5")
+            falta.append("RR mínimo 1:1.5")
 
         # ── SCORE ─────────────────────────────────────────────────────────────
         atr_pct    = atr / c * 100 if c > 0 else 0
