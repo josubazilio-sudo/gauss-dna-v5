@@ -73,7 +73,9 @@ class K10Engine:
 
         vol_sma20 = v.rolling(20, min_periods=10).mean()
         df["vol_ma"] = vol_sma20
-        df["rvol"]   = (v / vol_sma20.replace(0, np.nan)).clip(lower=0, upper=50)
+        # RVOL usando vela fechada (shift 1) — não usar vela em formação
+        vol_fechada = v.shift(1)
+        df["rvol"]   = (vol_fechada / vol_sma20.replace(0, np.nan)).clip(lower=0, upper=50)
 
         return df
 
@@ -119,9 +121,9 @@ class K10Engine:
         # SETUP 2 — REVERSÃO
         c   = float(r["close"])
         atr = float(r["atr"])
-        highs = float(df["high"].rolling(10).max().iloc[-5])
-        lows  = float(df["low"].rolling(10).min().iloc[-5])
-        bos = c > highs or c < lows
+        highs = float(df["high"].iloc[-16:-1].max())
+        lows  = float(df["low"].iloc[-16:-1].min())
+        bos = (c > highs * 0.998) or (c < lows * 1.002)
         rsi = float(r["rsi"])
         rsi_extremo = rsi > 65 or rsi < 35
         if bos and macd_virando and rsi_extremo:
@@ -183,9 +185,10 @@ class K10Engine:
         macd_h2 = float(df["macd_hist"].iloc[-4])
         vol_cresc = float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-3:-1].mean())
         pullback  = abs(c - e21) / atr <= 1.5 if atr > 0 else False
-        highs = float(df["high"].rolling(10).max().iloc[-5])
-        lows  = float(df["low"].rolling(10).min().iloc[-5])
-        bos   = (c > highs) if direcao=="LONG" else (c < lows)
+        # BOS: preço superou máxima/mínima recente (últimos 15 candles, excluindo o atual)
+        highs = float(df["high"].iloc[-16:-1].max())
+        lows  = float(df["low"].iloc[-16:-1].min())
+        bos   = (c > highs * 0.998) if direcao=="LONG" else (c < lows * 1.002)
         macd_ok = (macd_h > 0 and macd_h > macd_h2) if direcao=="LONG" else (macd_h < 0 and macd_h < macd_h2)
         rsi_ok  = (rsi > float(df["rsi"].iloc[-4])) if direcao=="LONG" else (rsi < float(df["rsi"].iloc[-4]))
 
