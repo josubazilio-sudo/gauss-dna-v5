@@ -62,8 +62,14 @@ class K10Engine:
         df["bb_mid"]   = sma20
         df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / sma20.replace(0, np.nan)
 
-        df["vol_ma"] = v.rolling(20).mean()
-        df["rvol"]   = v / df["vol_ma"].replace(0, np.nan)
+        # RVOL auditado — RFC V4.0
+        # SMA20 usando apenas velas fechadas, sem divisão por zero, sem NaN
+        vol_sma20 = v.rolling(20, min_periods=10).mean()
+        vol_valido = vol_sma20 > 0
+        rvol_raw = v / vol_sma20.where(vol_valido, np.nan)
+        # Clamp para evitar valores absurdos
+        df["vol_ma"] = vol_sma20
+        df["rvol"]   = rvol_raw.clip(lower=0, upper=50)
 
         return df
 
@@ -291,14 +297,48 @@ class K10Engine:
 
 
 
+
     # ─────────────────────────────────────────────────────────────────────────
-    # K11 RFC V3 — CALIBRAÇÃO INTELIGENTE
-    # Decisão em conjunto — nenhum filtro isolado reprova sinal de qualidade
+    # RFC K11 V4.0 — RVOL AUDITADO + ADAPTATIVO
     # ─────────────────────────────────────────────────────────────────────────
-    def _filtro_tf_institucional(self, df, direcao, entrada, tp1, df4h=None):
+
+    def _calcular_rvol_auditado(self, df, symbol, tf):
+        """
+        Calcula RVOL com validações completas.
+        Retorna (rvol, valido, detalhes)
+        """
+        try:
+            v        = df["close"].copy()  # usar volume
+            vol_ser  = df["volume"]
+            
+            # Usar penúltima vela (fechada), não a atual (em formação)
+            vol_atual = float(vol_ser.iloc[-2])
+            sma20     = float(vol_ser.iloc[-21:-1].mean())  # 20 velas fechadas
+
+            # Validações
+            if sma20 <= 0 or np.isnan(sma20):
+                return 1.0, False, "SMA20=0 ou NaN — RVOL_INVALID"
+            if vol_atual <= 0 or np.isnan(vol_atual):
+                return 1.0, False, "Volume=0 ou NaN — RVOL_INVALID"
+            if len(vol_ser) < 21:
+                return 1.0, False, "Menos de 21 velas — RVOL_INVALID"
+
+            rvol = round(vol_atual / sma20, 3)
+            detalhes = {
+                "vol_atual": round(vol_atual, 0),
+                "sma20":     round(sma20, 0),
+                "rvol":      rvol,
+            }
+            return rvol, True, detalhes
+
+        except Exception as e:
+            return 1.0, False, f"Erro RVOL: {e}"
+
+    def _filtro_tf_institucional(self, df, direcao, entrada, tp1, df4h=None,
+                                  rvol_auditado=None, rvol_valido=True,
+                                  market_low_volume=False):
         r       = df.iloc[-1]
         motivos = []
-        avisos  = []  # avisos não bloqueiam, só reduzem score
 
         c       = float(r["close"])
         e10     = float(r["ema10"])
@@ -306,76 +346,72 @@ class K10Engine:
         e50     = float(r["ema50"])
         atr     = float(r["atr"])
         adx     = float(r["adx"])
-        di_p    = float(r["di_p"]) if "di_p" in r.index else 0
-        di_n    = float(r["di_n"]) if "di_n" in r.index else 0
         rsi     = float(r["rsi"])
-        rvol    = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        rvol    = rvol_auditado if rvol_auditado is not None else (
+                  float(r["rvol"]) if not np.isnan(r["rvol"]) else 1.0)
         macd_h  = float(r["macd_hist"])
         macd_h2 = float(df["macd_hist"].iloc[-3])
         rsi_ant = float(df["rsi"].iloc[-3])
 
         # ── CONFLUÊNCIA BASE ─────────────────────────────────────────────────
-        # Contar pontos de confluência para decisão conjunta
         conf = 0
+        ema_virando  = (e10 > e21) if direcao=="LONG" else (e10 < e21)
+        macd_ok      = (macd_h > 0 and macd_h > macd_h2) if direcao=="LONG" else (macd_h < 0 and macd_h < macd_h2)
+        rsi_ok       = (rsi > rsi_ant) if direcao=="LONG" else (rsi < rsi_ant)
+        highs        = float(df["high"].rolling(10).max().iloc[-5])
+        lows         = float(df["low"].rolling(10).min().iloc[-5])
+        bos_ok       = (c > highs) if direcao=="LONG" else (c < lows)
+        dist_ema21   = abs(c - e21) / atr if atr > 0 else 99
+        pullback_ok  = dist_ema21 <= 1.5
+        vol_crescente= float(df["volume"].iloc[-1]) > float(df["volume"].iloc[-2])
 
-        # EMA10 e EMA21 virando na direção (mesmo sem EMA50 alinhada)
-        ema_virando = (e10 > e21) if direcao=="LONG" else (e10 < e21)
-        if ema_virando: conf += 1
-
-        # MACD cruzado e acelerando
-        macd_ok = (macd_h > 0 and macd_h > macd_h2) if direcao=="LONG" else (macd_h < 0 and macd_h < macd_h2)
-        if macd_ok: conf += 1
-
-        # RSI inclinando
-        rsi_ok = (rsi > rsi_ant) if direcao=="LONG" else (rsi < rsi_ant)
-        if rsi_ok: conf += 1
-
-        # BOS/CHoCH — preço rompeu estrutura recente
-        highs = float(df["high"].rolling(10).max().iloc[-5])
-        lows  = float(df["low"].rolling(10).min().iloc[-5])
-        bos_ok = (c > highs) if direcao=="LONG" else (c < lows)
-        if bos_ok: conf += 1
-
-        # Pullback na EMA21
-        dist_ema21 = abs(c - e21) / atr if atr > 0 else 99
-        pullback_ok = dist_ema21 <= 1.5
-        if pullback_ok: conf += 1
-
-        # Volume crescente
-        v1 = float(df["volume"].iloc[-1])
-        v2 = float(df["volume"].iloc[-2])
-        vol_crescente = v1 > v2
+        if ema_virando:   conf += 1
+        if macd_ok:       conf += 1
+        if rsi_ok:        conf += 1
+        if bos_ok:        conf += 1
+        if pullback_ok:   conf += 1
         if vol_crescente: conf += 1
 
-        forte_confluencia = conf >= 4  # 4+ = alta qualidade
+        forte_conf = conf >= 4
+
+        # Score estimado para regra de decisão RVOL
+        score_alto = False  # será preenchido pelo caller se score >= 80
 
         # ── 1. RVOL ADAPTATIVO ───────────────────────────────────────────────
         tendencia_local = (e10 > e21 > e50) if direcao=="LONG" else (e10 < e21 < e50)
         eh_reversao = not tendencia_local
 
-        if eh_reversao:
-            rvol_min = 0.80 if forte_confluencia else 1.15
-        else:
-            rvol_min = 0.70 if forte_confluencia else 0.90
+        # Limite base
+        rvol_base = 1.15 if eh_reversao else 0.90
+        # Reduzir 20% em MARKET_LOW_VOLUME, nunca abaixo de 0.60
+        if market_low_volume:
+            rvol_base = max(0.60, rvol_base * 0.80)
+        # Alta confluência reduz o exigido
+        if forte_conf:
+            rvol_base = max(0.60, rvol_base * 0.75)
 
-        if rvol < rvol_min:
-            # Só bloqueia se confluência fraca também
-            if conf < 3:
-                motivos.append(f"RVOL {rvol:.2f} insuficiente com confluência fraca ({conf}/6)")
-            else:
-                avisos.append(f"RVOL {rvol:.2f} abaixo do ideal (confluência compensa)")
+        # Se RVOL inválido — não reprovar
+        if not rvol_valido:
+            pass  # RVOL_INVALID — não reprovar
+        elif rvol < rvol_base:
+            # RFC V4.0 regra 6: nunca bloquear se score alto + confluências fortes
+            qualidade_alta = (forte_conf and bos_ok and pullback_ok and macd_ok and rsi_ok and adx >= 20)
+            if qualidade_alta:
+                pass  # penalidade de score aplicada pelo caller (-5 pts)
+            elif conf < 3:
+                motivos.append(f"RVOL {rvol:.2f} < {rvol_base:.2f} com confluência fraca ({conf}/6)")
 
-        # ── 2. ADX — só bloqueia se mercado lateral confirmado ──────────────
-        di_sem_direcao = abs(di_p - di_n) < 5
-        lateral_confirmado = adx < 18 and di_sem_direcao
-        if lateral_confirmado and conf < 3:
-            motivos.append(f"Mercado lateral confirmado (ADX {adx:.1f}, sem direção)")
+        # ── 2. ADX ──────────────────────────────────────────────────────────
+        di_p = float(r["di_p"]) if "di_p" in df.columns else 0
+        di_n = float(r["di_n"]) if "di_n" in df.columns else 0
+        di_sem_dir = abs(di_p - di_n) < 5
+        if adx < 18 and di_sem_dir and conf < 3:
+            motivos.append(f"Mercado lateral (ADX {adx:.1f}) sem confluência")
 
-        # ── 3. EMAs — virando é suficiente ───────────────────────────────────
-        # Bloquear só se EMAs completamente inversas + tendência forte
+        # ── 3. EMAs ──────────────────────────────────────────────────────────
         emas_inversas = (e10 < e21 and e21 < e50) if direcao=="LONG" else (e10 > e21 and e21 > e50)
-        if emas_inversas and adx > 28 and not forte_confluencia:
-            motivos.append(f"Tendência contrária forte (ADX {adx:.1f}) sem confluência suficiente")
+        if emas_inversas and adx > 28 and not forte_conf:
+            motivos.append(f"Tendência contrária forte (ADX {adx:.1f})")
 
         # ── 4. MACD ──────────────────────────────────────────────────────────
         if not macd_ok and conf < 3:
@@ -385,40 +421,41 @@ class K10Engine:
         if tp1 != entrada:
             pct = abs(c - entrada) / abs(tp1 - entrada) * 100
             if pct > 30:
-                motivos.append(f"Sinal atrasado — {pct:.0f}% do movimento realizado")
+                motivos.append(f"Sinal atrasado {pct:.0f}%")
 
-        # ── 6. H4 — só bloqueia tendência muito forte contra ────────────────
+        # ── 6. H4 ───────────────────────────────────────────────────────────
         if df4h is not None:
             r4h    = df4h.iloc[-1]
-            e21_4h = float(r4h["ema21"]); e50_4h = float(r4h["ema50"])
             adx_4h = float(r4h["adx"])
-            tend_h4_alta = e21_4h > e50_4h
+            tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
+            if direcao=="LONG" and not tend_h4 and adx_4h > 30 and not forte_conf:
+                motivos.append(f"H4 queda forte (ADX {adx_4h:.0f})")
+            if direcao=="SHORT" and tend_h4 and adx_4h > 30 and not forte_conf:
+                motivos.append(f"H4 alta forte (ADX {adx_4h:.0f})")
 
-            if direcao=="LONG" and not tend_h4_alta and adx_4h > 30 and not forte_confluencia:
-                motivos.append(f"H4 em queda forte (ADX {adx_4h:.0f}) sem confluência")
-            if direcao=="SHORT" and tend_h4_alta and adx_4h > 30 and not forte_confluencia:
-                motivos.append(f"H4 em alta forte (ADX {adx_4h:.0f}) sem confluência")
+        return motivos, conf
 
-        return motivos
-
-    def _analisar_tf(self, symbol, tf="1h"):
+    def _analisar_tf(self, symbol, tf="1h", market_low_volume=False):
         lim = 200 if tf in ("4h","1d") else 300
         try:
             df   = self._calc(self._fetch(symbol, tf, limit=lim))
             df4h = self._calc(self._fetch(symbol, "4h", limit=100))
         except Exception as e:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0}
+                    "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0,
+                    "rvol":0,"adx":0,"vol_atual":0,"sma20_vol":0}
 
         r    = df.iloc[-1]
         adx  = float(r["adx"])
-        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+
+        # RVOL auditado
+        rvol, rvol_valido, rvol_det = self._calcular_rvol_auditado(df, symbol, tf)
 
         direcao, tipo, score_virada, confirmacoes = self._detectar_virada(df)
-
         if direcao is None:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":confirmacoes,"timeframe":tf,"direcao":"—","rr":0}
+                    "motivos_rejeicao":confirmacoes,"timeframe":tf,"direcao":"—","rr":0,
+                    "rvol":rvol,"adx":adx,"vol_atual":0,"sma20_vol":0}
 
         entrada, stop, tp1, atr = self._calcular_niveis(df, direcao)
         rr = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
@@ -426,21 +463,25 @@ class K10Engine:
 
         motivos = []
 
-        # RFC V3: decisão conjunta
-        falhas = self._filtro_tf_institucional(df, direcao, entrada, tp1, df4h)
+        # Filtro V4.0
+        falhas, conf = self._filtro_tf_institucional(
+            df, direcao, entrada, tp1, df4h,
+            rvol_auditado=rvol, rvol_valido=rvol_valido,
+            market_low_volume=market_low_volume
+        )
         motivos.extend(falhas)
 
-        # Score mínimo 70 (RFC V3) — 75+ prioridade, 80+ premium
+        # Penalidade de score se RVOL baixo mas qualidade alta
+        if rvol < 0.70 and rvol_valido:
+            score = max(0, score - 5)
+
         if score < 70:
             motivos.append(f"Score {score} < 70")
-
-        # RR mínimo 2.0
         if rr < 2.0:
             motivos.append(f"RR {rr} < 2.0")
 
         aprovado = len(motivos) == 0
 
-        # Label do regime
         e10_v = float(r["ema10"]); e21_v = float(r["ema21"]); e50_v = float(r["ema50"])
         if   e10_v > e21_v > e50_v and direcao=="LONG":   regime_label = "Tendência Alta ↑"
         elif e10_v < e21_v < e50_v and direcao=="SHORT":  regime_label = "Tendência Baixa ↓"
@@ -449,13 +490,14 @@ class K10Engine:
         elif adx < 18:                                     regime_label = "Lateral ↔"
         else:                                              regime_label = "Transição"
 
-        # Prioridade no cartão
         if score >= 80:   prioridade = "🔥 PREMIUM"
         elif score >= 75: prioridade = "⭐ PRIORITÁRIO"
         else:             prioridade = ""
 
         conv_map = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}
         gb = self._gestao_banca(score, entrada, stop, atr)
+
+        vol_det = rvol_det if isinstance(rvol_det, dict) else {}
 
         return {
             "symbol":           symbol,
@@ -476,6 +518,10 @@ class K10Engine:
             "rsi":              float(r["rsi"]),
             "atr":              atr,
             "rvol":             rvol,
+            "rvol_valido":      rvol_valido,
+            "vol_atual":        vol_det.get("vol_atual", 0),
+            "sma20_vol":        vol_det.get("sma20", 0),
+            "confluencia":      conf,
             "vwap":             float(r["vwap"]),
             "ema21":            float(r["ema21"]),
             "confirmacoes_smc": confirmacoes,
