@@ -233,15 +233,15 @@ class K10Engine:
             "SPCX","SNDK","SOXL","SOXS","STOCK","OIL","SILVER"
         ])
 
+        # Tradicionais respeitam horário de mercado
         if eh_tradicional and peso_sessao < 60:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[f"Mercado fechado — {sessao} (melhor: Londres 04h-13h BRT / NY 09h-18h BRT)"],
                     "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol,
                     "sessao":sessao}
 
-        # Cripto 24h — nunca bloqueia, só penaliza levemente em horário morto
-        if not eh_tradicional and peso_sessao < 60:
-            peso_sessao = 55  # leve penalidade mas NUNCA bloqueia
+        # Cripto 24h — NUNCA bloqueia por sessão
+        # Sessão só serve como informação e bônus de score
 
         # ── DIREÇÃO PELO MACD ─────────────────────────────────────────────────
         macd_cruzou_long  = macd_h2 <= 0 and macd_h > 0
