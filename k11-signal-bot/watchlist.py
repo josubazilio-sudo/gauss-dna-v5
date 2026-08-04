@@ -56,6 +56,20 @@ def get_watchlist(min_volume_usdt: float = 500_000) -> list:
 
 
 # Fallback — pares confirmados nos futuros MEXC
+# Lista prioritária — seus pares favoritos (escaneados primeiro)
+WATCHLIST_PRIORITY = [
+    "PENDLE/USDT:USDT",
+    "SPCX/USDT:USDT",
+    "OPG/USDT:USDT",
+    "EPIC/USDT:USDT",
+    "SKYAI/USDT:USDT",
+    "HOME/USDT:USDT",
+    "ALLO/USDT:USDT",
+    "WLD/USDT:USDT",
+    "H/USDT:USDT",
+    "BEAT/USDT:USDT",
+]
+
 WATCHLIST_FALLBACK = [
     "BTC/USDT:USDT","ETH/USDT:USDT","BNB/USDT:USDT","SOL/USDT:USDT","XRP/USDT:USDT",
     "ADA/USDT:USDT","DOGE/USDT:USDT","AVAX/USDT:USDT","DOT/USDT:USDT","MATIC/USDT:USDT",
