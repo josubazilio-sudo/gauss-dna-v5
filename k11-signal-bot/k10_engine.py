@@ -279,6 +279,17 @@ class K10Engine:
 
         direcao = "LONG" if choch_dir == "UP" else "SHORT"
 
+        # VALIDAÇÃO MACD — deve confirmar a direção
+        macd_atual = float(df.iloc[-2]["macd_hist"])
+        if direcao == "SHORT" and macd_atual > 0:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[f"MACD positivo ({macd_atual:.3f}) — contradiz SHORT"],
+                    "timeframe":tf,"direcao":direcao,"rr":0,"rvol":0}
+        if direcao == "LONG" and macd_atual < 0:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[f"MACD negativo ({macd_atual:.3f}) — contradiz LONG"],
+                    "timeframe":tf,"direcao":direcao,"rr":0,"rvol":0}
+
         # PASSO 3: Captura de liquidez + Volume
         score_captura, confirmacoes = self._captura_liquidez(df, choch_dir)
         if score_captura < 40:
