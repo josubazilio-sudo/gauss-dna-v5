@@ -492,8 +492,8 @@ class K10Engine:
         score_timing, timing_det = self._calcular_timing(df, direcao, entrada, tp1, stop)
 
         # Timing mínimo 50 — abaixo disso entrada tardia, bloqueado
-        if score_timing < 50:
-            motivos.append(f"⏱ Timing {score_timing}/100 — entrada tardia")
+        if score_timing < 40:
+            motivos.append(f"⏱ Timing {score_timing}/100 — entrada tardia (mín 40)")
 
         # ── CHECAGEM FINAL ────────────────────────────────────────────────────
         if score < 70:   motivos.append(f"Score {score} < 70")
