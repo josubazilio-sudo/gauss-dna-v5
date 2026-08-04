@@ -492,6 +492,7 @@ class K10Engine:
             tp1 = round(fvg_low if (fvg_ok and direcao=="SHORT" and fvg_low < c) else c-risco*2.5, 6)
             if tp1 < c*0.85 or tp1 <= 0: tp1 = round(c*0.88, 6)
 
+        entrada = c  # entrada = preço atual da vela fechada
         rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
 
         # ── SCORE DE TIMING ──────────────────────────────────────────────────
