@@ -77,32 +77,41 @@ class K10Engine:
     # ─────────────────────────────────────────────────────────────────────────
     def _detectar_choch(self, df, tendencia):
         """
-        Detecta quebra de estrutura (CHoCH):
-        - Em tendência de ALTA: fechou abaixo do último swing low → CHoCH DOWN
-        - Em tendência de BAIXA: fechou acima do último swing high → CHoCH UP
+        Detecta CHoCH RECENTE — máximo 4 velas atrás.
+        Se o CHoCH foi há mais tempo, sinal atrasado — ignorar.
         """
-        df_c = df.iloc[:-1]  # velas fechadas
-        c    = float(df_c["close"].iloc[-1])
+        df_c = df.iloc[:-1]
         atr  = float(df_c["atr"].iloc[-1])
 
-        # Swing points dos últimos 30 candles
-        lookback = df_c.iloc[-30:-3]
+        # Swing points dos últimos 30 candles (excluindo os 5 mais recentes)
+        lookback = df_c.iloc[-30:-5]
         swing_high = float(lookback["high"].max())
         swing_low  = float(lookback["low"].min())
 
-        # CHoCH DOWN (tendência de alta quebrou para baixo)
-        if tendencia == "ALTA":
-            # Fechou abaixo do swing low recente
-            choch_down = c < swing_low * 1.002
-            if choch_down:
-                return "DOWN", swing_low, swing_high
+        # Verificar se CHoCH aconteceu nas últimas 4 velas
+        janela = df_c.iloc[-4:]
 
-        # CHoCH UP (tendência de baixa quebrou para cima)
+        if tendencia == "ALTA":
+            # CHoCH DOWN: alguma das últimas 4 velas fechou abaixo do swing low
+            for i in range(len(janela)):
+                c_vela = float(janela["close"].iloc[i])
+                if c_vela < swing_low * 1.002:
+                    # CHoCH confirmado — verificar se não atrasou demais
+                    # Preço atual não pode estar muito longe do ponto de CHoCH
+                    c_atual = float(df_c["close"].iloc[-1])
+                    dist_choch = abs(c_atual - swing_low) / atr if atr > 0 else 99
+                    if dist_choch <= 5.0:  # máximo 5 ATR do ponto de quebra
+                        return "DOWN", swing_low, swing_high
+
         if tendencia == "BAIXA":
-            # Fechou acima do swing high recente
-            choch_up = c > swing_high * 0.998
-            if choch_up:
-                return "UP", swing_low, swing_high
+            # CHoCH UP: alguma das últimas 4 velas fechou acima do swing high
+            for i in range(len(janela)):
+                c_vela = float(janela["close"].iloc[i])
+                if c_vela > swing_high * 0.998:
+                    c_atual = float(df_c["close"].iloc[-1])
+                    dist_choch = abs(c_atual - swing_high) / atr if atr > 0 else 99
+                    if dist_choch <= 5.0:
+                        return "UP", swing_low, swing_high
 
         return None, swing_low, swing_high
 
@@ -200,11 +209,11 @@ class K10Engine:
             # Preço deve estar perto do swing low quebrado (reteste do suporte virou resistência)
             # Não entrar muito longe — máximo 3 ATR acima do swing
             dist = abs(c_atual - swing_low) / atr if atr > 0 else 99
-            return dist <= 10.0, dist
+            return dist <= 5.0, dist
 
         elif choch_dir == "DOWN":
             dist = abs(c_atual - swing_high) / atr if atr > 0 else 99
-            return dist <= 10.0, dist
+            return dist <= 5.0, dist
 
         return False, 99
 
