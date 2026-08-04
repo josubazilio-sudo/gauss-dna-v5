@@ -216,11 +216,23 @@ class K10Engine:
 
         # ── SESSÃO DE MERCADO ─────────────────────────────────────────────────
         sessao, peso_sessao = sessao_atual()
-        if peso_sessao < 60:
+
+        # Verificar se é ativo tradicional (respeita horário) ou cripto (24h)
+        sym_base = symbol.replace("/USDT:USDT","").upper()
+        eh_tradicional = any(t in sym_base for t in [
+            "XAU","XAUT","SILVER","USOIL","SPX","NDX","GOLD",
+            "SPCX","SNDK","SOXL","SOXS","STOCK","OIL","SILVER"
+        ])
+
+        if eh_tradicional and peso_sessao < 60:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Fora do horário — {sessao} (melhor: Londres 07h-16h UTC / NY 12h-21h UTC)"],
+                    "motivos_rejeicao":[f"Mercado fechado — {sessao} (melhor: Londres 07h-16h UTC / NY 12h-21h UTC)"],
                     "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol,
                     "sessao":sessao}
+
+        # Cripto: sempre opera mas penaliza horário morto
+        if not eh_tradicional and peso_sessao < 60:
+            peso_sessao = 50  # penalidade mas não bloqueia
 
         # ── DIREÇÃO PELO MACD ─────────────────────────────────────────────────
         macd_cruzou_long  = macd_h2 <= 0 and macd_h > 0
