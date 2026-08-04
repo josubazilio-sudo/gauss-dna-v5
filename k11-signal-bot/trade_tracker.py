@@ -122,3 +122,37 @@ def relatorio_completo() -> str:
         linhas += [sep, f"⚠️ {len(fechados)}/50 trades para análise definitiva"]
 
     return "\n".join(linhas)
+
+def stats_rapidas() -> str:
+    """Retorna linha de estatísticas para colocar no cartão/diagnóstico."""
+    trades, _ = _carregar_github()
+    if not trades:
+        return "📊 Sem histórico ainda"
+
+    fechados = [t for t in trades if t["resultado"] != "ABERTO"]
+    if not fechados:
+        total = len(trades)
+        return f"📊 {total} sinais | Aguardando resultados"
+
+    wins   = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
+    losses = [t for t in fechados if t["resultado"] == "STOP"]
+    wr     = len(wins)/len(fechados)*100
+
+    r_vals = [t["r_obtido"] for t in fechados if t["r_obtido"] is not None]
+    if r_vals:
+        r_pos = sum(r for r in r_vals if r > 0)
+        r_neg = abs(sum(r for r in r_vals if r < 0))
+        pf    = round(r_pos/r_neg, 2) if r_neg > 0 else 0
+        r_med = round(sum(r_vals)/len(r_vals), 2)
+        return (
+            f"📊 {len(fechados)} trades | "
+            f"✅{len(wins)} ❌{len(losses)} | "
+            f"WR {wr:.0f}% | "
+            f"PF {pf} | "
+            f"R̄ {r_med:+.1f}R"
+        )
+    return (
+        f"📊 {len(fechados)} trades | "
+        f"✅{len(wins)} ❌{len(losses)} | "
+        f"WR {wr:.0f}%"
+    )
