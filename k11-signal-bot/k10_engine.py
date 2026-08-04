@@ -200,11 +200,11 @@ class K10Engine:
             # Preço deve estar perto do swing low quebrado (reteste do suporte virou resistência)
             # Não entrar muito longe — máximo 3 ATR acima do swing
             dist = abs(c_atual - swing_low) / atr if atr > 0 else 99
-            return dist <= 3.0, dist
+            return dist <= 10.0, dist
 
         elif choch_dir == "DOWN":
             dist = abs(c_atual - swing_high) / atr if atr > 0 else 99
-            return dist <= 3.0, dist
+            return dist <= 10.0, dist
 
         return False, 99
 
