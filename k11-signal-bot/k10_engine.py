@@ -247,20 +247,30 @@ class K10Engine:
         adx_4h = float(r4h["adx"])
         tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
         macd_h4_v = float(r4h["macd_hist"])
-        h4_ok = (tend_h4 and direcao=="LONG") or (not tend_h4 and direcao=="SHORT")
         ctx_label = tf_contexto or ("H1" if tf=="30m" else "H4" if tf=="1h" else "D1")
-        if h4_ok:
-            # Bônus extra se contexto superior também tem MACD na direção
-            macd_ctx = float(r4h["macd_hist"])
-            macd_ctx_ok = (macd_ctx > 0 and direcao=="LONG") or (macd_ctx < 0 and direcao=="SHORT")
-            if macd_ctx_ok:
-                confirmacoes.append(f"✅ {ctx_label} MACD + tendência confirmando")
-                score += 15
-            else:
-                confirmacoes.append(f"{ctx_label} tendência favorável")
-                score += 5
-        elif adx_4h > 30:
-            motivos.append(f"{ctx_label} tendência forte contra ADX={adx_4h:.0f}")
+        macd_ctx   = float(r4h["macd_hist"])
+        macd_ctx_2 = float(df4h["macd_hist"].iloc[-3])
+        e10_ctx    = float(r4h["ema10"]); e21_ctx = float(r4h["ema21"])
+        e50_ctx    = float(r4h["ema50"]); e200_ctx= float(r4h["ema200"])
+
+        # Contexto superior: MACD na direção + EMAs alinhadas
+        macd_ctx_long  = macd_ctx > 0 or (macd_ctx > macd_ctx_2)
+        macd_ctx_short = macd_ctx < 0 or (macd_ctx < macd_ctx_2)
+        ema_ctx_long   = e10_ctx > e21_ctx and e50_ctx > e200_ctx
+        ema_ctx_short  = e10_ctx < e21_ctx and e50_ctx < e200_ctx
+        tend_h4_long   = tend_h4 and macd_ctx_long and ema_ctx_long
+        tend_h4_short  = not tend_h4 and macd_ctx_short and ema_ctx_short
+
+        ctx_confirma = (tend_h4_long and direcao=="LONG") or (tend_h4_short and direcao=="SHORT")
+
+        if ctx_confirma:
+            # Contexto superior confirmado — bônus alto
+            confirmacoes.append(f"✅ {ctx_label} tendência + MACD + EMAs confirmando")
+            score += 20
+        else:
+            # Contexto superior não confirma — BLOQUEIO obrigatório
+            # TF menor nunca entra contra TF maior
+            motivos.append(f"❌ {ctx_label} não confirma — top-down bloqueado")
 
         score = min(score, 100)
 
