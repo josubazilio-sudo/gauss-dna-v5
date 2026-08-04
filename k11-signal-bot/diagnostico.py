@@ -20,6 +20,7 @@ async def main():
 
         resultados = []
         for sym in wl[:15]:
+            erro_real = ""
             try:
                 r = engine.analisar(sym)
                 if r is None:
@@ -29,25 +30,25 @@ async def main():
                     r["symbol"] = sym
                 resultados.append(r)
             except Exception as e:
+                erro_real = traceback.format_exc()[-200:]
                 resultados.append({"symbol":sym,"score":0,"aprovado":False,
-                    "motivos_rejeicao":[str(e)[:60]],"timeframe":"?","direcao":"?","rvol":0})
+                    "motivos_rejeicao":[f"EXCECAO: {str(e)[:80]}"],
+                    "timeframe":"?","direcao":"?","rvol":0})
 
         resultados.sort(key=lambda x: x.get("score",0), reverse=True)
         aprovados = [r for r in resultados if r.get("aprovado")]
 
         linhas = [f"K11 DIAG SMC — {len(aprovados)} aprovados:\n"]
-        for r in resultados[:10]:
+        for r in resultados[:12]:
             sym    = r.get("symbol","?").replace("/USDT:USDT","")
             ok     = "✅" if r.get("aprovado") else "❌"
-            motivos_list = r.get("motivos_rejeicao") or ["ok"]
-            motivo = motivos_list[0][:60] if motivos_list else "ok"
-            # Se o motivo é um erro de exception, mostrar completo
-            if len(motivos_list) > 0 and ("Error" in motivo or "error" in motivo or len(motivo) < 5):
-                motivo = str(motivos_list[0])[:60]
+            motivos = r.get("motivos_rejeicao") or ["ok"]
+            motivo  = motivos[0][:60]
             tf     = r.get("timeframe","?")
             rvol   = r.get("rvol",0)
-            sessao = r.get("sessao","")
-            linhas.append(f"{ok} {sym} s={r.get('score')} tf={tf} rvol={rvol:.2f} {sessao}\n   {motivo}")
+            timing = r.get("score_timing","")
+            timing_str = f" T={timing}" if timing else ""
+            linhas.append(f"{ok} {sym} s={r.get('score')} tf={tf} rvol={rvol:.2f}{timing_str}\n   {motivo}")
 
         await tg("\n".join(linhas))
 
@@ -56,6 +57,6 @@ async def main():
             if cartao: await tg(cartao)
 
     except Exception:
-        await tg("ERRO:\n" + traceback.format_exc()[-2000:])
+        await tg("ERRO GERAL:\n" + traceback.format_exc()[-2000:])
 
 asyncio.run(main())
