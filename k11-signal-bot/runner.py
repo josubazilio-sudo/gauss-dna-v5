@@ -1,5 +1,5 @@
 """
-K11 Runner — CHoCH + Liquidity + Volume
+K11 Runner — com Trade Tracker
 """
 import asyncio, logging, os, httpx, traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -23,16 +23,15 @@ async def main():
     try:
         from k10_engine import K10Engine
         from watchlist import get_watchlist, WATCHLIST_FALLBACK
+        from trade_tracker import registrar, relatorio_telegram
 
         engine = K10Engine()
         wl = (get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK)[:500]
         aprovados = []
 
         def analisar(sym):
-            try:
-                return engine.analisar(sym)
-            except:
-                return None
+            try: return engine.analisar(sym)
+            except: return None
 
         with ThreadPoolExecutor(max_workers=6) as ex:
             futures = {ex.submit(analisar, sym): sym for sym in wl}
@@ -56,7 +55,11 @@ async def main():
         cartao = formatar_cartao(sinal, bot_name="K11")
         if cartao:
             await enviar(cartao)
-            logger.info(f"K11: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
+            try:
+                trade_id = registrar(sinal)
+                logger.info(f"K11 #{trade_id}: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
+            except Exception as e:
+                logger.warning(f"Tracker: {e}")
             await asyncio.sleep(2)
 
 if __name__ == "__main__":
