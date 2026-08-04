@@ -56,7 +56,34 @@ async def main():
     logger.info("REVERSE iniciado")
     try:
         scanner = K10Scanner(max_workers=6)
-        aprovados = scanner.scan(min_score=65, max_ativos=500)
+        # REVERSE: apenas H4 e Diário — movimentos maiores, menos ruído
+        from watchlist import get_watchlist, WATCHLIST_FALLBACK
+        from k10_engine import K10Engine
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        engine = K10Engine()
+        wl = (get_watchlist(min_volume_usdt=500_000) or WATCHLIST_FALLBACK)[:300]
+        aprovados = []
+
+        def analisar_htf(sym):
+            resultados = []
+            for tf in ["4h", "1d"]:
+                try:
+                    r = engine._analisar_tf(sym, tf)
+                    resultados.append(r)
+                except:
+                    pass
+            if not resultados: return None
+            return max(resultados, key=lambda x: x.get("score", 0))
+
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            futures = {ex.submit(analisar_htf, sym): sym for sym in wl}
+            for f in as_completed(futures):
+                r = f.result()
+                if r and r.get("aprovado") and r.get("score", 0) >= 65:
+                    aprovados.append(r)
+
+        aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
         logger.info(f"REVERSE: {len(aprovados)} sinais do K10")
     except Exception:
         logger.error(traceback.format_exc())
