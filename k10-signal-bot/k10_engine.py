@@ -214,6 +214,8 @@ class K10Engine:
             # TP1: 2.5x o risco real
             risco = abs(c - stop)
             tp1 = round(c + risco * 2.5, 6)
+            # Limitar: TP1 máximo 15% acima do preço
+            if tp1 > c * 1.15: tp1 = round(c * 1.08, 6)
         else:
             swing_high = float(df["high"].iloc[-5:].max())
             stop = round(swing_high + atr*0.1, 6)
@@ -221,6 +223,9 @@ class K10Engine:
                 stop = round(c + atr*1.0, 6)
             risco = abs(stop - c)
             tp1 = round(c - risco * 2.5, 6)
+            # Limitar: TP1 nunca abaixo de 85% do preço (evita TPs absurdos)
+            if tp1 < c * 0.85: tp1 = round(c * 0.92, 6)
+            if tp1 <= 0: tp1 = round(c * 0.92, 6)
 
         rr = round(abs(tp1 - c) / abs(stop - c), 2) if stop != c else 0
         return c, stop, tp1, atr
