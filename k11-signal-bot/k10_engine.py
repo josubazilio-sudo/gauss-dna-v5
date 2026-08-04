@@ -241,7 +241,7 @@ class K10Engine:
             if macd_ok: confirmacoes.append("MACD virando")
             if rsi_ok:  confirmacoes.append("RSI alinhado")
             if pullback:confirmacoes.append("Pullback EMA21")
-            if rvol >= 0.7: confirmacoes.append(f"RVOL {rvol:.2f}")
+            if rvol >= 1.0: confirmacoes.append(f"RVOL {rvol:.2f}")
 
             n_confs = len(confirmacoes)
 
@@ -253,15 +253,15 @@ class K10Engine:
                 score_min = 70; rvol_min = 2.0
             elif n_confs >= 4:
                 # 4+ confirmações: aprovação normal
-                if rvol < 0.7: motivos.append(f"RVOL {rvol:.2f} < 0.7")
+                if rvol < 1.0: motivos.append(f"RVOL {rvol:.2f} < 1.0")
                 score_min = 70; rvol_min = 1.0
             elif n_confs >= 3:
                 # 3 confirmações: exige score maior
-                if rvol < 0.7: motivos.append(f"RVOL {rvol:.2f} < 0.7")
+                if rvol < 1.0: motivos.append(f"RVOL {rvol:.2f} < 1.0")
                 score_min = 73; rvol_min = 1.0
             else:
-                if not (n_confs >= 2 and rvol >= 0.7):
-                    motivos.append(f"Confluência insuficiente — {n_confs}/4 (RVOL={rvol:.2f})")
+                if n_confs < 4:
+                        motivos.append(f"Confluência insuficiente — {n_confs}/4 confirmações")
                 score_min = 75; rvol_min = 1.0
 
             # Bloqueio extremo H4
