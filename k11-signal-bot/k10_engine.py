@@ -236,13 +236,13 @@ class K10Engine:
         if velas_desde_cruzamento == 0:
             detalhes.append("MACD cruzou agora ✅")
         elif velas_desde_cruzamento <= 2:
-            score_timing -= 10
+            score_timing -= 5
             detalhes.append(f"MACD cruzou {velas_desde_cruzamento} velas atrás")
-        elif velas_desde_cruzamento <= 5:
-            score_timing -= 25
+        elif velas_desde_cruzamento <= 4:
+            score_timing -= 20
             detalhes.append(f"MACD cruzou {velas_desde_cruzamento} velas atrás ⚠️")
         else:
-            score_timing -= 45
+            score_timing -= 40
             detalhes.append(f"MACD cruzou {velas_desde_cruzamento} velas atrás ❌")
 
         # 2. Quanto do movimento já foi realizado
