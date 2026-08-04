@@ -1,7 +1,7 @@
 """
-K11 Engine — CHoCH + Liquidity Capture + Volume
-Sequência: Tendência → Quebra (CHoCH) → Sweep → Volume → Entrada no reteste
-Nunca entrar no topo/fundo óbvio. Entrar após confirmação institucional.
+K11 Engine — Estratégia Completa
+LONG: Captura liquidez + CHoCH + MACD positivo + RSI subindo + EMAs alinhadas + Volume + RR
+SHORT: Tudo ao contrário
 """
 
 import ccxt
@@ -53,206 +53,6 @@ class K10Engine:
         df["rvol"]   = (v.shift(1)/vol_sma.replace(0,np.nan)).clip(0,50)
         return df
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # PASSO 1 — IDENTIFICAR TENDÊNCIA ANTERIOR
-    # ─────────────────────────────────────────────────────────────────────────
-    def _tendencia_anterior(self, df):
-        """Identifica a tendência dos últimos 20-50 candles."""
-        closes = df["close"].iloc[-50:-5]
-        e21    = df["ema21"].iloc[-50:-5]
-        # Tendência de alta: preço consistentemente acima da EMA21
-        acima = (closes > e21).sum()
-        abaixo= (closes < e21).sum()
-        if acima > 25:   return "ALTA"
-        if abaixo > 25:  return "BAIXA"
-        # Usar EMA como desempate
-        e50_atual = float(df["ema50"].iloc[-1])
-        e200_atual = float(df["ema200"].iloc[-1])
-        if e50_atual > e200_atual: return "ALTA"
-        if e50_atual < e200_atual: return "BAIXA"
-        return "LATERAL"
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PASSO 2 — DETECTAR CHoCH (Change of Character)
-    # ─────────────────────────────────────────────────────────────────────────
-    def _detectar_choch(self, df, tendencia):
-        """
-        Detecta CHoCH RECENTE — máximo 4 velas atrás.
-        Se o CHoCH foi há mais tempo, sinal atrasado — ignorar.
-        """
-        df_c = df.iloc[:-1]
-        atr  = float(df_c["atr"].iloc[-1])
-
-        # Swing points dos últimos 30 candles (excluindo os 5 mais recentes)
-        lookback = df_c.iloc[-30:-5]
-        swing_high = float(lookback["high"].max())
-        swing_low  = float(lookback["low"].min())
-
-        # Verificar se CHoCH aconteceu nas últimas 4 velas
-        janela = df_c.iloc[-4:]
-
-        if tendencia == "ALTA":
-            # CHoCH DOWN: alguma das últimas 4 velas fechou abaixo do swing low
-            for i in range(len(janela)):
-                c_vela = float(janela["close"].iloc[i])
-                if c_vela < swing_low * 1.002:
-                    # CHoCH confirmado — verificar se não atrasou demais
-                    # Preço atual não pode estar muito longe do ponto de CHoCH
-                    c_atual = float(df_c["close"].iloc[-1])
-                    dist_choch = abs(c_atual - swing_low) / atr if atr > 0 else 99
-                    if dist_choch <= 5.0:  # máximo 5 ATR do ponto de quebra
-                        return "DOWN", swing_low, swing_high
-
-        if tendencia == "BAIXA":
-            # CHoCH UP: alguma das últimas 4 velas fechou acima do swing high
-            for i in range(len(janela)):
-                c_vela = float(janela["close"].iloc[i])
-                if c_vela > swing_high * 0.998:
-                    c_atual = float(df_c["close"].iloc[-1])
-                    dist_choch = abs(c_atual - swing_high) / atr if atr > 0 else 99
-                    if dist_choch <= 5.0:
-                        return "UP", swing_low, swing_high
-
-        return None, swing_low, swing_high
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PASSO 3 — VERIFICAR CAPTURA DE LIQUIDEZ + VOLUME
-    # ─────────────────────────────────────────────────────────────────────────
-    def _captura_liquidez(self, df, choch_dir):
-        """
-        Após o CHoCH, verifica se houve captura de liquidez:
-        - Sombra longa (spike) na direção do sweep
-        - Volume acima da média no candle do sweep
-        - Fechamento de volta para zona segura
-        """
-        df_c = df.iloc[:-1]
-        r    = df_c.iloc[-1]   # última vela fechada
-        r2   = df_c.iloc[-2]
-        atr  = float(r["atr"])
-        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
-        rvol2= float(r2["rvol"]) if not np.isnan(r2["rvol"]) else 0
-
-        c_r  = float(r["close"]); o_r = float(r["open"])
-        h_r  = float(r["high"]);  l_r = float(r["low"])
-        corpo = abs(c_r - o_r)
-        total = h_r - l_r
-
-        sombra_inf = min(o_r,c_r) - l_r
-        sombra_sup = h_r - max(o_r,c_r)
-
-        confirmacoes = []
-        score = 0
-
-        if choch_dir == "UP":
-            # Captura de liquidez para LONG:
-            # Candle ou candles recentes tiveram sombra inferior longa
-            sweep_ok = sombra_inf > atr * 0.4 or (float(r2["low"]) < float(df_c["low"].iloc[-10:-2].min()))
-            if sweep_ok:
-                confirmacoes.append("Captura de liquidez ↓")
-                score += 30
-            # Volume no candle de reversão
-            if rvol >= 1.0 or rvol2 >= 1.0:
-                confirmacoes.append(f"Volume institucional RVOL {max(rvol,rvol2):.2f}")
-                score += 25
-            # Fechou verde (compradores assumiram)
-            if c_r > o_r:
-                confirmacoes.append("Candle comprador fechado")
-                score += 20
-            # MACD virando para cima
-            macd_h = float(r["macd_hist"])
-            macd_h2= float(df_c["macd_hist"].iloc[-3])
-            if macd_h > macd_h2:
-                confirmacoes.append("MACD virando para cima")
-                score += 15
-            # RSI saindo do fundo
-            rsi = float(r["rsi"])
-            if rsi < 50 and rsi > float(df_c["rsi"].iloc[-3]):
-                confirmacoes.append(f"RSI saindo do fundo {rsi:.1f}")
-                score += 10
-
-        elif choch_dir == "DOWN":
-            # Captura de liquidez para SHORT:
-            sweep_ok = sombra_sup > atr * 0.4 or (float(r2["high"]) > float(df_c["high"].iloc[-10:-2].max()))
-            if sweep_ok:
-                confirmacoes.append("Captura de liquidez ↑")
-                score += 30
-            if rvol >= 1.0 or rvol2 >= 1.0:
-                confirmacoes.append(f"Volume institucional RVOL {max(rvol,rvol2):.2f}")
-                score += 25
-            if c_r < o_r:
-                confirmacoes.append("Candle vendedor fechado")
-                score += 20
-            macd_h = float(r["macd_hist"])
-            macd_h2= float(df_c["macd_hist"].iloc[-3])
-            if macd_h < macd_h2:
-                confirmacoes.append("MACD virando para baixo")
-                score += 15
-            rsi = float(r["rsi"])
-            if rsi > 50 and rsi < float(df_c["rsi"].iloc[-3]):
-                confirmacoes.append(f"RSI saindo do topo {rsi:.1f}")
-                score += 10
-
-        return min(score, 100), confirmacoes
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PASSO 4 — VERIFICAR RETESTE (entrada não óbvia)
-    # ─────────────────────────────────────────────────────────────────────────
-    def _verificar_reteste(self, df, choch_dir, swing_low, swing_high):
-        """
-        Verifica se o preço está no reteste da zona de CHoCH
-        (não no topo/fundo — entrada não óbvia).
-        """
-        c_atual = float(df.iloc[-1]["close"])
-        atr     = float(df.iloc[-1]["atr"])
-
-        if choch_dir == "UP":
-            # Preço deve estar perto do swing low quebrado (reteste do suporte virou resistência)
-            # Não entrar muito longe — máximo 3 ATR acima do swing
-            dist = abs(c_atual - swing_low) / atr if atr > 0 else 99
-            return dist <= 5.0, dist
-
-        elif choch_dir == "DOWN":
-            dist = abs(c_atual - swing_high) / atr if atr > 0 else 99
-            return dist <= 5.0, dist
-
-        return False, 99
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PASSO 5 — NÍVEIS
-    # ─────────────────────────────────────────────────────────────────────────
-    def _calcular_niveis(self, df, direcao, swing_low, swing_high):
-        c   = float(df.iloc[-1]["close"])
-        atr = float(df.iloc[-1]["atr"])
-
-        if direcao == "LONG":
-            # Stop abaixo do swing low (onde a captura de liquidez aconteceu)
-            stop = round(swing_low - atr * 0.2, 6)
-            if abs(c-stop)/c > 0.06: stop = round(c * 0.94, 6)
-            risco = abs(c-stop)
-            tp1   = round(c + risco * 2.5, 6)
-            if tp1 > c * 1.12: tp1 = round(c * 1.10, 6)
-        else:
-            stop = round(swing_high + atr * 0.2, 6)
-            if abs(stop-c)/c > 0.06: stop = round(c * 1.06, 6)
-            risco = abs(stop-c)
-            tp1   = round(c - risco * 2.5, 6)
-            if tp1 < c * 0.88: tp1 = round(c * 0.90, 6)
-            if tp1 <= 0: tp1 = round(c * 0.90, 6)
-
-        rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
-        return c, stop, tp1, atr, rr
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # ANÁLISE PRINCIPAL
-    # ─────────────────────────────────────────────────────────────────────────
-    def analisar(self, symbol, timeframe=None):
-        tfs = [timeframe] if timeframe else ["30m","1h"]
-        resultados = [self._analisar_tf(symbol, tf) for tf in tfs]
-        aprovados  = [r for r in resultados if r.get("aprovado")]
-        if aprovados:
-            return max(aprovados, key=lambda x: x["score"])
-        return max(resultados, key=lambda x: x["score"])
-
     def _analisar_tf(self, symbol, tf="1h"):
         try:
             df   = self._calc(self._fetch(symbol, tf, limit=300))
@@ -261,81 +61,211 @@ class K10Engine:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0,"rvol":0}
 
+        # Usar velas fechadas
+        dfc  = df.iloc[:-1]
+        r    = dfc.iloc[-1]
+        r2   = dfc.iloc[-2]
+        r3   = dfc.iloc[-3]
+
+        c    = float(r["close"])
+        o    = float(r["open"])
+        h_r  = float(r["high"])
+        l_r  = float(r["low"])
+        atr  = float(r["atr"])
+        e10  = float(r["ema10"])
+        e21  = float(r["ema21"])
+        e50  = float(r["ema50"])
+        e200 = float(r["ema200"])
+        adx  = float(r["adx"])
+        rsi  = float(r["rsi"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        macd_h  = float(r["macd_hist"])
+        macd_h2 = float(dfc["macd_hist"].iloc[-3])
+        macd_h3 = float(dfc["macd_hist"].iloc[-4])
+        rsi2 = float(dfc["rsi"].iloc[-3])
+        vol_atual = float(dfc["volume"].iloc[-1])
+        vol_ma    = float(r["vol_ma"]) if not np.isnan(r["vol_ma"]) else 1
+
+        corpo = abs(c-o); total = h_r-l_r
+        sombra_inf = min(o,c)-l_r
+        sombra_sup = h_r-max(o,c)
+
+        # Swing points últimos 20 candles
+        lookback = dfc.iloc[-20:-3]
+        swing_high = float(lookback["high"].max())
+        swing_low  = float(lookback["low"].min())
+
         motivos = []
+        confirmacoes = []
+        score = 0
 
-        # PASSO 1: Tendência anterior
-        tendencia = self._tendencia_anterior(df)
-        if tendencia == "LATERAL":
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":["Mercado lateral — sem tendência para quebrar"],
-                    "timeframe":tf,"direcao":"—","rr":0,"rvol":0}
+        # ── DETECTAR DIREÇÃO ──────────────────────────────────────────────────
+        # LONG: MACD positivo OU virando para cima
+        macd_long  = macd_h > 0 or (macd_h > macd_h2 and macd_h > macd_h3)
+        # SHORT: MACD negativo OU virando para baixo
+        macd_short = macd_h < 0 or (macd_h < macd_h2 and macd_h < macd_h3)
 
-        # PASSO 2: CHoCH
-        choch_dir, swing_low, swing_high = self._detectar_choch(df, tendencia)
-        if not choch_dir:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Sem CHoCH detectado (tendência {tendencia})"],
-                    "timeframe":tf,"direcao":"—","rr":0,"rvol":0}
+        rsi_long  = rsi > rsi2 and rsi < 68
+        rsi_short = rsi < rsi2 and rsi > 32
 
-        direcao = "LONG" if choch_dir == "UP" else "SHORT"
+        ema_long  = e10 > e21 and e50 > e200
+        ema_short = e10 < e21 and e50 < e200
 
-        # VALIDAÇÃO MACD — deve confirmar a direção
-        macd_atual = float(df.iloc[-2]["macd_hist"])
-        if direcao == "SHORT" and macd_atual > 0:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"MACD positivo ({macd_atual:.3f}) — contradiz SHORT"],
-                    "timeframe":tf,"direcao":direcao,"rr":0,"rvol":0}
-        if direcao == "LONG" and macd_atual < 0:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"MACD negativo ({macd_atual:.3f}) — contradiz LONG"],
-                    "timeframe":tf,"direcao":direcao,"rr":0,"rvol":0}
+        # Decidir direção pela confluência
+        pts_long  = sum([macd_long, rsi_long, ema_long])
+        pts_short = sum([macd_short, rsi_short, ema_short])
 
-        # PASSO 3: Captura de liquidez + Volume
-        score_captura, confirmacoes = self._captura_liquidez(df, choch_dir)
-        if score_captura < 40:
-            return {"symbol":symbol,"aprovado":False,"score":score_captura,
-                    "motivos_rejeicao":[f"Captura de liquidez insuficiente ({score_captura}pts)"],
-                    "timeframe":tf,"direcao":direcao,"rr":0,
-                    "rvol":float(df.iloc[-2]["rvol"]) if not np.isnan(df.iloc[-2]["rvol"]) else 0}
-
-        # PASSO 4: Reteste
-        reteste_ok, dist_reteste = self._verificar_reteste(df, choch_dir, swing_low, swing_high)
-        if not reteste_ok:
-            motivos.append(f"Preço muito longe do reteste ({dist_reteste:.1f} ATR)")
+        if pts_long >= 2 and pts_long > pts_short:
+            direcao = "LONG"
+        elif pts_short >= 2 and pts_short > pts_long:
+            direcao = "SHORT"
         else:
-            confirmacoes.append(f"Reteste da zona ({dist_reteste:.1f} ATR)")
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":["Sem direção clara — MACD/RSI/EMA conflitantes"],
+                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
 
-        # PASSO 5: Níveis
-        entrada, stop, tp1, atr, rr = self._calcular_niveis(df, direcao, swing_low, swing_high)
-        rvol = float(df.iloc[-2]["rvol"]) if not np.isnan(df.iloc[-2]["rvol"]) else 0
-        adx  = float(df.iloc[-1]["adx"])
-        rsi  = float(df.iloc[-1]["rsi"])
+        # ── 1. MACD ───────────────────────────────────────────────────────────
+        if direcao == "LONG":
+            if macd_h > 0 and macd_h > macd_h2:
+                confirmacoes.append("MACD positivo e acelerando")
+                score += 20
+            elif macd_h > macd_h2:
+                confirmacoes.append("MACD virando para cima")
+                score += 12
+            else:
+                motivos.append(f"MACD fraco para LONG ({macd_h:.4f})")
+        else:
+            if macd_h < 0 and macd_h < macd_h2:
+                confirmacoes.append("MACD negativo e acelerando")
+                score += 20
+            elif macd_h < macd_h2:
+                confirmacoes.append("MACD virando para baixo")
+                score += 12
+            else:
+                motivos.append(f"MACD fraco para SHORT ({macd_h:.4f})")
 
-        # H4 contexto — não entrar contra tendência muito forte
+        # ── 2. RSI ────────────────────────────────────────────────────────────
+        if direcao == "LONG":
+            if rsi_long and 40 <= rsi <= 65:
+                confirmacoes.append(f"RSI {rsi:.0f} subindo zona favorável")
+                score += 15
+            elif rsi_long:
+                confirmacoes.append(f"RSI {rsi:.0f} subindo")
+                score += 8
+            else:
+                motivos.append(f"RSI {rsi:.0f} não favorável para LONG")
+        else:
+            if rsi_short and 35 <= rsi <= 60:
+                confirmacoes.append(f"RSI {rsi:.0f} caindo zona favorável")
+                score += 15
+            elif rsi_short:
+                confirmacoes.append(f"RSI {rsi:.0f} caindo")
+                score += 8
+            else:
+                motivos.append(f"RSI {rsi:.0f} não favorável para SHORT")
+
+        # ── 3. MÉDIAS MÓVEIS ──────────────────────────────────────────────────
+        if direcao == "LONG":
+            if e10 > e21 > e50 > e200:
+                confirmacoes.append("EMAs 10>21>50>200 alinhadas")
+                score += 15
+            elif e10 > e21 and e50 > e200:
+                confirmacoes.append("EMAs alinhadas")
+                score += 10
+            elif e10 > e21:
+                confirmacoes.append("EMA10 > EMA21")
+                score += 5
+        else:
+            if e10 < e21 < e50 < e200:
+                confirmacoes.append("EMAs 10<21<50<200 alinhadas")
+                score += 15
+            elif e10 < e21 and e50 < e200:
+                confirmacoes.append("EMAs alinhadas")
+                score += 10
+            elif e10 < e21:
+                confirmacoes.append("EMA10 < EMA21")
+                score += 5
+
+        # ── 4. CAPTURA DE LIQUIDEZ ────────────────────────────────────────────
+        if direcao == "LONG":
+            # Sombra inferior longa + fechou acima = sweep do fundo
+            sweep = sombra_inf > atr * 0.3 and c > o
+            # OU preço furou abaixo do swing low e voltou
+            sweep2 = l_r < swing_low * 1.001 and c > swing_low
+            if sweep or sweep2:
+                confirmacoes.append("Captura de liquidez ↓ (sweep do fundo)")
+                score += 20
+        else:
+            # Sombra superior longa + fechou abaixo = sweep do topo
+            sweep = sombra_sup > atr * 0.3 and c < o
+            sweep2 = h_r > swing_high * 0.999 and c < swing_high
+            if sweep or sweep2:
+                confirmacoes.append("Captura de liquidez ↑ (sweep do topo)")
+                score += 20
+
+        # ── 5. PULLBACK NA ZONA ───────────────────────────────────────────────
+        dist_ema21 = abs(c - e21) / atr if atr > 0 else 99
+        if dist_ema21 <= 1.5:
+            confirmacoes.append(f"Pullback na EMA21")
+            score += 10
+
+        # ── 6. VOLUME ─────────────────────────────────────────────────────────
+        if rvol >= 1.5:
+            confirmacoes.append(f"Volume institucional RVOL {rvol:.2f}")
+            score += 15
+        elif rvol >= 0.8:
+            confirmacoes.append(f"Volume RVOL {rvol:.2f}")
+            score += 8
+        elif rvol < 0.5:
+            motivos.append(f"Volume ausente RVOL {rvol:.2f}")
+
+        # ── 7. CHoCH (bônus) ──────────────────────────────────────────────────
+        if direcao == "LONG":
+            choch = c > swing_high * 0.998
+            if choch:
+                confirmacoes.append("CHoCH confirmado")
+                score += 10
+        else:
+            choch = c < swing_low * 1.002
+            if choch:
+                confirmacoes.append("CHoCH confirmado")
+                score += 10
+
+        # ── H4 contexto ───────────────────────────────────────────────────────
         r4h    = df4h.iloc[-1]
         adx_4h = float(r4h["adx"])
         tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
-        contra_forte = (
-            (direcao=="LONG"  and not tend_h4 and adx_4h > 35) or
-            (direcao=="SHORT" and tend_h4     and adx_4h > 35)
-        )
-        if contra_forte:
+        macd_h4= float(r4h["macd_hist"])
+        h4_ok  = (tend_h4 and direcao=="LONG" and macd_h4 > 0) or \
+                 (not tend_h4 and direcao=="SHORT" and macd_h4 < 0)
+        if h4_ok:
+            confirmacoes.append("H4 confirmando")
+            score += 10
+        elif adx_4h > 35:
             motivos.append(f"H4 tendência forte contra ADX={adx_4h:.0f}")
-        else:
-            confirmacoes.append("H4 favorável")
 
-        # Score final
-        score = score_captura
-        if reteste_ok:    score += 10
-        if rr >= 2.5:     score += 5
-        if rvol >= 2.0:   score += 8
-        elif rvol >= 1.0: score += 4
         score = min(score, 100)
 
-        if score < 60:
-            motivos.append(f"Score {score} insuficiente")
-        if rr < 2.0:
-            motivos.append(f"RR {rr} < 2.0")
+        # ── NÍVEIS ────────────────────────────────────────────────────────────
+        if direcao == "LONG":
+            stop = round(float(dfc["low"].iloc[-5:].min()) - atr*0.15, 6)
+            if abs(c-stop)/c > 0.05: stop = round(c*0.95, 6)
+            risco = abs(c-stop)
+            tp1   = round(c + risco*2.5, 6)
+            if tp1 > c*1.12: tp1 = round(c*1.10, 6)
+        else:
+            stop = round(float(dfc["high"].iloc[-5:].max()) + atr*0.15, 6)
+            if abs(stop-c)/c > 0.05: stop = round(c*1.05, 6)
+            risco = abs(stop-c)
+            tp1   = round(c - risco*2.5, 6)
+            if tp1 < c*0.88 or tp1 <= 0: tp1 = round(c*0.90, 6)
+
+        rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
+
+        # ── CHECAGEM FINAL ────────────────────────────────────────────────────
+        if score < 60:   motivos.append(f"Score {score} < 60")
+        if rr < 2.0:     motivos.append(f"RR {rr} < 2.0")
+        if len(confirmacoes) < 3: motivos.append(f"Confluência fraca — {len(confirmacoes)} confirmações")
 
         aprovado = len(motivos) == 0
 
@@ -346,36 +276,30 @@ class K10Engine:
 
         conv = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}.get(tier,"MODERADA 🔶")
 
-        if score >= 85 and "Volume institucional" in str(confirmacoes):
-            prioridade = "🔥 INSTITUCIONAL"
-        elif score >= 75:
-            prioridade = "⭐ CHoCH CONFIRMADO"
-        else:
-            prioridade = ""
+        if score >= 85 and rvol >= 1.5:   prioridade = "🔥 INSTITUCIONAL"
+        elif score >= 80:                  prioridade = "⭐ ALTA QUALIDADE"
+        else:                              prioridade = ""
+
+        regime_label = "Tendência Alta ↑" if direcao=="LONG" and e10>e21>e50 else \
+                       "Tendência Baixa ↓" if direcao=="SHORT" and e10<e21<e50 else \
+                       "Reversão ↗" if direcao=="LONG" else "Reversão ↘"
 
         gb_risco = round(BANCA * RISCO_PCT / 100, 2)
-        dist = abs(entrada-stop)/entrada if entrada else 0.01
+        dist = abs(c-stop)/c if c else 0.01
         pos  = round(min(gb_risco/dist, BANCA*3), 2) if dist > 0 else 0
         alav = 20 if score>=85 else 15 if score>=75 else 10
-
-        regime_label = {
-            ("ALTA","DOWN"):  "Quebra de Alta ↘",
-            ("ALTA","UP"):    "Continuação Alta ↑",
-            ("BAIXA","UP"):   "Quebra de Baixa ↗",
-            ("BAIXA","DOWN"): "Continuação Baixa ↓",
-        }.get((tendencia, choch_dir), "CHoCH")
 
         return {
             "symbol":           symbol,
             "aprovado":         aprovado,
-            "setup_nome":       "CHoCH",
+            "setup_nome":       "K11",
             "regime":           regime_label,
             "direcao":          direcao,
             "score":            score,
             "tier":             tier,
             "conviccao":        conv,
             "prioridade":       prioridade,
-            "entrada":          entrada,
+            "entrada":          c,
             "stop":             stop,
             "tp1":              tp1,
             "tp2":              tp1,
@@ -384,14 +308,13 @@ class K10Engine:
             "rsi":              rsi,
             "atr":              atr,
             "rvol":             rvol,
-            "vwap":             float(df.iloc[-1]["vwap"]) if "vwap" in df.columns else entrada,
-            "ema21":            float(df.iloc[-1]["ema21"]),
+            "ema21":            e21,
             "confirmacoes_smc": confirmacoes,
             "confluencia":      len(confirmacoes),
             "motivos_rejeicao": motivos,
             "o_que_falta":      motivos,
             "timeframe":        tf,
-            "preco_atual":      entrada,
+            "preco_atual":      c,
             "capital":          BANCA,
             "posicao":          pos,
             "risco_usdt":       gb_risco,
@@ -399,10 +322,18 @@ class K10Engine:
             "banca":            BANCA,
         }
 
+    def analisar(self, symbol, timeframe=None):
+        tfs = [timeframe] if timeframe else ["30m","1h"]
+        resultados = [self._analisar_tf(symbol, tf) for tf in tfs]
+        aprovados  = [r for r in resultados if r.get("aprovado")]
+        if aprovados:
+            return max(aprovados, key=lambda x: x["score"])
+        return max(resultados, key=lambda x: x["score"])
+
     def analisar_tf(self, symbol, tf):
         return self._analisar_tf(symbol, tf)
 
     def obter_regime(self, symbol):
         df = self._calc(self._fetch(symbol, "1h"))
-        tend = self._tendencia_anterior(df)
-        return {"regime":f"CHoCH_{tend}","adx":float(df.iloc[-1]["adx"]),"atr":float(df.iloc[-1]["atr"])}
+        r  = df.iloc[-1]
+        return {"regime":"K11","adx":float(r["adx"]),"atr":float(r["atr"])}
