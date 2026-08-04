@@ -28,7 +28,7 @@ async def main():
         engine = K10Engine()
         wl_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
         wl_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
-        wl = WATCHLIST_PRIORITY + wl_sem_dup[:490]
+        wl = WATCHLIST_PRIORITY + wl_sem_dup
 
         aprovados = []
         def analisar(sym):
