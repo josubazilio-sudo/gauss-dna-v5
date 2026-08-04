@@ -39,7 +39,11 @@ async def main():
         for r in resultados[:10]:
             sym    = r.get("symbol","?").replace("/USDT:USDT","")
             ok     = "✅" if r.get("aprovado") else "❌"
-            motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:50]
+            motivos_list = r.get("motivos_rejeicao") or ["ok"]
+            motivo = motivos_list[0][:60] if motivos_list else "ok"
+            # Se o motivo é um erro de exception, mostrar completo
+            if len(motivos_list) > 0 and ("Error" in motivo or "error" in motivo or len(motivo) < 5):
+                motivo = str(motivos_list[0])[:60]
             tf     = r.get("timeframe","?")
             rvol   = r.get("rvol",0)
             sessao = r.get("sessao","")
