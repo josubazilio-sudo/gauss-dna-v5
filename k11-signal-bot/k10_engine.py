@@ -205,12 +205,8 @@ class K10Engine:
         elif rvol >= 0.8:
             confirmacoes.append(f"Volume RVOL {rvol:.2f}")
             score += 10
-        elif rvol >= 0.65:
-            confirmacoes.append(f"Volume RVOL {rvol:.2f}")
-            score += 5
-            # Score alto — flexibilização RVOL (avaliado no final)
         else:
-            motivos.append(f"Volume fraco RVOL {rvol:.2f}")
+            motivos.append(f"Volume insuficiente RVOL {rvol:.2f} — obrigatório ≥ 0.80")
 
         # ── PASSO 5: PREÇO NÃO ESTICADO ──────────────────────────────────────
         # Preço deve estar próximo do cruzamento — máximo 1.5 ATR da EMA21
@@ -276,19 +272,11 @@ class K10Engine:
         rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
 
         # ── CHECAGEM FINAL ────────────────────────────────────────────────────
-        # RVOL adaptativo por score
-        rvol_min = 0.65 if score >= 90 else 0.80 if score >= 80 else 0.90
-        motivos_rvol = [m for m in motivos if "Volume fraco" in m]
-        if motivos_rvol and rvol >= rvol_min:
-            # Flexibilização aplicada
-            motivos = [m for m in motivos if "Volume fraco" not in m]
-            confirmacoes.append(f"⚡ Flexibilização: RVOL {rvol:.2f} aceito (score {score})")
-
-        # Score mínimo — nunca reprovar score >=90 por filtro único fraco
+        # Volume é obrigatório — sem flexibilização
+        # Score >= 90 com outros filtros fracos pode flexibilizar MAS não volume
         if score >= 90 and len(motivos) == 1:
             motivo_unico = motivos[0]
-            # Se o único motivo não é crítico, flexibilizar
-            nao_criticos = ["Volume fraco", "esticado", "Flexibilização"]
+            nao_criticos = ["esticado", "EMAs não favoráveis"]
             if any(nc in motivo_unico for nc in nao_criticos):
                 confirmacoes.append(f"⚡ Score {score} — flexibilização aplicada")
                 motivos = []
