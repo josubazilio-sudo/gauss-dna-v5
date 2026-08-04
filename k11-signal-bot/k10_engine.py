@@ -20,16 +20,25 @@ SESSOES = {
 }
 
 def sessao_atual():
-    h = datetime.now(timezone.utc).hour
-    if 7 <= h < 16 and 12 <= h < 21:
-        return "LONDRES+NY", 100   # sobreposição — máximo volume
-    if 7 <= h < 16:
-        return "LONDRES", 85
-    if 12 <= h < 21:
-        return "NOVA_YORK", 85
-    if 0 <= h < 7:
-        return "ASIA", 60
-    return "MORTO", 30
+    h_utc = datetime.now(timezone.utc).hour
+    h_brt = (h_utc - 3) % 24  # Brasília UTC-3
+
+    # Sessões em horário de Brasília (BRT)
+    # Londres: 04h-13h BRT | NY: 09h-18h BRT
+    londre_brt = 4 <= h_brt < 13
+    ny_brt     = 9 <= h_brt < 18
+    asia_brt   = 21 <= h_brt or h_brt < 4
+
+    if londre_brt and ny_brt:
+        return f"LONDRES+NY ({h_brt:02d}h BRT)", 100
+    if ny_brt:
+        return f"NOVA YORK ({h_brt:02d}h BRT)", 85
+    if londre_brt:
+        return f"LONDRES ({h_brt:02d}h BRT)", 85
+    if asia_brt:
+        return f"ÁSIA ({h_brt:02d}h BRT)", 60
+    # Entre sessões
+    return f"TRANSIÇÃO ({h_brt:02d}h BRT)", 70
 
 
 class K10Engine:
@@ -226,7 +235,7 @@ class K10Engine:
 
         if eh_tradicional and peso_sessao < 60:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Mercado fechado — {sessao} (melhor: Londres 07h-16h UTC / NY 12h-21h UTC)"],
+                    "motivos_rejeicao":[f"Mercado fechado — {sessao} (melhor: Londres 04h-13h BRT / NY 09h-18h BRT)"],
                     "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol,
                     "sessao":sessao}
 
