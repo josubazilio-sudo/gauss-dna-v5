@@ -281,7 +281,7 @@ class K10Engine:
                 confirmacoes.append(f"⚡ Score {score} — flexibilização aplicada")
                 motivos = []
 
-        if score < 65:   motivos.append(f"Score {score} < 65")
+        if score < 70:   motivos.append(f"Score {score} < 70")
         if rr < 2.0:     motivos.append(f"RR {rr} < 2.0")
 
         aprovado = len(motivos) == 0
