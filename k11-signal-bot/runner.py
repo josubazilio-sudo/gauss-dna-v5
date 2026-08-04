@@ -136,6 +136,14 @@ async def main():
                     linhas.append(f"🚫 Principal bloqueio: {top_motivo}")
 
                 linhas.append("━━━━━━━━━━━━━━")
+                # Estatísticas
+                try:
+                    from trade_tracker import stats_rapidas
+                    stats = stats_rapidas()
+                    linhas.append("")
+                    linhas.append(stats)
+                except:
+                    pass
                 linhas.append("K11 continua monitorando...")
 
                 await enviar("\n".join(linhas))
@@ -165,6 +173,14 @@ async def main():
 
         cartao = formatar_cartao(sinal, bot_name="K11")
         if cartao:
+            # Adicionar estatísticas no final do cartão
+            try:
+                from trade_tracker import stats_rapidas
+                stats = stats_rapidas()
+                if stats and "Sem histórico" not in stats:
+                    cartao = cartao + "\n" + stats
+            except:
+                pass
             await enviar(cartao)
             cache[chave] = t.time()
             try:
