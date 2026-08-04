@@ -1,13 +1,50 @@
 """
-K11 Trade Tracker — Registro e Relatório Profissional
+K11 Trade Tracker — Salva no GitHub para acesso via VS Code
 """
-import json, os
+import json, os, base64, requests
 from datetime import datetime
 
-ARQUIVO = "k11_trades.json"
+ARQUIVO    = "k11_trades.json"
+REPO       = "josubazilio-sudo/gauss-dna-v5"
+REPO_PATH  = "k11-signal-bot/k11_trades.json"
+GH_TOKEN   = os.getenv("GH_TOKEN", os.getenv("GITHUB_TOKEN", ""))
+
+def _headers():
+    return {"Authorization": f"token {GH_TOKEN}", "Content-Type": "application/json"}
+
+def _carregar_github():
+    """Carrega trades do GitHub."""
+    try:
+        r = requests.get(
+            f"https://api.github.com/repos/{REPO}/contents/{REPO_PATH}",
+            headers=_headers(), timeout=10
+        )
+        if r.status_code == 200:
+            data = r.json()
+            content = base64.b64decode(data["content"]).decode()
+            return json.loads(content), data.get("sha")
+    except:
+        pass
+    return [], None
+
+def _salvar_github(trades, sha=None):
+    """Salva trades no GitHub."""
+    try:
+        url = f"https://api.github.com/repos/{REPO}/contents/{REPO_PATH}"
+        content = json.dumps(trades, indent=2, ensure_ascii=False)
+        payload = {
+            "message": f"K11 trade #{len(trades)} registrado",
+            "content": base64.b64encode(content.encode()).decode()
+        }
+        if sha:
+            payload["sha"] = sha
+        r = requests.put(url, headers=_headers(), json=payload, timeout=15)
+        return r.status_code in (200, 201)
+    except:
+        return False
 
 def registrar(sinal: dict) -> int:
-    trades = _carregar()
+    trades, sha = _carregar_github()
     entry = {
         "id":        len(trades) + 1,
         "data":      datetime.utcnow().strftime("%d/%m/%Y %H:%M"),
@@ -29,95 +66,59 @@ def registrar(sinal: dict) -> int:
         "obs":       "",
     }
     trades.append(entry)
-    _salvar(trades)
+    _salvar_github(trades, sha)
     return entry["id"]
 
-def _carregar():
-    if os.path.exists(ARQUIVO):
-        try:
-            with open(ARQUIVO) as f: return json.load(f)
-        except: return []
-    return []
-
-def _salvar(trades):
-    with open(ARQUIVO, "w") as f:
-        json.dump(trades, f, indent=2, ensure_ascii=False)
-
-def relatorio_telegram() -> str:
-    trades = _carregar()
+def relatorio_completo() -> str:
+    trades, _ = _carregar_github()
     if not trades:
-        return "📊 K11 — Nenhum trade registrado ainda."
+        return "Nenhum trade registrado."
 
-    total    = len(trades)
-    abertos  = [t for t in trades if t["resultado"] == "ABERTO"]
-    fechados = [t for t in trades if t["resultado"] != "ABERTO"]
-    wins     = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
-    losses   = [t for t in fechados if t["resultado"] == "STOP"]
-    cancelados = [t for t in fechados if t["resultado"] == "CANCELADO"]
+    hoje = datetime.utcnow().strftime("%d/%m/%Y")
+    todos     = trades
+    de_hoje   = [t for t in trades if t["data"].startswith(hoje)]
+    fechados  = [t for t in todos if t["resultado"] != "ABERTO"]
+    wins      = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
+    losses    = [t for t in fechados if t["resultado"] == "STOP"]
 
     sep = "━━━━━━━━━━━━━━━━━━━━"
-
     linhas = [
-        f"📊 K11 — RELATÓRIO PROFISSIONAL",
-        f"🗓 Gerado: {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC",
+        "📊 K11 — RELATÓRIO COMPLETO",
+        f"🗓 {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC",
         sep,
-        f"",
-        f"📈 RESUMO GERAL",
-        f"Total de sinais: {total}",
-        f"Fechados: {len(fechados)} | Abertos: {len(abertos)}",
-        f"Wins: {len(wins)} | Losses: {len(losses)} | Cancelados: {len(cancelados)}",
+        f"Total de sinais: {len(todos)}",
+        f"Hoje: {len(de_hoje)} sinais",
+        f"Fechados: {len(fechados)} | Abertos: {len(todos)-len(fechados)}",
     ]
 
     if fechados:
         wr = len(wins)/len(fechados)*100
-        linhas.append(f"Win Rate: {wr:.1f}%")
-
         r_vals = [t["r_obtido"] for t in fechados if t["r_obtido"] is not None]
+        linhas += [
+            f"Wins: {len(wins)} | Losses: {len(losses)}",
+            f"Win Rate: {wr:.1f}%",
+        ]
         if r_vals:
             r_pos = sum(r for r in r_vals if r > 0)
             r_neg = abs(sum(r for r in r_vals if r < 0))
             pf    = round(r_pos/r_neg, 2) if r_neg > 0 else "∞"
-            r_med = round(sum(r_vals)/len(r_vals), 2)
-            r_max = round(max(r_vals), 2)
-            r_min = round(min(r_vals), 2)
             linhas += [
                 f"Profit Factor: {pf}",
-                f"R Médio: {r_med}R",
-                f"Melhor trade: +{r_max}R",
-                f"Pior trade: {r_min}R",
+                f"R Médio: {round(sum(r_vals)/len(r_vals),2)}R",
+                f"Melhor: +{max(r_vals)}R | Pior: {min(r_vals)}R",
             ]
 
-        linhas += ["", sep, "", "📋 POR TIER"]
-        for tier in ["OURO","PRATA","BRONZE"]:
-            tt = [t for t in fechados if t.get("tier") == tier]
-            if tt:
-                tw = [t for t in tt if t["resultado"] in ("TP1","TP2")]
-                linhas.append(f"{tier}: {len(tw)}/{len(tt)} wins ({len(tw)/len(tt)*100:.0f}%)")
+    linhas += [sep, "SINAIS DE HOJE"]
+    for t in de_hoje:
+        res   = t["resultado"]
+        emoji = "✅" if res in ("TP1","TP2") else "❌" if res=="STOP" else "⏳"
+        r_str = f" ({t['r_obtido']}R)" if t["r_obtido"] else ""
+        linhas.append(
+            f"{emoji} #{t['id']} {t['symbol']} {t['direcao']} {t['timeframe']} "
+            f"s={t['score']} — {res}{r_str}"
+        )
 
-        linhas += ["", sep, "", "📋 POR TIMEFRAME"]
-        for tf in ["30m","1h","4h","1d"]:
-            tt = [t for t in fechados if t.get("timeframe") == tf]
-            if tt:
-                tw = [t for t in tt if t["resultado"] in ("TP1","TP2")]
-                linhas.append(f"{tf}: {len(tw)}/{len(tt)} ({len(tw)/len(tt)*100:.0f}%)")
+    if len(fechados) < 50:
+        linhas += [sep, f"⚠️ {len(fechados)}/50 trades para análise definitiva"]
 
-        linhas += ["", sep, "", "📋 POR DIREÇÃO"]
-        for dir in ["LONG","SHORT"]:
-            tt = [t for t in fechados if t.get("direcao") == dir]
-            if tt:
-                tw = [t for t in tt if t["resultado"] in ("TP1","TP2")]
-                linhas.append(f"{dir}: {len(tw)}/{len(tt)} ({len(tw)/len(tt)*100:.0f}%)")
-
-        if len(fechados) < 50:
-            linhas += ["", f"⚠️ {len(fechados)}/50 trades — dados insuficientes para conclusão definitiva"]
-
-    linhas += ["", sep, "", "📋 ÚLTIMOS SINAIS"]
-    for t in trades[-8:][::-1]:
-        res = t["resultado"]
-        emoji = "✅" if res in ("TP1","TP2") else "❌" if res=="STOP" else "⏳" if res=="ABERTO" else "↩️"
-        r_str = f" ({t['r_obtido']}R)" if t["r_obtido"] is not None else ""
-        linhas.append(f"{emoji} #{t['id']} {t['symbol']} {t['direcao']} {t['timeframe']} s={t['score']} — {res}{r_str}")
-
-    linhas += ["", sep, "K11 Performance Tracker"]
-    return "
-".join(linhas)
+    return "\n".join(linhas)
