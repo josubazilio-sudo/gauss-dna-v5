@@ -1,7 +1,7 @@
 """
-K11 Runner — com Trade Tracker
+K11 Runner — SMC Engine
 """
-import asyncio, logging, os, httpx, traceback
+import asyncio, logging, os, httpx, traceback, json, time as t
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from formatter import formatar_cartao
 from config import BOT_TOKEN, ALLOWED_CHAT_IDS
@@ -16,24 +16,21 @@ async def enviar(texto: str):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.post(url, json={"chat_id": CHAT_ID, "text": texto[:4096]})
-        logger.info(f"K11 TG: {r.status_code}")
+        logger.info(f"TG: {r.status_code}")
 
 async def main():
-    logger.info("K11 iniciado")
+    logger.info("K11 SMC iniciado")
     try:
         from k10_engine import K10Engine
-        from watchlist import get_watchlist, WATCHLIST_FALLBACK
-        from trade_tracker import registrar, relatorio_telegram
+        from watchlist import get_watchlist, WATCHLIST_FALLBACK, WATCHLIST_PRIORITY
+        from trade_tracker import registrar
 
         engine = K10Engine()
-        # Pares prioritários primeiro, depois watchlist geral
-        from watchlist import get_watchlist, WATCHLIST_FALLBACK, WATCHLIST_PRIORITY
         wl_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
-        # Remover duplicatas mantendo prioritários na frente
-        wl_geral_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
-        wl = WATCHLIST_PRIORITY + wl_geral_sem_dup[:490]
-        aprovados = []
+        wl_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
+        wl = WATCHLIST_PRIORITY + wl_sem_dup[:490]
 
+        aprovados = []
         def analisar(sym):
             try: return engine.analisar(sym)
             except: return None
@@ -42,10 +39,10 @@ async def main():
             futures = {ex.submit(analisar, sym): sym for sym in wl}
             for f in as_completed(futures):
                 r = f.result()
-                if r and r.get("aprovado") and r.get("score", 0) >= 70:
+                if r and r.get("aprovado") and r.get("score",0) >= 70:
                     aprovados.append(r)
 
-        aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
+        aprovados.sort(key=lambda x: x.get("score",0), reverse=True)
         logger.info(f"K11: {len(aprovados)} aprovados")
 
     except Exception:
@@ -56,74 +53,31 @@ async def main():
         logger.info("K11: nenhum sinal")
         return
 
-    # Anti-repetição — não enviar mesmo símbolo+direção+TF nas últimas 2h
-    import json, os, time as t
+    # Anti-repetição 2h
     cache_file = "/tmp/k11_sent.json"
     try:
         cache = json.load(open(cache_file)) if os.path.exists(cache_file) else {}
-        # Limpar entradas antigas (>2h)
         now = t.time()
         cache = {k:v for k,v in cache.items() if now-v < 7200}
     except:
         cache = {}
 
-    aprovados_novos = []
-    for s in aprovados:
-        chave = f"{s['symbol']}_{s['direcao']}_{s['timeframe']}"
-        if chave not in cache:
-            aprovados_novos.append(s)
-        else:
-            logger.info(f"K11: {s['symbol']} já enviado recentemente — ignorando")
-
-    if not aprovados_novos:
-        logger.info("K11: todos sinais já enviados recentemente")
-        return
-
-    for sinal in aprovados_novos[:3]:
-        # Analista sênior avalia o setup
-        analise_ia = {"decisao": "ENTRAR", "confianca": sinal.get("score",0), "justificativa": "", "risco": "MEDIO", "observacao": ""}
-        try:
-            from analista_senior import analisar_como_senior
-            analise_ia = await analisar_como_senior(sinal)
-            logger.info(f"IA: {sinal['symbol']} → {analise_ia.get('decisao')} ({analise_ia.get('confianca')}%)")
-        except Exception as e:
-            logger.warning(f"Analista IA: {e}")
-
-        # Só enviar se IA aprovа (ENTRAR) ou se API não disponível
-        if analise_ia.get("decisao") == "IGNORAR":
-            logger.info(f"K11 IA ignorou: {sinal['symbol']} — {analise_ia.get('justificativa')}")
-            continue
-        if analise_ia.get("decisao") == "AGUARDAR":
-            logger.info(f"K11 IA aguardando: {sinal['symbol']} — {analise_ia.get('justificativa')}")
+    enviados = 0
+    for sinal in aprovados[:3]:
+        chave = f"{sinal['symbol']}_{sinal['direcao']}_{sinal['timeframe']}"
+        if chave in cache:
             continue
 
         cartao = formatar_cartao(sinal, bot_name="K11")
-
-        # Adicionar análise da IA no cartão
-        if analise_ia.get("justificativa") and analise_ia.get("decisao") != "ERRO":
-            confianca = analise_ia.get("confianca", 0)
-            risco     = analise_ia.get("risco","")
-            justif    = analise_ia.get("justificativa","")
-            obs       = analise_ia.get("observacao","")
-            ia_texto  = (
-                f"\n🧠 ANÁLISE SÊNIOR:\n"
-                f"Confiança: {confianca}% | Risco: {risco}\n"
-                f"{justif}"
-            )
-            if obs:
-                ia_texto += f"\n💡 {obs}"
-            cartao = cartao + ia_texto if cartao else ia_texto
-
         if cartao:
             await enviar(cartao)
+            cache[chave] = t.time()
             try:
                 trade_id = registrar(sinal)
                 logger.info(f"K11 #{trade_id}: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
             except Exception as e:
                 logger.warning(f"Tracker: {e}")
-            # Salvar no cache anti-repetição
-            chave = f"{sinal['symbol']}_{sinal['direcao']}_{sinal['timeframe']}"
-            cache[chave] = t.time()
+            enviados += 1
             await asyncio.sleep(2)
 
     try:
@@ -131,6 +85,8 @@ async def main():
             json.dump(cache, f)
     except:
         pass
+
+    logger.info(f"K11: {enviados} sinais enviados")
 
 if __name__ == "__main__":
     asyncio.run(main())
