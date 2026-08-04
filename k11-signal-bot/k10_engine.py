@@ -1,14 +1,7 @@
 """
-K11 Smart Money Entry Engine
-Filosofia: não entrar onde todos entram.
-Entrar APÓS o sweep institucional — quando o tubarão já comeu as sardinhas.
-
-Setup ideal:
-1. Liquidity Sweep — preço falso acima/abaixo de estrutura
-2. Rejeição imediata — candle de reversão forte
-3. BOS na nova direção — confirmação que inverteu
-4. Volume no sweep — institucional estava lá
-5. Retorno para zona — entrada no reteste, não no topo/fundo
+K11 Engine — CHoCH + Liquidity Capture + Volume
+Sequência: Tendência → Quebra (CHoCH) → Sweep → Volume → Entrada no reteste
+Nunca entrar no topo/fundo óbvio. Entrar após confirmação institucional.
 """
 
 import ccxt
@@ -58,166 +51,185 @@ class K10Engine:
         vol_sma = v.rolling(20,min_periods=10).mean()
         df["vol_ma"] = vol_sma
         df["rvol"]   = (v.shift(1)/vol_sma.replace(0,np.nan)).clip(0,50)
-        df["vwap"]   = (v*(h+l+c)/3).cumsum()/v.cumsum()
         return df
 
     # ─────────────────────────────────────────────────────────────────────────
-    # DETECTOR DE SWEEP DE LIQUIDEZ
+    # PASSO 1 — IDENTIFICAR TENDÊNCIA ANTERIOR
     # ─────────────────────────────────────────────────────────────────────────
-    def _detectar_sweep(self, df):
+    def _tendencia_anterior(self, df):
+        """Identifica a tendência dos últimos 20-50 candles."""
+        closes = df["close"].iloc[-50:-5]
+        e21    = df["ema21"].iloc[-50:-5]
+        # Tendência de alta: preço consistentemente acima da EMA21
+        acima = (closes > e21).sum()
+        abaixo= (closes < e21).sum()
+        if acima > 35:   return "ALTA"
+        if abaixo > 35:  return "BAIXA"
+        return "LATERAL"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASSO 2 — DETECTAR CHoCH (Change of Character)
+    # ─────────────────────────────────────────────────────────────────────────
+    def _detectar_choch(self, df, tendencia):
         """
-        Detecta se houve sweep de liquidez recente seguido de reversão.
-        
-        Sweep LONG (compra após sweep de baixa):
-        - Preço furou abaixo de suporte recente (equal lows / swing low)
-        - Voltou acima imediatamente (rejeição)
-        - Candle de reversão forte (sombra longa abaixo, corpo verde)
-        
-        Sweep SHORT (venda após sweep de alta):
-        - Preço furou acima de resistência recente (equal highs / swing high)
-        - Voltou abaixo imediatamente
-        - Candle de reversão forte (sombra longa acima, corpo vermelho)
-        
-        Retorna: (direcao, score_sweep, confirmacoes, detalhes)
+        Detecta quebra de estrutura (CHoCH):
+        - Em tendência de ALTA: fechou abaixo do último swing low → CHoCH DOWN
+        - Em tendência de BAIXA: fechou acima do último swing high → CHoCH UP
         """
-        # Usar velas fechadas — não a atual em formação
-        df_closed = df.iloc[:-1].copy()
-        r  = df_closed.iloc[-1]   # última vela fechada
-        r2 = df_closed.iloc[-2]   # penúltima
-        r3 = df_closed.iloc[-3]
+        df_c = df.iloc[:-1]  # velas fechadas
+        c    = float(df_c["close"].iloc[-1])
+        atr  = float(df_c["atr"].iloc[-1])
 
-        c   = float(r["close"]); o = float(r["open"])
-        h_r = float(r["high"]); l_r = float(r["low"])
-        atr = float(r["atr"])
-        rvol= float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
-
-        corpo = abs(c - o)
-        total = h_r - l_r
-        sombra_inf = (min(o,c) - l_r)
-        sombra_sup = (h_r - max(o,c))
-
-        # Suportes e resistências dos últimos 20 candles (excluindo os 3 últimos)
-        lookback = df_closed.iloc[-23:-3]
+        # Swing points dos últimos 30 candles
+        lookback = df_c.iloc[-30:-3]
         swing_high = float(lookback["high"].max())
         swing_low  = float(lookback["low"].min())
 
-        # Equal highs/lows (clusters de preço ± 0.2 ATR)
-        recent_highs = df_closed["high"].iloc[-15:-2]
-        recent_lows  = df_closed["low"].iloc[-15:-2]
-        eq_high = float(recent_highs.max())
-        eq_low  = float(recent_lows.min())
+        # CHoCH DOWN (tendência de alta quebrou para baixo)
+        if tendencia == "ALTA":
+            # Fechou abaixo do swing low recente
+            choch_down = c < swing_low * 1.002
+            if choch_down:
+                return "DOWN", swing_low, swing_high
+
+        # CHoCH UP (tendência de baixa quebrou para cima)
+        if tendencia == "BAIXA":
+            # Fechou acima do swing high recente
+            choch_up = c > swing_high * 0.998
+            if choch_up:
+                return "UP", swing_low, swing_high
+
+        return None, swing_low, swing_high
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASSO 3 — VERIFICAR CAPTURA DE LIQUIDEZ + VOLUME
+    # ─────────────────────────────────────────────────────────────────────────
+    def _captura_liquidez(self, df, choch_dir):
+        """
+        Após o CHoCH, verifica se houve captura de liquidez:
+        - Sombra longa (spike) na direção do sweep
+        - Volume acima da média no candle do sweep
+        - Fechamento de volta para zona segura
+        """
+        df_c = df.iloc[:-1]
+        r    = df_c.iloc[-1]   # última vela fechada
+        r2   = df_c.iloc[-2]
+        atr  = float(r["atr"])
+        rvol = float(r["rvol"]) if not np.isnan(r["rvol"]) else 0
+        rvol2= float(r2["rvol"]) if not np.isnan(r2["rvol"]) else 0
+
+        c_r  = float(r["close"]); o_r = float(r["open"])
+        h_r  = float(r["high"]);  l_r = float(r["low"])
+        corpo = abs(c_r - o_r)
+        total = h_r - l_r
+
+        sombra_inf = min(o_r,c_r) - l_r
+        sombra_sup = h_r - max(o_r,c_r)
 
         confirmacoes = []
         score = 0
-        direcao = None
 
-        # ── SWEEP DE BAIXA (setup para LONG) ─────────────────────────────────
-        # 1. Preço da vela fechada furou abaixo do swing low / equal low
-        furou_baixo = l_r < eq_low * 0.999
-
-        # 2. Fechou acima do suporte (rejeição — não continuou)
-        rejeitou_baixo = c > eq_low
-
-        # 3. Sombra inferior longa (tubarão atuou lá embaixo)
-        sombra_longa_inf = sombra_inf > corpo * 0.8 and sombra_inf > atr * 0.3
-
-        # 4. Candle de reversão — fechou verde ou quase
-        candle_rev_long = c >= o * 0.999
-
-        # 5. Volume no sweep — institucional estava presente
-        vol_sweep = rvol >= 1.0
-
-        if furou_baixo and rejeitou_baixo:
-            if sombra_longa_inf:
-                confirmacoes.append("Sombra longa no sweep")
+        if choch_dir == "UP":
+            # Captura de liquidez para LONG:
+            # Candle ou candles recentes tiveram sombra inferior longa
+            sweep_ok = sombra_inf > atr * 0.4 or (float(r2["low"]) < float(df_c["low"].iloc[-10:-2].min()))
+            if sweep_ok:
+                confirmacoes.append("Captura de liquidez ↓")
+                score += 30
+            # Volume no candle de reversão
+            if rvol >= 1.0 or rvol2 >= 1.0:
+                confirmacoes.append(f"Volume institucional RVOL {max(rvol,rvol2):.2f}")
                 score += 25
-            if candle_rev_long:
-                confirmacoes.append("Candle de reversão fechado")
+            # Fechou verde (compradores assumiram)
+            if c_r > o_r:
+                confirmacoes.append("Candle comprador fechado")
                 score += 20
-            if vol_sweep:
-                confirmacoes.append(f"Volume no sweep RVOL {rvol:.2f}")
-                score += 20
-            confirmacoes.append(f"Sweep de baixa confirmado ({eq_low:.6f})")
-            score += 20
-            direcao = "LONG"
-
-        # ── SWEEP DE ALTA (setup para SHORT) ─────────────────────────────────
-        furou_alto = h_r > eq_high * 1.001
-        rejeitou_alto = c < eq_high
-        sombra_longa_sup = sombra_sup > corpo * 0.8 and sombra_sup > atr * 0.3
-        candle_rev_short = c <= o * 1.001
-
-        if furou_alto and rejeitou_alto:
-            if sombra_longa_sup:
-                confirmacoes.append("Sombra longa no sweep")
-                score += 25
-            if candle_rev_short:
-                confirmacoes.append("Candle de reversão fechado")
-                score += 20
-            if vol_sweep:
-                confirmacoes.append(f"Volume no sweep RVOL {rvol:.2f}")
-                score += 20
-            confirmacoes.append(f"Sweep de alta confirmado ({eq_high:.6f})")
-            score += 20
-            direcao = "SHORT"
-
-        # ── BOS após sweep ────────────────────────────────────────────────────
-        if direcao == "LONG":
-            # BOS: fechou acima da máxima de 2 velas anteriores
-            bos = c > max(float(r2["high"]), float(r3["high"]))
-            if bos:
-                confirmacoes.append("BOS confirmado após sweep")
+            # MACD virando para cima
+            macd_h = float(r["macd_hist"])
+            macd_h2= float(df_c["macd_hist"].iloc[-3])
+            if macd_h > macd_h2:
+                confirmacoes.append("MACD virando para cima")
                 score += 15
-        elif direcao == "SHORT":
-            bos = c < min(float(r2["low"]), float(r3["low"]))
-            if bos:
-                confirmacoes.append("BOS confirmado após sweep")
-                score += 15
-
-        # ── Contexto macro ────────────────────────────────────────────────────
-        if direcao:
-            e50  = float(r["ema50"]); e200 = float(r["ema200"])
-            tend_ok = (e50 > e200) if direcao=="LONG" else (e50 < e200)
-            if tend_ok:
-                confirmacoes.append("Tendência H1 favorável")
-                score += 10
+            # RSI saindo do fundo
             rsi = float(r["rsi"])
-            rsi_ok = (rsi < 60) if direcao=="LONG" else (rsi > 40)
-            if rsi_ok:
-                confirmacoes.append(f"RSI {rsi:.1f} favorável")
+            if rsi < 50 and rsi > float(df_c["rsi"].iloc[-3]):
+                confirmacoes.append(f"RSI saindo do fundo {rsi:.1f}")
                 score += 10
 
-        return direcao, min(score, 100), confirmacoes
+        elif choch_dir == "DOWN":
+            # Captura de liquidez para SHORT:
+            sweep_ok = sombra_sup > atr * 0.4 or (float(r2["high"]) > float(df_c["high"].iloc[-10:-2].max()))
+            if sweep_ok:
+                confirmacoes.append("Captura de liquidez ↑")
+                score += 30
+            if rvol >= 1.0 or rvol2 >= 1.0:
+                confirmacoes.append(f"Volume institucional RVOL {max(rvol,rvol2):.2f}")
+                score += 25
+            if c_r < o_r:
+                confirmacoes.append("Candle vendedor fechado")
+                score += 20
+            macd_h = float(r["macd_hist"])
+            macd_h2= float(df_c["macd_hist"].iloc[-3])
+            if macd_h < macd_h2:
+                confirmacoes.append("MACD virando para baixo")
+                score += 15
+            rsi = float(r["rsi"])
+            if rsi > 50 and rsi < float(df_c["rsi"].iloc[-3]):
+                confirmacoes.append(f"RSI saindo do topo {rsi:.1f}")
+                score += 10
+
+        return min(score, 100), confirmacoes
 
     # ─────────────────────────────────────────────────────────────────────────
-    # NÍVEIS — Stop ATRÁS do sweep, TP baseado na estrutura
+    # PASSO 4 — VERIFICAR RETESTE (entrada não óbvia)
     # ─────────────────────────────────────────────────────────────────────────
-    def _calcular_niveis(self, df, direcao):
-        df_closed = df.iloc[:-1]
-        r   = df_closed.iloc[-1]
-        c   = float(df.iloc[-1]["close"])  # preço atual
-        atr = float(r["atr"])
+    def _verificar_reteste(self, df, choch_dir, swing_low, swing_high):
+        """
+        Verifica se o preço está no reteste da zona de CHoCH
+        (não no topo/fundo — entrada não óbvia).
+        """
+        c_atual = float(df.iloc[-1]["close"])
+        atr     = float(df.iloc[-1]["atr"])
+
+        if choch_dir == "UP":
+            # Preço deve estar perto do swing low quebrado (reteste do suporte virou resistência)
+            # Não entrar muito longe — máximo 3 ATR acima do swing
+            dist = abs(c_atual - swing_low) / atr if atr > 0 else 99
+            return dist <= 3.0, dist
+
+        elif choch_dir == "DOWN":
+            dist = abs(c_atual - swing_high) / atr if atr > 0 else 99
+            return dist <= 3.0, dist
+
+        return False, 99
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASSO 5 — NÍVEIS
+    # ─────────────────────────────────────────────────────────────────────────
+    def _calcular_niveis(self, df, direcao, swing_low, swing_high):
+        c   = float(df.iloc[-1]["close"])
+        atr = float(df.iloc[-1]["atr"])
 
         if direcao == "LONG":
-            # Stop: abaixo da mínima do sweep (com margem)
-            stop = round(float(df_closed["low"].iloc[-3:].min()) - atr*0.15, 6)
-            if abs(c-stop)/c > 0.05: stop = round(c*0.95, 6)
+            # Stop abaixo do swing low (onde a captura de liquidez aconteceu)
+            stop = round(swing_low - atr * 0.2, 6)
+            if abs(c-stop)/c > 0.06: stop = round(c * 0.94, 6)
             risco = abs(c-stop)
-            tp1   = round(c + risco*2.5, 6)
-            if tp1 > c*1.12: tp1 = round(c*1.08, 6)
+            tp1   = round(c + risco * 2.5, 6)
+            if tp1 > c * 1.12: tp1 = round(c * 1.10, 6)
         else:
-            stop = round(float(df_closed["high"].iloc[-3:].max()) + atr*0.15, 6)
-            if abs(stop-c)/c > 0.05: stop = round(c*1.05, 6)
+            stop = round(swing_high + atr * 0.2, 6)
+            if abs(stop-c)/c > 0.06: stop = round(c * 1.06, 6)
             risco = abs(stop-c)
-            tp1   = round(c - risco*2.5, 6)
-            if tp1 < c*0.88: tp1 = round(c*0.92, 6)
-            if tp1 <= 0: tp1 = round(c*0.92, 6)
+            tp1   = round(c - risco * 2.5, 6)
+            if tp1 < c * 0.88: tp1 = round(c * 0.90, 6)
+            if tp1 <= 0: tp1 = round(c * 0.90, 6)
 
         rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
         return c, stop, tp1, atr, rr
 
     # ─────────────────────────────────────────────────────────────────────────
-    # ANÁLISE
+    # ANÁLISE PRINCIPAL
     # ─────────────────────────────────────────────────────────────────────────
     def analisar(self, symbol, timeframe=None):
         tfs = [timeframe] if timeframe else ["30m","1h"]
@@ -235,68 +247,106 @@ class K10Engine:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0,"rvol":0}
 
-        # Detectar sweep
-        direcao, score_sweep, confirmacoes = self._detectar_sweep(df)
+        motivos = []
 
-        if not direcao:
+        # PASSO 1: Tendência anterior
+        tendencia = self._tendencia_anterior(df)
+        if tendencia == "LATERAL":
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":["Sem sweep de liquidez detectado"],
-                    "timeframe":tf,"direcao":"—","rr":0,
-                    "rvol":float(df.iloc[-1]["rvol"]) if not np.isnan(df.iloc[-1]["rvol"]) else 0}
+                    "motivos_rejeicao":["Mercado lateral — sem tendência para quebrar"],
+                    "timeframe":tf,"direcao":"—","rr":0,"rvol":0}
 
-        # Níveis
-        entrada, stop, tp1, atr, rr = self._calcular_niveis(df, direcao)
+        # PASSO 2: CHoCH
+        choch_dir, swing_low, swing_high = self._detectar_choch(df, tendencia)
+        if not choch_dir:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[f"Sem CHoCH detectado (tendência {tendencia})"],
+                    "timeframe":tf,"direcao":"—","rr":0,"rvol":0}
+
+        direcao = "LONG" if choch_dir == "UP" else "SHORT"
+
+        # PASSO 3: Captura de liquidez + Volume
+        score_captura, confirmacoes = self._captura_liquidez(df, choch_dir)
+        if score_captura < 40:
+            return {"symbol":symbol,"aprovado":False,"score":score_captura,
+                    "motivos_rejeicao":[f"Captura de liquidez insuficiente ({score_captura}pts)"],
+                    "timeframe":tf,"direcao":direcao,"rr":0,
+                    "rvol":float(df.iloc[-2]["rvol"]) if not np.isnan(df.iloc[-2]["rvol"]) else 0}
+
+        # PASSO 4: Reteste
+        reteste_ok, dist_reteste = self._verificar_reteste(df, choch_dir, swing_low, swing_high)
+        if not reteste_ok:
+            motivos.append(f"Preço muito longe do reteste ({dist_reteste:.1f} ATR)")
+        else:
+            confirmacoes.append(f"Reteste da zona ({dist_reteste:.1f} ATR)")
+
+        # PASSO 5: Níveis
+        entrada, stop, tp1, atr, rr = self._calcular_niveis(df, direcao, swing_low, swing_high)
         rvol = float(df.iloc[-2]["rvol"]) if not np.isnan(df.iloc[-2]["rvol"]) else 0
         adx  = float(df.iloc[-1]["adx"])
         rsi  = float(df.iloc[-1]["rsi"])
 
-        motivos = []
-
-        # Score mínimo
-        if score_sweep < 55:
-            motivos.append(f"Score sweep {score_sweep} insuficiente")
-
-        # RR mínimo
-        if rr < 2.0:
-            motivos.append(f"RR {rr} < 2.0")
-
-        # Contexto H4 — não entrar contra tendência muito forte
+        # H4 contexto — não entrar contra tendência muito forte
         r4h    = df4h.iloc[-1]
         adx_4h = float(r4h["adx"])
         tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
         contra_forte = (
-            (direcao=="LONG" and not tend_h4 and adx_4h > 35) or
-            (direcao=="SHORT" and tend_h4 and adx_4h > 35)
+            (direcao=="LONG"  and not tend_h4 and adx_4h > 35) or
+            (direcao=="SHORT" and tend_h4     and adx_4h > 35)
         )
         if contra_forte:
-            motivos.append(f"Contra tendência H4 muito forte ADX={adx_4h:.0f}")
+            motivos.append(f"H4 tendência forte contra ADX={adx_4h:.0f}")
+        else:
+            confirmacoes.append("H4 favorável")
+
+        # Score final
+        score = score_captura
+        if reteste_ok:    score += 10
+        if rr >= 2.5:     score += 5
+        if rvol >= 2.0:   score += 8
+        elif rvol >= 1.0: score += 4
+        score = min(score, 100)
+
+        if score < 60:
+            motivos.append(f"Score {score} insuficiente")
+        if rr < 2.0:
+            motivos.append(f"RR {rr} < 2.0")
 
         aprovado = len(motivos) == 0
 
-        # Tier
-        if score_sweep >= 85:   tier = "OURO"
-        elif score_sweep >= 75: tier = "PRATA"
-        elif score_sweep >= 65: tier = "BRONZE"
-        else:                   tier = "ABAIXO"
+        if score >= 85:   tier = "OURO"
+        elif score >= 75: tier = "PRATA"
+        elif score >= 65: tier = "BRONZE"
+        else:             tier = "ABAIXO"
 
         conv = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}.get(tier,"MODERADA 🔶")
 
-        if score_sweep >= 85 and rvol >= 2.0: prioridade = "🔥 SWEEP INSTITUCIONAL"
-        elif score_sweep >= 75:               prioridade = "⭐ SWEEP CONFIRMADO"
-        else:                                 prioridade = ""
+        if score >= 85 and "Volume institucional" in str(confirmacoes):
+            prioridade = "🔥 INSTITUCIONAL"
+        elif score >= 75:
+            prioridade = "⭐ CHoCH CONFIRMADO"
+        else:
+            prioridade = ""
 
         gb_risco = round(BANCA * RISCO_PCT / 100, 2)
         dist = abs(entrada-stop)/entrada if entrada else 0.01
         pos  = round(min(gb_risco/dist, BANCA*3), 2) if dist > 0 else 0
-        alav = 20 if score_sweep>=85 else 15 if score_sweep>=75 else 10
+        alav = 20 if score>=85 else 15 if score>=75 else 10
+
+        regime_label = {
+            ("ALTA","DOWN"):  "Quebra de Alta ↘",
+            ("ALTA","UP"):    "Continuação Alta ↑",
+            ("BAIXA","UP"):   "Quebra de Baixa ↗",
+            ("BAIXA","DOWN"): "Continuação Baixa ↓",
+        }.get((tendencia, choch_dir), "CHoCH")
 
         return {
             "symbol":           symbol,
             "aprovado":         aprovado,
-            "setup_nome":       "SWEEP",
-            "regime":           "Sweep ↗" if direcao=="LONG" else "Sweep ↘",
+            "setup_nome":       "CHoCH",
+            "regime":           regime_label,
             "direcao":          direcao,
-            "score":            score_sweep,
+            "score":            score,
             "tier":             tier,
             "conviccao":        conv,
             "prioridade":       prioridade,
@@ -309,7 +359,7 @@ class K10Engine:
             "rsi":              rsi,
             "atr":              atr,
             "rvol":             rvol,
-            "vwap":             float(df.iloc[-1]["vwap"]),
+            "vwap":             float(df.iloc[-1]["vwap"]) if "vwap" in df.columns else entrada,
             "ema21":            float(df.iloc[-1]["ema21"]),
             "confirmacoes_smc": confirmacoes,
             "confluencia":      len(confirmacoes),
@@ -329,4 +379,5 @@ class K10Engine:
 
     def obter_regime(self, symbol):
         df = self._calc(self._fetch(symbol, "1h"))
-        return {"regime":"SWEEP","adx":float(df.iloc[-1]["adx"]),"atr":float(df.iloc[-1]["atr"])}
+        tend = self._tendencia_anterior(df)
+        return {"regime":f"CHoCH_{tend}","adx":float(df.iloc[-1]["adx"]),"atr":float(df.iloc[-1]["atr"])}
