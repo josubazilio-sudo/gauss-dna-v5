@@ -80,7 +80,40 @@ async def main():
         return
 
     for sinal in aprovados_novos[:3]:
+        # Analista sênior avalia o setup
+        analise_ia = {"decisao": "ENTRAR", "confianca": sinal.get("score",0), "justificativa": "", "risco": "MEDIO", "observacao": ""}
+        try:
+            from analista_senior import analisar_como_senior
+            analise_ia = await analisar_como_senior(sinal)
+            logger.info(f"IA: {sinal['symbol']} → {analise_ia.get('decisao')} ({analise_ia.get('confianca')}%)")
+        except Exception as e:
+            logger.warning(f"Analista IA: {e}")
+
+        # Só enviar se IA aprovа (ENTRAR) ou se API não disponível
+        if analise_ia.get("decisao") == "IGNORAR":
+            logger.info(f"K11 IA ignorou: {sinal['symbol']} — {analise_ia.get('justificativa')}")
+            continue
+        if analise_ia.get("decisao") == "AGUARDAR":
+            logger.info(f"K11 IA aguardando: {sinal['symbol']} — {analise_ia.get('justificativa')}")
+            continue
+
         cartao = formatar_cartao(sinal, bot_name="K11")
+
+        # Adicionar análise da IA no cartão
+        if analise_ia.get("justificativa") and analise_ia.get("decisao") != "ERRO":
+            confianca = analise_ia.get("confianca", 0)
+            risco     = analise_ia.get("risco","")
+            justif    = analise_ia.get("justificativa","")
+            obs       = analise_ia.get("observacao","")
+            ia_texto  = (
+                f"\n🧠 ANÁLISE SÊNIOR:\n"
+                f"Confiança: {confianca}% | Risco: {risco}\n"
+                f"{justif}"
+            )
+            if obs:
+                ia_texto += f"\n💡 {obs}"
+            cartao = cartao + ia_texto if cartao else ia_texto
+
         if cartao:
             await enviar(cartao)
             try:
