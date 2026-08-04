@@ -14,13 +14,11 @@ async def main():
     try:
         from k10_engine import K10Engine
         from watchlist import get_watchlist, WATCHLIST_FALLBACK
-        from formatter import formatar_cartao
-
         engine = K10Engine()
         wl = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
 
         resultados = []
-        for sym in wl[:15]:
+        for sym in wl[:10]:
             try:
                 r = engine.analisar(sym)
                 resultados.append(r)
@@ -31,16 +29,17 @@ async def main():
         resultados.sort(key=lambda x: x.get("score",0), reverse=True)
         aprovados = [r for r in resultados if r.get("aprovado")]
 
-        linhas = [f"K11 DIAG — {len(aprovados)} aprovados de {len(resultados)}:\n"]
+        linhas = [f"K11 DIAG — {len(aprovados)} aprovados:\n"]
         for r in resultados[:8]:
             sym    = r["symbol"].replace("/USDT:USDT","")
             ok     = "✅" if r.get("aprovado") else "❌"
             motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:45]
-            linhas.append(f"{ok} {sym} s={r.get('score')} rr={r.get('rr',0):.1f} rvol={r.get('rvol',0):.2f}\n   {motivo}")
+            linhas.append(f"{ok} {sym} s={r.get('score')} -> {motivo}")
 
         await tg("\n".join(linhas))
 
         if aprovados:
+            from formatter import formatar_cartao
             cartao = formatar_cartao(aprovados[0], bot_name="K11")
             if cartao: await tg(cartao)
 
