@@ -31,7 +31,7 @@ async def main():
 
         def analisar(sym):
             melhores = []
-            for tf in ["4h", "1d"]:
+            for tf in ["4h"]:
                 try:
                     r = engine._analisar_tf(sym, tf)
                     melhores.append(r)
