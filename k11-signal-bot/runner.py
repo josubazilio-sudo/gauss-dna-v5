@@ -37,7 +37,7 @@ async def main():
             futures = {ex.submit(analisar, sym): sym for sym in wl}
             for f in as_completed(futures):
                 r = f.result()
-                if r and r.get("aprovado") and r.get("score", 0) >= 60:
+                if r and r.get("aprovado") and r.get("score", 0) >= 70:
                     aprovados.append(r)
 
         aprovados.sort(key=lambda x: x.get("score", 0), reverse=True)
