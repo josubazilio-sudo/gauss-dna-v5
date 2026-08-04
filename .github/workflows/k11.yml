@@ -20,6 +20,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.TG_TOKEN }}
           ALLOWED_CHAT_IDS: ${{ secrets.TG_CHATID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd k11-signal-bot
           python runner.py
