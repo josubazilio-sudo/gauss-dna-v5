@@ -26,7 +26,12 @@ async def main():
         from trade_tracker import registrar, relatorio_telegram
 
         engine = K10Engine()
-        wl = (get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK)[:500]
+        # Pares prioritários primeiro, depois watchlist geral
+        from watchlist import get_watchlist, WATCHLIST_FALLBACK, WATCHLIST_PRIORITY
+        wl_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
+        # Remover duplicatas mantendo prioritários na frente
+        wl_geral_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
+        wl = WATCHLIST_PRIORITY + wl_geral_sem_dup[:490]
         aprovados = []
 
         def analisar(sym):
