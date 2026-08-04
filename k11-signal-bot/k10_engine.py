@@ -112,10 +112,22 @@ class K10Engine:
             confirmacoes.append("🎯 MACD cruzou para baixo AGORA")
             score += 30
         elif macd_acele_long:
+            # Verificar se aceleração é recente — máximo 3 velas
+            # Se histograma já é muito grande, movimento já andou
+            macd_ratio = abs(macd_h / macd_h3) if macd_h3 != 0 else 99
+            if macd_ratio > 3.0:  # cresceu mais de 3x — já andou demais
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":[f"MACD acelerou demais ({macd_ratio:.1f}x) — entrada atrasada"],
+                        "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
             direcao = "LONG"
             confirmacoes.append("MACD acelerando para cima")
             score += 18
         elif macd_acele_short:
+            macd_ratio = abs(macd_h / macd_h3) if macd_h3 != 0 else 99
+            if macd_ratio > 3.0:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":[f"MACD acelerou demais ({macd_ratio:.1f}x) — entrada atrasada"],
+                        "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
             direcao = "SHORT"
             confirmacoes.append("MACD acelerando para baixo")
             score += 18
