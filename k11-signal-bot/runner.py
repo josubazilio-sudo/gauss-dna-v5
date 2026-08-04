@@ -51,7 +51,30 @@ async def main():
         logger.info("K11: nenhum sinal")
         return
 
-    for sinal in aprovados[:3]:
+    # Anti-repetição — não enviar mesmo símbolo+direção+TF nas últimas 2h
+    import json, os, time as t
+    cache_file = "/tmp/k11_sent.json"
+    try:
+        cache = json.load(open(cache_file)) if os.path.exists(cache_file) else {}
+        # Limpar entradas antigas (>2h)
+        now = t.time()
+        cache = {k:v for k,v in cache.items() if now-v < 7200}
+    except:
+        cache = {}
+
+    aprovados_novos = []
+    for s in aprovados:
+        chave = f"{s['symbol']}_{s['direcao']}_{s['timeframe']}"
+        if chave not in cache:
+            aprovados_novos.append(s)
+        else:
+            logger.info(f"K11: {s['symbol']} já enviado recentemente — ignorando")
+
+    if not aprovados_novos:
+        logger.info("K11: todos sinais já enviados recentemente")
+        return
+
+    for sinal in aprovados_novos[:3]:
         cartao = formatar_cartao(sinal, bot_name="K11")
         if cartao:
             await enviar(cartao)
@@ -60,7 +83,16 @@ async def main():
                 logger.info(f"K11 #{trade_id}: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
             except Exception as e:
                 logger.warning(f"Tracker: {e}")
+            # Salvar no cache anti-repetição
+            chave = f"{sinal['symbol']}_{sinal['direcao']}_{sinal['timeframe']}"
+            cache[chave] = t.time()
             await asyncio.sleep(2)
+
+    try:
+        with open(cache_file, "w") as f:
+            json.dump(cache, f)
+    except:
+        pass
 
 if __name__ == "__main__":
     asyncio.run(main())
