@@ -1,0 +1,36 @@
+name: K11 Relatorio
+
+on:
+  workflow_dispatch:
+
+jobs:
+  relatorio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install httpx python-dotenv
+      - name: Gerar relatorio
+        env:
+          BOT_TOKEN: ${{ secrets.TG_TOKEN }}
+          ALLOWED_CHAT_IDS: ${{ secrets.TG_CHATID }}
+        run: |
+          cd k11-signal-bot
+          python -c "
+import asyncio, httpx, os
+from trade_tracker import relatorio_telegram
+
+async def main():
+    token = os.getenv('BOT_TOKEN','')
+    chat  = os.getenv('ALLOWED_CHAT_IDS','').split(',')[0].strip()
+    rel   = relatorio_telegram()
+    url = f'https://api.telegram.org/bot{token}/sendMessage'
+    async with httpx.AsyncClient() as c:
+        await c.post(url, json={'chat_id': chat, 'text': rel[:4096]})
+    print(rel)
+
+asyncio.run(main())
+"
