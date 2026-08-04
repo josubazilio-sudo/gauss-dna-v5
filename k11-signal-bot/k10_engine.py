@@ -196,6 +196,110 @@ class K10Engine:
     # ─────────────────────────────────────────────────────────────────────────
     # ANÁLISE PRINCIPAL
     # ─────────────────────────────────────────────────────────────────────────
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SCORE DE TIMING — mede quão cedo está a entrada
+    # 100 = entrada no exato início | 0 = movimento já foi
+    # ─────────────────────────────────────────────────────────────────────────
+    def _calcular_timing(self, df, direcao, entrada, tp1, stop):
+        """
+        Calcula score de timing baseado em:
+        1. Quantas velas desde o cruzamento do MACD
+        2. Quanto do movimento já foi realizado
+        3. Distância do preço à EMA21
+        4. RSI — ainda tem espaço para andar
+        """
+        dfc  = df.iloc[:-1]
+        r    = dfc.iloc[-1]
+        atr  = float(r["atr"])
+        rsi  = float(r["rsi"])
+        e21  = float(r["ema21"])
+        c    = float(r["close"])
+
+        score_timing = 100
+        detalhes = []
+
+        # 1. Velas desde o cruzamento do MACD
+        macd_hist = dfc["macd_hist"]
+        velas_desde_cruzamento = 0
+        for i in range(-1, -15, -1):
+            h_atual = float(macd_hist.iloc[i])
+            h_ant   = float(macd_hist.iloc[i-1])
+            if direcao == "LONG":
+                if h_ant <= 0 and h_atual > 0:
+                    break
+            else:
+                if h_ant >= 0 and h_atual < 0:
+                    break
+            velas_desde_cruzamento += 1
+
+        if velas_desde_cruzamento == 0:
+            detalhes.append("MACD cruzou agora ✅")
+        elif velas_desde_cruzamento <= 2:
+            score_timing -= 10
+            detalhes.append(f"MACD cruzou {velas_desde_cruzamento} velas atrás")
+        elif velas_desde_cruzamento <= 5:
+            score_timing -= 25
+            detalhes.append(f"MACD cruzou {velas_desde_cruzamento} velas atrás ⚠️")
+        else:
+            score_timing -= 45
+            detalhes.append(f"MACD cruzou {velas_desde_cruzamento} velas atrás ❌")
+
+        # 2. Quanto do movimento já foi realizado
+        if tp1 != entrada and stop != entrada:
+            alvo_total = abs(tp1 - stop)
+            realizado  = abs(c - stop) / alvo_total * 100 if alvo_total > 0 else 0
+            if realizado <= 15:
+                detalhes.append(f"Movimento: {realizado:.0f}% realizado ✅")
+            elif realizado <= 30:
+                score_timing -= 15
+                detalhes.append(f"Movimento: {realizado:.0f}% realizado")
+            elif realizado <= 50:
+                score_timing -= 30
+                detalhes.append(f"Movimento: {realizado:.0f}% realizado ⚠️")
+            else:
+                score_timing -= 50
+                detalhes.append(f"Movimento: {realizado:.0f}% realizado ❌")
+
+        # 3. Distância da EMA21
+        dist_ema = abs(c - e21) / atr if atr > 0 else 0
+        if dist_ema <= 0.5:
+            detalhes.append(f"Próximo EMA21 ({dist_ema:.1f} ATR) ✅")
+        elif dist_ema <= 1.0:
+            score_timing -= 10
+            detalhes.append(f"EMA21 a {dist_ema:.1f} ATR")
+        elif dist_ema <= 1.5:
+            score_timing -= 20
+            detalhes.append(f"Esticado da EMA21 ({dist_ema:.1f} ATR) ⚠️")
+        else:
+            score_timing -= 35
+            detalhes.append(f"Muito esticado da EMA21 ({dist_ema:.1f} ATR) ❌")
+
+        # 4. RSI — espaço para andar
+        if direcao == "LONG":
+            espaco_rsi = 70 - rsi  # quanto falta para sobrecomprar
+            if espaco_rsi >= 20:
+                detalhes.append(f"RSI {rsi:.0f} — espaço livre ✅")
+            elif espaco_rsi >= 10:
+                score_timing -= 10
+                detalhes.append(f"RSI {rsi:.0f} — espaço moderado")
+            else:
+                score_timing -= 25
+                detalhes.append(f"RSI {rsi:.0f} — sobrecomprado ❌")
+        else:
+            espaco_rsi = rsi - 30
+            if espaco_rsi >= 20:
+                detalhes.append(f"RSI {rsi:.0f} — espaço livre ✅")
+            elif espaco_rsi >= 10:
+                score_timing -= 10
+                detalhes.append(f"RSI {rsi:.0f} — espaço moderado")
+            else:
+                score_timing -= 25
+                detalhes.append(f"RSI {rsi:.0f} — sobrevendido ❌")
+
+        score_timing = max(0, min(100, score_timing))
+        return score_timing, detalhes
+
     def _analisar_tf(self, symbol, tf="1h", tf_contexto=None):
         try:
             ctx  = tf_contexto or ("1h" if tf=="30m" else "4h" if tf=="1h" else "1d")
@@ -384,6 +488,13 @@ class K10Engine:
 
         rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
 
+        # ── SCORE DE TIMING ──────────────────────────────────────────────────
+        score_timing, timing_det = self._calcular_timing(df, direcao, entrada, tp1, stop)
+
+        # Timing mínimo 50 — abaixo disso entrada tardia, bloqueado
+        if score_timing < 50:
+            motivos.append(f"⏱ Timing {score_timing}/100 — entrada tardia")
+
         # ── CHECAGEM FINAL ────────────────────────────────────────────────────
         if score < 70:   motivos.append(f"Score {score} < 70")
         if rr < 2.0:     motivos.append(f"RR {rr} < 2.0")
@@ -437,6 +548,8 @@ class K10Engine:
             "confirmacoes_smc": confirmacoes,
             "confluencia":      len(confirmacoes),
             "motivos_rejeicao": motivos,
+            "score_timing":     score_timing,
+            "timing_detalhes":  timing_det,
             "o_que_falta":      motivos,
             "timeframe":        tf,
             "tf_contexto":      ctx_label,
