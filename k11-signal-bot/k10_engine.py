@@ -230,9 +230,9 @@ class K10Engine:
                     "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol,
                     "sessao":sessao}
 
-        # Cripto: sempre opera mas penaliza horário morto
+        # Cripto 24h — nunca bloqueia, só penaliza levemente em horário morto
         if not eh_tradicional and peso_sessao < 60:
-            peso_sessao = 50  # penalidade mas não bloqueia
+            peso_sessao = 55  # leve penalidade mas NUNCA bloqueia
 
         # ── DIREÇÃO PELO MACD ─────────────────────────────────────────────────
         macd_cruzou_long  = macd_h2 <= 0 and macd_h > 0
