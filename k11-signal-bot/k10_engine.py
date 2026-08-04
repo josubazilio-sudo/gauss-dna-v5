@@ -449,7 +449,8 @@ class K10Engine:
         }
 
     def analisar(self, symbol, timeframe=None):
-        pares = [("30m","1h"),("1h","4h"),("4h","1d")]
+        # 30m confirmado por H1, 1h confirmado por H4
+        pares = [("30m","1h"), ("1h","4h")]
         if timeframe:
             return self._analisar_tf(symbol, timeframe)
         resultados = []
