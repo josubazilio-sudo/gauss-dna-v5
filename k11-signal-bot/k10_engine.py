@@ -58,10 +58,12 @@ class K10Engine:
         df["rvol"]   = (v.shift(1)/vol_sma.replace(0,np.nan)).clip(0,50)
         return df
 
-    def _analisar_tf(self, symbol, tf="1h"):
+    def _analisar_tf(self, symbol, tf="1h", tf_contexto=None):
         try:
+            # Contexto: TF superior confirma direção
+            ctx = tf_contexto or ("1h" if tf=="30m" else "4h" if tf=="1h" else "1d")
             df   = self._calc(self._fetch(symbol, tf, limit=300))
-            df4h = self._calc(self._fetch(symbol, "4h", limit=100))
+            df4h = self._calc(self._fetch(symbol, ctx, limit=100))
         except Exception as e:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0,"rvol":0}
@@ -221,11 +223,19 @@ class K10Engine:
         tend_h4= float(r4h["ema21"]) > float(r4h["ema50"])
         macd_h4_v = float(r4h["macd_hist"])
         h4_ok = (tend_h4 and direcao=="LONG") or (not tend_h4 and direcao=="SHORT")
+        ctx_label = tf_contexto or ("H1" if tf=="30m" else "H4" if tf=="1h" else "D1")
         if h4_ok:
-            confirmacoes.append("H4 favorável")
-            score += 5
+            # Bônus extra se contexto superior também tem MACD na direção
+            macd_ctx = float(r4h["macd_hist"])
+            macd_ctx_ok = (macd_ctx > 0 and direcao=="LONG") or (macd_ctx < 0 and direcao=="SHORT")
+            if macd_ctx_ok:
+                confirmacoes.append(f"✅ {ctx_label} MACD + tendência confirmando")
+                score += 15
+            else:
+                confirmacoes.append(f"{ctx_label} tendência favorável")
+                score += 5
         elif adx_4h > 30:
-            motivos.append(f"H4 contra tendência forte ADX={adx_4h:.0f}")
+            motivos.append(f"{ctx_label} tendência forte contra ADX={adx_4h:.0f}")
 
         score = min(score, 100)
 
@@ -302,6 +312,7 @@ class K10Engine:
             "motivos_rejeicao": motivos,
             "o_que_falta":      motivos,
             "timeframe":        tf,
+            "tf_contexto":      ctx_label,
             "preco_atual":      c,
             "capital":          BANCA,
             "posicao":          pos,
@@ -311,9 +322,36 @@ class K10Engine:
         }
 
     def analisar(self, symbol, timeframe=None):
-        tfs = [timeframe] if timeframe else ["30m","1h"]
-        resultados = [self._analisar_tf(symbol, tf) for tf in tfs]
-        aprovados  = [r for r in resultados if r.get("aprovado")]
+        """
+        Hierarquia de timeframes:
+        30m  → contexto H1
+        1h   → contexto H4
+        4h   → contexto Diário
+        1d   → contexto Semanal (só EMA/MACD)
+        """
+        if timeframe:
+            return self._analisar_tf(symbol, timeframe)
+
+        # Mapa: TF entrada → TF contexto
+        pares = [
+            ("30m", "1h"),
+            ("1h",  "4h"),
+            ("4h",  "1d"),
+        ]
+
+        resultados = []
+        for tf_entrada, tf_contexto in pares:
+            try:
+                r = self._analisar_tf(symbol, tf_entrada, tf_contexto=tf_contexto)
+                resultados.append(r)
+            except:
+                pass
+
+        if not resultados:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":["Erro ao analisar"],"timeframe":"—","direcao":"—","rr":0,"rvol":0}
+
+        aprovados = [r for r in resultados if r.get("aprovado")]
         if aprovados:
             return max(aprovados, key=lambda x: x["score"])
         return max(resultados, key=lambda x: x["score"])
