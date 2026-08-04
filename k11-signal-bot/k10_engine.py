@@ -63,8 +63,13 @@ class K10Engine:
         # Tendência de alta: preço consistentemente acima da EMA21
         acima = (closes > e21).sum()
         abaixo= (closes < e21).sum()
-        if acima > 35:   return "ALTA"
-        if abaixo > 35:  return "BAIXA"
+        if acima > 25:   return "ALTA"
+        if abaixo > 25:  return "BAIXA"
+        # Usar EMA como desempate
+        e50_atual = float(df["ema50"].iloc[-1])
+        e200_atual = float(df["ema200"].iloc[-1])
+        if e50_atual > e200_atual: return "ALTA"
+        if e50_atual < e200_atual: return "BAIXA"
         return "LATERAL"
 
     # ─────────────────────────────────────────────────────────────────────────
