@@ -393,13 +393,19 @@ class K10Engine:
                 motivos.append("Sem captura de liquidez nem BOS")
 
         # ── SMC 2: ORDER BLOCK ────────────────────────────────────────────────
-        ob_ok, ob_low, ob_high, ob_dist = self._detectar_order_block(df, direcao)
+        try:
+            ob_ok, ob_low, ob_high, ob_dist = self._detectar_order_block(df, direcao)
+        except Exception:
+            ob_ok, ob_low, ob_high, ob_dist = False, 0, 0, 0
         if ob_ok:
             confirmacoes.append(f"🏛 Order Block ({ob_dist} velas atrás)")
             score += 20
 
         # ── SMC 3: FAIR VALUE GAP ─────────────────────────────────────────────
-        fvg_ok, fvg_low, fvg_high = self._detectar_fvg(df, direcao)
+        try:
+            fvg_ok, fvg_low, fvg_high = self._detectar_fvg(df, direcao)
+        except Exception:
+            fvg_ok, fvg_low, fvg_high = False, 0, 0
         if fvg_ok:
             confirmacoes.append(f"📊 FVG detectado")
             score += 10
