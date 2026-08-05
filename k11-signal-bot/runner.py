@@ -36,7 +36,7 @@ async def main():
             except: return None
 
         with ThreadPoolExecutor(max_workers=6) as ex:
-            futures = {ex.submit(analisar, sym): sym for sym in wl[:300]}
+            futures = {ex.submit(analisar, sym): sym for sym in wl[:500]}
             for f in as_completed(futures):
                 r = f.result()
                 if r and r.get("aprovado") and r.get("score",0) >= 70:
