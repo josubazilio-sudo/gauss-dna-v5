@@ -406,9 +406,22 @@ class K10Engine:
         else:
             prioridade = ""
 
-        regime_label = "Tendência Alta ↑" if e10>e21>e50 else \
-                       "Tendência Baixa ↓" if e10<e21<e50 else \
-                       "Reversão ↗" if direcao=="LONG" else "Reversão ↘"
+        # Regime baseado na operação + contexto
+        tem_liquidez = any("Liquidez" in c or "BOS" in c for c in confirmacoes)
+        if direcao == "LONG":
+            if tem_liquidez:
+                regime_label = "Reversão ↗"
+            elif e10 > e21 > e50:
+                regime_label = "Tendência Alta ↑"
+            else:
+                regime_label = "Reversão ↗"
+        else:  # SHORT
+            if tem_liquidez:
+                regime_label = "Reversão ↘"
+            elif e10 < e21 < e50:
+                regime_label = "Tendência Baixa ↓"
+            else:
+                regime_label = "Reversão ↘"
 
         gb_risco = round(BANCA * RISCO_PCT / 100, 2)
         dist = abs(c-stop)/c if c else 0.01
