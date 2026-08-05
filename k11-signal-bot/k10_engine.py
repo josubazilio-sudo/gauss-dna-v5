@@ -348,8 +348,10 @@ class K10Engine:
         # Sessão só serve como informação e bônus de score
 
         # ── DIREÇÃO PELO MACD ─────────────────────────────────────────────────
-        macd_cruzou_long  = macd_h2 <= 0 and macd_h > 0
-        macd_cruzou_short = macd_h2 >= 0 and macd_h < 0
+        # Cruzamento nas últimas 4 velas
+        macd_h4v = float(dfc["macd_hist"].iloc[-5])
+        macd_cruzou_long  = (macd_h2 <= 0 and macd_h > 0) or (macd_h3 <= 0 and macd_h2 > 0) or (macd_h4v <= 0 and macd_h3 > 0)
+        macd_cruzou_short = (macd_h2 >= 0 and macd_h < 0) or (macd_h3 >= 0 and macd_h2 < 0) or (macd_h4v >= 0 and macd_h3 < 0)
         macd_acele_long   = macd_h > 0 and macd_h > macd_h2 and macd_h2 > macd_h3
         macd_acele_short  = macd_h < 0 and macd_h < macd_h2 and macd_h2 < macd_h3
 
@@ -359,14 +361,14 @@ class K10Engine:
             direcao = "SHORT"; confirmacoes.append("🎯 MACD cruzou agora"); score += 30
         elif macd_acele_long:
             macd_ratio = abs(macd_h/macd_h3) if macd_h3 != 0 else 99
-            if macd_ratio > 3.0:
+            if macd_ratio > 6.0:
                 return {"symbol":symbol,"aprovado":False,"score":0,
                         "motivos_rejeicao":["MACD acelerou demais — entrada atrasada"],
                         "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
             direcao = "LONG"; confirmacoes.append("MACD acelerando"); score += 18
         elif macd_acele_short:
             macd_ratio = abs(macd_h/macd_h3) if macd_h3 != 0 else 99
-            if macd_ratio > 3.0:
+            if macd_ratio > 6.0:
                 return {"symbol":symbol,"aprovado":False,"score":0,
                         "motivos_rejeicao":["MACD acelerou demais — entrada atrasada"],
                         "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
@@ -462,6 +464,9 @@ class K10Engine:
         elif rvol >= 0.8:
             confirmacoes.append(f"Volume RVOL {rvol:.2f}")
             score += 8
+        elif rvol >= 0.6:
+            confirmacoes.append(f"Volume RVOL {rvol:.2f}")
+            score += 4
         else:
             motivos.append(f"Volume insuficiente RVOL {rvol:.2f}")
 
