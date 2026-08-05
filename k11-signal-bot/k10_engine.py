@@ -265,19 +265,17 @@ class K10Engine:
             motivos.append("Sem liquidez/BOS/tendência forte")
 
         # ── FILTRO 4: VOLUME ──────────────────────────────────────────────────
-        if rvol >= 1.5:
+        # Volume — labels padronizados e penalidades/bônus
+        if rvol >= 2.0:
             confirmacoes.append(f"🔥 Volume Institucional RVOL {rvol:.2f}"); score += 20
+        elif rvol >= 1.5:
+            confirmacoes.append(f"🔥 Volume Forte RVOL {rvol:.2f}"); score += 16
         elif rvol >= 1.0:
-            confirmacoes.append(f"⚡ Volume Alto RVOL {rvol:.2f}"); score += 12
-        elif rvol >= 0.7:
-            confirmacoes.append(f"Volume RVOL {rvol:.2f}"); score += 6
+            confirmacoes.append(f"⚡ Volume Alto RVOL {rvol:.2f}"); score += 10
+        elif rvol >= 0.8:
+            confirmacoes.append(f"✅ Volume Normal RVOL {rvol:.2f}"); score -= 8
         else:
-            motivos.append(f"Volume insuficiente RVOL {rvol:.2f}")
-
-        # Tier institucional exige RVOL mínimo 1.30
-        # Sem volume institucional = sem label INSTITUCIONAL no cartão
-        if rvol < 1.3 and score >= 85:
-            score = min(score, 84)  # teto em PRATA se volume fraco
+            motivos.append(f"Volume insuficiente RVOL {rvol:.2f} — mínimo 0.80")
 
         # ── ORDER BLOCK ───────────────────────────────────────────────────────
         try:
@@ -354,22 +352,59 @@ class K10Engine:
         if score_timing < timing_min:
             motivos.append(f"⏱ Timing {score_timing}/100 — entrada tardia (mín {timing_min})")
 
+        # ── AUDITORIA INSTITUCIONAL ───────────────────────────────────────────
+        # Score 100 só quando TUDO confirmado incluindo RVOL >= 1.50
+        if score >= 100 and rvol < 1.5:
+            score = 99  # limitar a 99 sem volume forte
+
+        # Classificação por tier com requisitos mínimos
+        # OURO: score >= 90, RVOL >= 1.50, liquidez/BOS, H1, VWAP
+        ouro_ok = (
+            score >= 90 and rvol >= 1.5 and
+            any("Liquidez" in c or "BOS" in c or "Tendência forte" in c for c in confirmacoes) and
+            any("H1" in c or "H4" in c for c in confirmacoes) and
+            any("VWAP" in c for c in confirmacoes)
+        )
+        # PRATA: score >= 80, RVOL >= 1.00, tendência, MACD, VWAP
+        prata_ok = (
+            score >= 80 and rvol >= 1.0 and
+            any("MACD" in c for c in confirmacoes) and
+            any("VWAP" in c for c in confirmacoes)
+        )
+        # BRONZE: score >= 70, RVOL >= 0.80
+        bronze_ok = score >= 70 and rvol >= 0.8
+
+        # Forçar tier correto por requisitos
+        if score >= 90 and not ouro_ok:
+            score = min(score, 89)  # rebaixar para PRATA se não cumpre OURO
+
         # ── CHECAGEM FINAL ────────────────────────────────────────────────────
         if score < 70:  motivos.append(f"Score {score} < 70")
         if rr < 2.0:    motivos.append(f"RR {rr} < 2.0")
 
         aprovado = len(motivos) == 0
 
-        if score >= 85:   tier = "OURO"
-        elif score >= 75: tier = "PRATA"
-        elif score >= 70: tier = "BRONZE"
-        else:             tier = "ABAIXO"
+        # Tier padronizado por RFC
+        if score >= 90 and rvol >= 1.5:   tier = "OURO"
+        elif score >= 80 and rvol >= 1.0: tier = "PRATA"
+        elif score >= 70 and rvol >= 0.8: tier = "BRONZE"
+        else:                              tier = "ABAIXO"
 
         conv = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}.get(tier,"MODERADA 🔶")
 
-        if score >= 90 and rvol >= 1.5:   prioridade = "🔥 INSTITUCIONAL"
-        elif score >= 85:                  prioridade = "⭐ ALTA QUALIDADE"
-        else:                              prioridade = ""
+        # Prioridade por setup — ordem RFC
+        if tier == "OURO" and any("Liquidez" in c for c in confirmacoes):
+            prioridade = "🔥 LIQUIDEZ + REVERSÃO"
+        elif tier == "OURO" and any("BOS" in c for c in confirmacoes):
+            prioridade = "🔥 BOS + CONTINUAÇÃO"
+        elif tier == "OURO" and any("Order Block" in c for c in confirmacoes):
+            prioridade = "⭐ ORDER BLOCK"
+        elif tier == "OURO":
+            prioridade = "⭐ INSTITUCIONAL"
+        elif tier == "PRATA":
+            prioridade = "⚡ ALTA QUALIDADE"
+        else:
+            prioridade = ""
 
         regime_label = "Tendência Alta ↑" if e10>e21>e50 else \
                        "Tendência Baixa ↓" if e10<e21<e50 else \
