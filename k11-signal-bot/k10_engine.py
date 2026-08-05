@@ -79,7 +79,7 @@ class K10Engine:
         mh2 = float(dfc["macd_hist"].iloc[-2])
         mh3 = float(dfc["macd_hist"].iloc[-3])
 
-        eq = 0
+        eq = 50  # base — ajustado para cima/baixo pelos componentes
         det = {"ema21": 0, "ob_fvg": 0, "timing": 0, "rsi": 0}
 
         # 1. DISTÂNCIA DA EMA21
@@ -425,8 +425,8 @@ class K10Engine:
             motivos.append(f"⏱ Timing {score_timing} < {timing_min} — entrada tardia")
 
         # EQ mínimo 60 — entrada muito ruim bloqueada
-        if eq < 60:
-            motivos.append(f"EQ {eq}/100 < 60 — ponto de entrada ruim (EMA21 distante ou sem zona)")
+        if eq < 40:
+            motivos.append(f"EQ {eq}/100 < 40 — entrada ruim (EMA21 muito distante)")
 
         # Score mínimo 75 — sem BRONZE
         if score < 75:  motivos.append(f"Score {score} < 75")
