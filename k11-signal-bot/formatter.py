@@ -13,6 +13,8 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     tier    = r.get("tier","BRONZE")
     entrada = r["entrada"]
     tp1     = r["tp1"]
+    tp2     = r.get("tp2", tp1)
+    be      = r.get("be", "")
     stop    = r["stop"]
     rr      = round(abs(tp1 - entrada) / abs(stop - entrada), 2) if stop != entrada else 0
     regime  = r.get("regime","—")
@@ -60,7 +62,9 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
         f"⭐ Score: {score} | {conv_map.get(tier,'MODERADA 🔶')}\n\n"
         f"{sep}\n\n"
         f"💰 Entrada: {entrada}\n"
-        f"🎯 TP1: {tp1}\n"
+        f"🎯 TP1: {tp1} (parcial 50%)\n"
+        f"🎯 TP2: {tp2}\n"
+        f"⚡ BE em: {be}\n"
         f"🛑 Stop: {stop}\n"
         f"⚖️ RR: {rr}\n\n"
         f"💵 Banca: {capital} USDT | 🚀 {alav}x\n"
