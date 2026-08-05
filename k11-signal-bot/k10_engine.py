@@ -385,18 +385,18 @@ class K10Engine:
             score = min(score, 89)  # rebaixar para PRATA se não cumpre OURO
 
         # ── CHECAGEM FINAL ────────────────────────────────────────────────────
-        if score < 70:  motivos.append(f"Score {score} < 70")
+        if score < 75:  motivos.append(f"Score {score} < 75")
+        if rvol < 1.0:  motivos.append(f"RVOL {rvol:.2f} < 1.0")
         if rr < 2.0:    motivos.append(f"RR {rr} < 2.0")
 
         aprovado = len(motivos) == 0
 
         # Tier padronizado por RFC
         if score >= 90 and rvol >= 1.5:   tier = "OURO"
-        elif score >= 80 and rvol >= 1.0: tier = "PRATA"
-        elif score >= 70 and rvol >= 0.8: tier = "BRONZE"
+        elif score >= 75 and rvol >= 1.0: tier = "PRATA"
         else:                              tier = "ABAIXO"
 
-        conv = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}.get(tier,"MODERADA 🔶")
+        conv = {"OURO":"ALTA ✅","PRATA":"BOA ⚡"}.get(tier,"—")
 
         # Prioridade por setup — ordem RFC
         if tier == "OURO" and any("Liquidez" in c for c in confirmacoes):
