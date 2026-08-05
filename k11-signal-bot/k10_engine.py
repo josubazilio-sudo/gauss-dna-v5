@@ -66,11 +66,8 @@ class K10Engine:
 
     def _entry_quality(self, df, direcao, ob_low, ob_high, ob_ok):
         """
-        Mede qualidade da entrada 0-100:
-        - Proximidade EMA21
-        - Pullback na zona OB/FVG
-        - Timing MACD
-        - RSI zona ideal
+        Entry Quality V2 — avalia SOMENTE a qualidade do ponto de entrada.
+        Retorna: (eq_score, eq_detalhes_dict)
         """
         dfc = df.iloc[:-1]
         r   = dfc.iloc[-1]
@@ -82,41 +79,71 @@ class K10Engine:
         mh2 = float(dfc["macd_hist"].iloc[-2])
         mh3 = float(dfc["macd_hist"].iloc[-3])
 
-        eq = 100
+        eq = 0
+        det = {"ema21": 0, "ob_fvg": 0, "timing": 0, "rsi": 0}
 
-        # 1. Proximidade EMA21 — entrada ideal é próxima da EMA
+        # 1. DISTÂNCIA DA EMA21
         dist_ema = abs(c - e21) / atr if atr > 0 else 0
-        if   dist_ema <= 0.5: eq += 10
-        elif dist_ema <= 1.0: pass
-        elif dist_ema <= 1.5: eq -= 15
-        elif dist_ema <= 2.0: eq -= 30
-        else:                 eq -= 50  # muito esticado
-
-        # 2. Pullback na zona OB
-        if ob_ok:
-            if direcao == "LONG" and ob_low <= c <= ob_high * 1.003:
-                eq += 15  # dentro do OB — entrada precisa
-            elif direcao == "SHORT" and ob_low * 0.997 <= c <= ob_high:
-                eq += 15
-
-        # 3. Timing MACD — cruzou recentemente
-        cruzou_agora = (mh2 <= 0 and mh > 0) or (mh2 >= 0 and mh < 0)
-        acelerou     = (mh > mh2 > mh3 and mh > 0) or (mh < mh2 < mh3 and mh < 0)
-        if cruzou_agora: eq += 10
-        elif acelerou:   eq += 5
-        else:            eq -= 15
-
-        # 4. RSI zona ideal — RFC: LONG 40-68, SHORT 32-60
-        if direcao == "LONG":
-            if 40 <= rsi <= 68:  eq += 10
-            elif rsi > 70:       eq -= 25
-            elif rsi < 35:       eq -= 15
+        if dist_ema <= 0.5:
+            eq += 10; det["ema21"] = 10
+        elif dist_ema <= 1.0:
+            eq += 5;  det["ema21"] = 5
+        elif dist_ema <= 2.0:
+            eq -= 20; det["ema21"] = -20
         else:
-            if 32 <= rsi <= 60:  eq += 10
-            elif rsi < 30:       eq -= 25
-            elif rsi > 65:       eq -= 15
+            eq -= 50; det["ema21"] = -50  # bloquear esticado
 
-        return max(0, min(100, eq))
+        # 2. ZONA INSTITUCIONAL — OB ou FVG
+        ob_pts = 0
+        if ob_ok:
+            dentro_ob = (
+                (direcao=="LONG"  and ob_low <= c <= ob_high * 1.003) or
+                (direcao=="SHORT" and ob_low * 0.997 <= c <= ob_high)
+            )
+            if dentro_ob:
+                ob_pts = 15
+            else:
+                ob_pts = 5  # próximo mas não dentro
+        # FVG simples: gap nas últimas 5 velas
+        fvg_pts = 0
+        try:
+            for i in range(-3, -8, -1):
+                v1 = dfc.iloc[i-1]; v3 = dfc.iloc[i+1]
+                if direcao=="LONG":
+                    gap = float(v3["low"]) - float(v1["high"])
+                    if gap > 0 and c <= float(v3["low"]):
+                        fvg_pts = 10; break
+                else:
+                    gap = float(v1["low"]) - float(v3["high"])
+                    if gap > 0 and c >= float(v3["high"]):
+                        fvg_pts = 10; break
+        except: pass
+        zona_pts = max(ob_pts, fvg_pts)
+        eq += zona_pts; det["ob_fvg"] = zona_pts
+
+        # 3. TIMING MACD
+        cruzou = (mh2 <= 0 and mh > 0) or (mh2 >= 0 and mh < 0)
+        acelerou = (mh > mh2 > mh3 and mh > 0) or (mh < mh2 < mh3 and mh < 0)
+        if cruzou:
+            eq += 10; det["timing"] = 10
+        elif acelerou:
+            eq += 5;  det["timing"] = 5
+        else:
+            det["timing"] = 0
+
+        # 4. RSI ZONA IDEAL
+        if direcao == "LONG":
+            if 40 <= rsi <= 68:
+                eq += 10; det["rsi"] = 10
+            elif rsi > 70 or rsi < 30:
+                eq -= 15; det["rsi"] = -15
+        else:
+            if 32 <= rsi <= 60:
+                eq += 10; det["rsi"] = 10
+            elif rsi < 25 or rsi > 70:
+                eq -= 15; det["rsi"] = -15
+
+        return max(0, min(100, eq)), det
 
     def _detectar_sweep(self, df, direcao):
         dfc = df.iloc[:-1]
@@ -302,7 +329,9 @@ class K10Engine:
             confirmacoes.append("VWAP ok"); score += 5
 
         # VOLUME — peso médio, não bloqueia acima de 1.0
-        if rvol >= 2.0:
+        if rvol >= 6.0:
+            confirmacoes.append(f"🔥 Volume Institucional RVOL {rvol:.2f}"); score += 20
+        elif rvol >= 2.0:
             confirmacoes.append(f"🔥 Volume Institucional RVOL {rvol:.2f}"); score += 18
         elif rvol >= 1.5:
             confirmacoes.append(f"🔥 Volume Forte RVOL {rvol:.2f}"); score += 14
@@ -368,7 +397,7 @@ class K10Engine:
         rr = round(abs(tp2-c)/abs(stop-c), 2) if stop != c else 0
 
         # ENTRY QUALITY
-        eq = self._entry_quality(df, direcao, ob_low, ob_high, ob_ok)
+        eq, eq_det = self._entry_quality(df, direcao, ob_low, ob_high, ob_ok)
 
         # TIMING
         score_timing = self._timing_score(df, direcao, stop, tp1)
@@ -436,6 +465,7 @@ class K10Engine:
             "direcao":          direcao,
             "score":            score,
             "entry_quality":    eq,
+            "eq_detalhes":      eq_det,
             "tier":             tier,
             "conviccao":        conv,
             "prioridade":       prioridade,
