@@ -365,16 +365,19 @@ class K10Engine:
         except:
             eq, eq_det, eq_bloqueado = 50, {"ema21":0,"ob_fvg":0,"timing":0,"rsi":0,"bos":0}, False
 
-        # MODO CALIBRAÇÃO — EQ não bloqueia, apenas registra
-        # EQ será usado para análise estatística após coleta de dados
+        # MODO CALIBRAÇÃO — EQ registra, não bloqueia
+        # OURO V2: exige zona institucional (OB ou FVG ou reteste EMA21)
+        tem_ob_fvg = any("Order Block" in x or "FVG" in x for x in confirmacoes)
+        reteste_ema = abs(c - e21) / atr <= 0.5 if atr > 0 else False
+        tem_zona_institucional = tem_ob_fvg or reteste_ema
 
-        # OURO: score>=85, RVOL>=1.5, H1/H4 confirmando
         ouro_ok = (
-            score >= 85 and rvol >= 1.5 and
+            score >= 85 and eq >= 85 and rvol >= 1.5 and
+            tem_zona_institucional and  # obrigatório OB, FVG ou reteste EMA21
             any("H1" in x or "H4" in x for x in confirmacoes) and
             any("BOS" in x or "Liquidez" in x or "Tendência forte" in x for x in confirmacoes)
         )
-        # PRATA: score>=75, RVOL>=1.0
+        # PRATA: score>=75, RVOL>=1.0 — boa continuação sem zona perfeita
         prata_ok = score >= 75 and rvol >= 1.0
 
         # CHECAGEM FINAL — só bloqueios críticos
