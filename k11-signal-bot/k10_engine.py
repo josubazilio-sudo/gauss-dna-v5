@@ -332,18 +332,24 @@ class K10Engine:
             stop = round(stop_base - atr*0.1, 6)
             if abs(c-stop)/c > 0.06: stop = round(c*0.95, 6)
             risco = abs(c-stop)
-            tp1   = round(c + risco*2.5, 6)
-            if tp1 > c*1.12: tp1 = round(c*1.10, 6)
+            tp1   = round(c + risco*2.0, 6)   # TP1 parcial em 2R
+            tp2   = round(c + risco*3.5, 6)   # TP2 alvo final em 3.5R
+            be    = round(c + risco*1.0, 6)   # Break-even ativa em 1R
+            if tp1 > c*1.12: tp1 = round(c*1.08, 6)
+            if tp2 > c*1.20: tp2 = round(c*1.15, 6)
         else:
             stop_base = ob_high if ob_ok else float(dfc["high"].iloc[-6:].max())
             stop = round(stop_base + atr*0.1, 6)
             if abs(stop-c)/c > 0.06: stop = round(c*1.06, 6)
             risco = abs(stop-c)
-            tp1   = round(c - risco*2.5, 6)
-            if tp1 < c*0.88 or tp1 <= 0: tp1 = round(c*0.90, 6)
+            tp1   = round(c - risco*2.0, 6)   # TP1 parcial em 2R
+            tp2   = round(c - risco*3.5, 6)   # TP2 alvo final em 3.5R
+            be    = round(c - risco*1.0, 6)   # Break-even ativa em 1R
+            if tp1 < c*0.88 or tp1 <= 0: tp1 = round(c*0.92, 6)
+            if tp2 < c*0.82 or tp2 <= 0: tp2 = round(c*0.88, 6)
 
         entrada = c
-        rr = round(abs(tp1-c)/abs(stop-c), 2) if stop != c else 0
+        rr = round(abs(tp2-c)/abs(stop-c), 2) if stop != c else 0
 
         # ── TIMING ────────────────────────────────────────────────────────────
         score_timing = self._timing_score(df, direcao, stop, tp1)
@@ -441,7 +447,8 @@ class K10Engine:
             "entrada":          entrada,
             "stop":             stop,
             "tp1":              tp1,
-            "tp2":              tp1,
+            "tp2":              tp2,
+            "be":               be,
             "rr":               rr,
             "adx":              adx,
             "rsi":              rsi,
