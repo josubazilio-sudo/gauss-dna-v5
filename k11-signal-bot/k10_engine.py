@@ -420,11 +420,15 @@ class K10Engine:
             score = min(score, 84)
 
         # TIMING mínimo adaptativo
-        timing_min = 20 if score >= 85 else 30 if score >= 75 else 40
+        timing_min = 20 if score >= 85 else 30
         if score_timing < timing_min:
             motivos.append(f"⏱ Timing {score_timing} < {timing_min} — entrada tardia")
 
-        # Score mínimo 75
+        # EQ mínimo 60 — entrada muito ruim bloqueada
+        if eq < 60:
+            motivos.append(f"EQ {eq}/100 < 60 — ponto de entrada ruim (EMA21 distante ou sem zona)")
+
+        # Score mínimo 75 — sem BRONZE
         if score < 75:  motivos.append(f"Score {score} < 75")
         if rr < 2.0:    motivos.append(f"RR {rr} < 2.0")
         if rvol < 1.0:  motivos.append(f"RVOL {rvol:.2f} < 1.0")
@@ -434,7 +438,7 @@ class K10Engine:
         # TIER
         if ouro_ok and aprovado:   tier = "OURO"
         elif prata_ok and aprovado: tier = "PRATA"
-        else:                       tier = "ABAIXO"
+        else:                       tier = "ABAIXO"  # sem BRONZE
 
         conv = {"OURO":"MÁXIMA ✅✅","PRATA":"ALTA ✅"}.get(tier,"—")
 
