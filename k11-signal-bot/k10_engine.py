@@ -378,19 +378,41 @@ class K10Engine:
 
         # ── SMC 1: LIQUIDITY SWEEP ────────────────────────────────────────────
         sweep_ok, sweep_nivel = self._detectar_sweep(df, direcao)
+        highs = float(dfc["high"].iloc[-10:-2].max())
+        lows  = float(dfc["low"].iloc[-10:-2].min())
+        bos_ok = (c > highs and rvol >= 0.8) if direcao=="LONG" else (c < lows and rvol >= 0.8)
+
         if sweep_ok:
             confirmacoes.append("✅ Liquidez capturada")
             score += 25
+        elif bos_ok:
+            confirmacoes.append("✅ BOS confirmado")
+            score += 15
         else:
-            # BOS como alternativa
-            highs = float(dfc["high"].iloc[-10:-2].max())
-            lows  = float(dfc["low"].iloc[-10:-2].min())
-            bos_ok = (c > highs and rvol >= 0.8) if direcao=="LONG" else (c < lows and rvol >= 0.8)
-            if bos_ok:
-                confirmacoes.append("✅ BOS confirmado")
-                score += 15
+            # Exceção SHORT em tendência de baixa forte
+            # EMAs alinhadas para baixo + MACD negativo + ADX forte = SHORT válido sem sweep
+            tendencia_baixa_forte = (
+                e10 < e21 < e50 and          # EMAs alinhadas para baixo
+                macd_h < 0 and               # MACD negativo
+                adx > 22 and                 # tendência com força
+                direcao == "SHORT"
+            )
+            if tendencia_baixa_forte:
+                confirmacoes.append("✅ Tendência de baixa confirmada (sem sweep necessário)")
+                score += 10
             else:
-                motivos.append("Sem captura de liquidez nem BOS")
+                # Exceção LONG em tendência de alta forte
+                tendencia_alta_forte = (
+                    e10 > e21 > e50 and
+                    macd_h > 0 and
+                    adx > 22 and
+                    direcao == "LONG"
+                )
+                if tendencia_alta_forte:
+                    confirmacoes.append("✅ Tendência de alta confirmada (sem sweep necessário)")
+                    score += 10
+                else:
+                    motivos.append("Sem captura de liquidez nem BOS")
 
         # ── SMC 2: ORDER BLOCK ────────────────────────────────────────────────
         try:
