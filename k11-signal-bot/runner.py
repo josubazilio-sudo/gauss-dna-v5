@@ -200,14 +200,22 @@ async def main():
 
 async def verificar_relatorios():
     """Envia relatório 2h e resumo diário às 23:30 BRT."""
-    from trade_tracker import relatorio_2h, relatorio_diario, enviar_telegram
+    from trade_tracker import relatorio_2h, relatorio_diario, enviar_telegram, verificar_resultados_automatico
     from datetime import datetime, timezone, timedelta
 
     now_brt = datetime.now(timezone.utc) - timedelta(hours=3)
     h = now_brt.hour
     m = now_brt.minute
 
-    # Relatório a cada 2h (00,02,04,06,08,10,12,14,16,18,20,22h)
+    # Verificar resultados automaticamente a cada ciclo
+    try:
+        atualizados = verificar_resultados_automatico()
+        if atualizados > 0:
+            logger.info(f"Resultados atualizados: {atualizados} trades")
+    except Exception as e:
+        logger.warning(f"Verificador: {e}")
+
+    # Relatório a cada 2h
     if m < 6 and h % 2 == 0:
         rel = relatorio_2h()
         enviar_telegram(rel)
