@@ -28,29 +28,38 @@ def _salvar(trades):
 def registrar(sinal: dict) -> int:
     trades = _carregar()
     now_brt = brt_now()
+    eq_det = sinal.get("eq_detalhes", {})
     entry = {
-        "id":          len(trades) + 1,
-        "data":        now_brt.strftime("%d/%m/%Y"),
-        "hora":        now_brt.strftime("%H:%M"),
-        "symbol":      sinal.get("symbol","").replace("/USDT:USDT",""),
-        "direcao":     sinal.get("direcao",""),
-        "timeframe":   sinal.get("timeframe",""),
-        "score":       sinal.get("score", 0),
-        "score_timing":sinal.get("score_timing", 0),
-        "tier":        sinal.get("tier",""),
-        "rvol":        round(sinal.get("rvol", 0), 2),
-        "rsi":         round(sinal.get("rsi", 0), 1),
-        "adx":         round(sinal.get("adx", 0), 1),
-        "rr_alvo":     sinal.get("rr", 0),
-        "entrada":     sinal.get("entrada", 0),
-        "tp1":         sinal.get("tp1", 0),
-        "stop":        sinal.get("stop", 0),
-        "regime":      sinal.get("regime",""),
-        "confs":       len(sinal.get("confirmacoes_smc", [])),
-        "resultado":   "ABERTO",
-        "r_obtido":    None,
-        "pnl_usdt":    None,
-        "duracao_h":   None,
+        "id":           len(trades) + 1,
+        "data":         now_brt.strftime("%d/%m/%Y"),
+        "hora":         now_brt.strftime("%H:%M"),
+        "symbol":       sinal.get("symbol","").replace("/USDT:USDT",""),
+        "direcao":      sinal.get("direcao",""),
+        "timeframe":    sinal.get("timeframe",""),
+        "score":        sinal.get("score", 0),
+        "entry_quality":sinal.get("entry_quality", 0),
+        "eq_ema21":     eq_det.get("ema21", 0),
+        "eq_ob":        eq_det.get("ob_fvg", 0),
+        "eq_timing":    eq_det.get("timing", 0),
+        "eq_rsi":       eq_det.get("rsi", 0),
+        "eq_bos":       eq_det.get("bos", 0),
+        "tier":         sinal.get("tier",""),
+        "rvol":         round(sinal.get("rvol", 0), 2),
+        "rsi":          round(sinal.get("rsi", 0), 1),
+        "adx":          round(sinal.get("adx", 0), 1),
+        "rr_alvo":      sinal.get("rr", 0),
+        "entrada":      sinal.get("entrada", 0),
+        "tp1":          sinal.get("tp1", 0),
+        "tp2":          sinal.get("tp2", 0),
+        "stop":         sinal.get("stop", 0),
+        "regime":       sinal.get("regime",""),
+        "setup":        sinal.get("prioridade","").replace("🔥","").replace("⭐","").strip(),
+        "confs":        len(sinal.get("confirmacoes_smc", [])),
+        "dist_ema21":   round(abs(sinal.get("entrada",0)-sinal.get("ema21",0)) / sinal.get("atr",1) if sinal.get("atr",0) > 0 else 0, 2),
+        "resultado":    "ABERTO",
+        "r_obtido":     None,
+        "pnl_usdt":     None,
+        "duracao_h":    None,
     }
     trades.append(entry)
     _salvar(trades)
@@ -258,3 +267,67 @@ def verificar_resultados_automatico():
         _salvar_github(trades, sha)
 
     return atualizados
+
+
+def relatorio_calibracao() -> str:
+    """Relatório de calibração — análise por Score, EQ, Tier, Setup."""
+    trades, _ = _carregar_github()
+    fechados = [t for t in trades if t["resultado"] != "ABERTO"]
+    if len(fechados) < 10:
+        return f"Calibração: {len(fechados)}/50 trades fechados — coletando dados..."
+
+    sep = "━━━━━━━━━━━━━━━━━━━━"
+    now_brt = brt_now()
+    linhas = [
+        f"🔬 K11 — RELATÓRIO DE CALIBRAÇÃO",
+        f"📅 {now_brt.strftime('%d/%m/%Y %H:%M')} BRT",
+        f"Total fechados: {len(fechados)}",
+        sep
+    ]
+
+    def stats(grupo, label):
+        if not grupo: return
+        wins = [t for t in grupo if t["resultado"] in ("TP1","TP2")]
+        wr   = len(wins)/len(grupo)*100
+        r_vals = [t["r_obtido"] for t in grupo if t.get("r_obtido") is not None]
+        pf = 0
+        if r_vals:
+            r_pos = sum(r for r in r_vals if r > 0)
+            r_neg = abs(sum(r for r in r_vals if r < 0))
+            pf = round(r_pos/r_neg, 2) if r_neg > 0 else 0
+            r_med = round(sum(r_vals)/len(r_vals), 2)
+            linhas.append(f"{label}: n={len(grupo)} WR={wr:.0f}% PF={pf} R={r_med:+.2f}")
+        else:
+            linhas.append(f"{label}: n={len(grupo)} WR={wr:.0f}%")
+
+    # Por Score
+    linhas += ["", "📊 POR SCORE:"]
+    stats([t for t in fechados if 75<=t.get("score",0)<=79], "75-79")
+    stats([t for t in fechados if 80<=t.get("score",0)<=89], "80-89")
+    stats([t for t in fechados if 90<=t.get("score",0)<=99], "90-99")
+    stats([t for t in fechados if t.get("score",0)==100],    "100  ")
+
+    # Por Entry Quality
+    linhas += ["", "🎯 POR ENTRY QUALITY:"]
+    stats([t for t in fechados if t.get("entry_quality",0)<70],          "EQ <70 ")
+    stats([t for t in fechados if 70<=t.get("entry_quality",0)<=79],     "EQ 70-79")
+    stats([t for t in fechados if 80<=t.get("entry_quality",0)<=89],     "EQ 80-89")
+    stats([t for t in fechados if t.get("entry_quality",0)>=90],         "EQ 90+  ")
+
+    # Por Tier
+    linhas += ["", "🏆 POR TIER:"]
+    stats([t for t in fechados if t.get("tier")=="OURO"],  "OURO ")
+    stats([t for t in fechados if t.get("tier")=="PRATA"], "PRATA")
+
+    # Por Direção
+    linhas += ["", "↕ POR DIREÇÃO:"]
+    stats([t for t in fechados if t.get("direcao")=="LONG"],  "LONG ")
+    stats([t for t in fechados if t.get("direcao")=="SHORT"], "SHORT")
+
+    # Por Timeframe
+    linhas += ["", "⏱ POR TIMEFRAME:"]
+    stats([t for t in fechados if t.get("timeframe")=="30m"], "30m")
+    stats([t for t in fechados if t.get("timeframe")=="1h"],  "1h ")
+
+    linhas += [sep, "🔬 K11 Calibração Estatística"]
+    return "\n".join(linhas)
