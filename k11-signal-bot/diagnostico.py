@@ -1,4 +1,5 @@
 import asyncio, httpx, os, sys, traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.insert(0, ".")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
@@ -12,46 +13,44 @@ async def tg(msg):
 async def main():
     try:
         from k10_engine import K10Engine
-        from watchlist import get_watchlist, WATCHLIST_FALLBACK
+        from watchlist import get_watchlist, WATCHLIST_FALLBACK, WATCHLIST_PRIORITY
+        from formatter import formatar_cartao
 
         engine = K10Engine()
-        wl = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
 
+        # Buscar watchlist completa
+        wl_geral = get_watchlist(min_volume_usdt=50_000) or WATCHLIST_FALLBACK
+        wl_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
+        wl = WATCHLIST_PRIORITY + wl_sem_dup
+        total_pares = len(wl)
+
+        await tg(f"K11 DIAG iniciando... {total_pares} pares")
+
+        # Escanear todos em paralelo
         resultados = []
-        for sym in wl[:15]:
+        def analisar(sym):
             try:
-                # Testar cada TF diretamente para pegar erro real
-                melhor = None
-                erro_tf = ""
-                for tf, ctx in [("30m","1h"),("1h","4h")]:
-                    try:
-                        r = engine._analisar_tf(sym, tf, tf_contexto=ctx)
-                        if melhor is None or r.get("score",0) > melhor.get("score",0):
-                            melhor = r
-                    except Exception as e:
-                        erro_tf = f"{tf}: {str(e)[:50]}"
-
-                if melhor:
-                    if "symbol" not in melhor:
-                        melhor["symbol"] = sym
-                    resultados.append(melhor)
-                else:
-                    resultados.append({"symbol":sym,"score":0,"aprovado":False,
-                        "motivos_rejeicao":[erro_tf or "Todos TFs falharam"],
-                        "timeframe":"?","direcao":"?","rvol":0})
+                r = engine.analisar(sym)
+                if r and "symbol" not in r: r["symbol"] = sym
+                return r
             except Exception as e:
-                resultados.append({"symbol":sym,"score":0,"aprovado":False,
-                    "motivos_rejeicao":[f"{type(e).__name__}: {str(e)[:60]}"],
-                    "timeframe":"?","direcao":"?","rvol":0})
+                return {"symbol":sym,"score":0,"aprovado":False,
+                    "motivos_rejeicao":[str(e)[:50]],"timeframe":"?","direcao":"?","rvol":0}
+
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            futures = {ex.submit(analisar, sym): sym for sym in wl[:300]}
+            for f in as_completed(futures):
+                r = f.result()
+                if r: resultados.append(r)
 
         resultados.sort(key=lambda x: x.get("score",0), reverse=True)
         aprovados = [r for r in resultados if r.get("aprovado")]
 
-        linhas = [f"K11 DIAG — {len(aprovados)} aprovados:\n"]
+        linhas = [f"K11 DIAG — {len(aprovados)} aprovados de {len(resultados)} escaneados:\n"]
         for r in resultados[:12]:
             sym    = r.get("symbol","?").replace("/USDT:USDT","")
             ok     = "✅" if r.get("aprovado") else "❌"
-            motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:60]
+            motivo = (r.get("motivos_rejeicao") or ["ok"])[0][:50]
             tf     = r.get("timeframe","?")
             rvol   = r.get("rvol",0)
             t_score= r.get("score_timing","")
@@ -60,9 +59,8 @@ async def main():
 
         await tg("\n".join(linhas))
 
-        if aprovados:
-            from formatter import formatar_cartao
-            cartao = formatar_cartao(aprovados[0], bot_name="K11")
+        for s in aprovados[:3]:
+            cartao = formatar_cartao(s, bot_name="K11")
             if cartao: await tg(cartao)
 
     except Exception:
