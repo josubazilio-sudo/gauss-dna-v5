@@ -154,6 +154,73 @@ class K10Engine:
         except:
             return 70
 
+
+    def _entry_quality(self, df, direcao, ob_ok, ob_low, ob_high):
+        """
+        Entry Quality V2 — qualidade do ponto de entrada (0-100)
+        Base 50: sobe com bônus, desce com penalidades
+        """
+        dfc = df.iloc[:-1]
+        r   = dfc.iloc[-1]
+        c   = float(r["close"])
+        atr = float(r["atr"])
+        e21 = float(r["ema21"])
+        rsi = float(r["rsi"])
+        mh  = float(r["macd_hist"])
+        mh2 = float(dfc["macd_hist"].iloc[-2])
+        mh3 = float(dfc["macd_hist"].iloc[-3])
+
+        eq  = 50  # base neutra
+        det = {"ema21": 0, "ob_fvg": 0, "timing": 0, "rsi": 0}
+
+        # 1. DISTÂNCIA EMA21
+        dist = abs(c - e21) / atr if atr > 0 else 0
+        if dist <= 0.5:
+            eq += 10; det["ema21"] = 10
+        elif dist <= 1.0:
+            eq += 5;  det["ema21"] = 5
+        elif dist <= 2.0:
+            eq -= 20; det["ema21"] = -20
+        else:
+            eq -= 50; det["ema21"] = -50  # muito esticado
+
+        # 2. ZONA INSTITUCIONAL — OB ou FVG
+        ob_pts = 0
+        if ob_ok:
+            dentro = (direcao=="LONG" and ob_low <= c <= ob_high*1.003) or                      (direcao=="SHORT" and ob_low*0.997 <= c <= ob_high)
+            ob_pts = 15 if dentro else 5
+        fvg_pts = 0
+        try:
+            for i in range(-3, -8, -1):
+                v1 = dfc.iloc[i-1]; v3 = dfc.iloc[i+1]
+                if direcao == "LONG":
+                    if float(v3["low"]) > float(v1["high"]) and c <= float(v3["low"]):
+                        fvg_pts = 10; break
+                else:
+                    if float(v1["low"]) > float(v3["high"]) and c >= float(v3["high"]):
+                        fvg_pts = 10; break
+        except: pass
+        zona = max(ob_pts, fvg_pts)
+        eq += zona; det["ob_fvg"] = zona
+
+        # 3. TIMING MACD
+        cruzou = (mh2 <= 0 and mh > 0) or (mh2 >= 0 and mh < 0)
+        acelerou = (mh > mh2 > mh3 and mh > 0) or (mh < mh2 < mh3 and mh < 0)
+        if cruzou:
+            eq += 10; det["timing"] = 10
+        elif acelerou:
+            eq += 5;  det["timing"] = 5
+
+        # 4. RSI ZONA IDEAL
+        if direcao == "LONG":
+            if 40 <= rsi <= 68:
+                eq += 10; det["rsi"] = 10
+        else:
+            if 32 <= rsi <= 60:
+                eq += 10; det["rsi"] = 10
+
+        return max(0, min(100, eq)), det
+
     def _analisar_tf(self, symbol, tf="1h", tf_contexto=None):
         try:
             ctx  = tf_contexto or ("1h" if tf=="30m" else "4h")
@@ -351,6 +418,12 @@ class K10Engine:
         entrada = c
         rr = round(abs(tp2-c)/abs(stop-c), 2) if stop != c else 0
 
+        # ENTRY QUALITY V2
+        try:
+            eq, eq_det = self._entry_quality(df, direcao, ob_ok, ob_low, ob_high)
+        except:
+            eq, eq_det = 50, {"ema21":0,"ob_fvg":0,"timing":0,"rsi":0}
+
         # ── TIMING ────────────────────────────────────────────────────────────
         score_timing = self._timing_score(df, direcao, stop, tp1)
         # Timing adaptativo: score alto compensa timing menor
@@ -392,9 +465,21 @@ class K10Engine:
         aprovado = len(motivos) == 0
 
         # Tier padronizado por RFC
-        if score >= 90 and rvol >= 1.5:   tier = "OURO"
-        elif score >= 75 and rvol >= 1.0: tier = "PRATA"
-        else:                              tier = "ABAIXO"
+        # OURO: score>=85, EQ>=80, RVOL>=1.5, H1/H4 confirmando
+        ouro_ok = (
+            score >= 85 and eq >= 80 and rvol >= 1.5 and
+            any("H1" in c or "H4" in c for c in confirmacoes) and
+            any("BOS" in c or "Liquidez" in c or "Tendência forte" in c for c in confirmacoes)
+        )
+        # PRATA: score>=75, EQ>=75, RVOL>=1.0
+        prata_ok = score >= 75 and eq >= 75 and rvol >= 1.0
+
+        if ouro_ok:
+            tier = "OURO"
+        elif prata_ok:
+            tier = "PRATA"
+        else:
+            tier = "ABAIXO"
 
         conv = {"OURO":"ALTA ✅","PRATA":"BOA ⚡"}.get(tier,"—")
 
@@ -461,6 +546,8 @@ class K10Engine:
             "confirmacoes_smc": confirmacoes,
             "confluencia":      len(confirmacoes),
             "motivos_rejeicao": motivos,
+            "entry_quality":    eq,
+            "eq_detalhes":      eq_det,
             "o_que_falta":      motivos,
             "timeframe":        tf,
             "tf_contexto":      ctx_label,
