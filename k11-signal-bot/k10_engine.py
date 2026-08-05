@@ -106,14 +106,14 @@ class K10Engine:
         elif acelerou:   eq += 5
         else:            eq -= 15
 
-        # 4. RSI zona ideal
+        # 4. RSI zona ideal — RFC: LONG 40-68, SHORT 32-60
         if direcao == "LONG":
-            if 45 <= rsi <= 62:  eq += 10
-            elif rsi > 70:       eq -= 25  # sobrecomprado
+            if 40 <= rsi <= 68:  eq += 10
+            elif rsi > 70:       eq -= 25
             elif rsi < 35:       eq -= 15
         else:
-            if 38 <= rsi <= 55:  eq += 10
-            elif rsi < 30:       eq -= 25  # sobrevendido
+            if 32 <= rsi <= 60:  eq += 10
+            elif rsi < 30:       eq -= 25
             elif rsi > 65:       eq -= 15
 
         return max(0, min(100, eq))
