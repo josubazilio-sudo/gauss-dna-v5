@@ -358,57 +358,83 @@ class K10Engine:
         if score_timing < timing_min:
             motivos.append(f"⏱ Timing {score_timing}/100 — entrada tardia (mín {timing_min})")
 
-        # ── AUDITORIA INSTITUCIONAL ───────────────────────────────────────────
-        # Score 100 só quando TUDO confirmado incluindo RVOL >= 1.50
-        if score >= 100 and rvol < 1.5:
-            score = 99  # limitar a 99 sem volume forte
+        # ── RFC V50 — ELITE PRATA & OURO ─────────────────────────────────────
+        # Sem BRONZE — score mínimo 90
 
-        # Classificação por tier com requisitos mínimos
-        # OURO: score >= 90, RVOL >= 1.50, liquidez/BOS, H1, VWAP
+        tem_liq   = any("Liquidez" in c or "BOS" in c or "Tendência forte" in c for c in confirmacoes)
+        tem_ob    = any("Order Block" in c for c in confirmacoes)
+        tem_ctx   = any("H1" in c or "H4" in c for c in confirmacoes)
+        tem_macd  = any("MACD" in c for c in confirmacoes)
+        ema_long  = e10 > e21 and direcao == "LONG"
+        ema_short = e10 < e21 and direcao == "SHORT"
+        ema_ok    = ema_long or ema_short
+        rsi_prata = (45 <= rsi <= 60 and direcao=="LONG") or (40 <= rsi <= 55 and direcao=="SHORT")
+        rsi_ouro  = (48 <= rsi <= 62 and direcao=="LONG") or (38 <= rsi <= 52 and direcao=="SHORT")
+
+        # OURO: todos os critérios máximos
         ouro_ok = (
-            score >= 90 and rvol >= 1.5 and
-            any("Liquidez" in c or "BOS" in c or "Tendência forte" in c for c in confirmacoes) and
-            any("H1" in c or "H4" in c for c in confirmacoes) and
-            any("VWAP" in c for c in confirmacoes)
+            score >= 95 and
+            rvol >= 1.5 and
+            adx >= 25 and
+            rr >= 2.5 and
+            tem_liq and
+            tem_ctx and
+            tem_macd and
+            (e10 > e21 > e50 and direcao=="LONG" or e10 < e21 < e50 and direcao=="SHORT") and
+            (tem_ob or tem_liq)
         )
-        # PRATA: score >= 80, RVOL >= 1.00, tendência, MACD, VWAP
-        prata_ok = (
-            score >= 80 and rvol >= 1.0 and
-            any("MACD" in c for c in confirmacoes) and
-            any("VWAP" in c for c in confirmacoes)
-        )
-        # BRONZE: score >= 70, RVOL >= 0.80
-        bronze_ok = score >= 70 and rvol >= 0.8
 
-        # Forçar tier correto por requisitos
-        if score >= 90 and not ouro_ok:
-            score = min(score, 89)  # rebaixar para PRATA se não cumpre OURO
+        # PRATA: critérios altos
+        prata_ok = (
+            score >= 90 and
+            rvol >= 1.2 and
+            adx >= 22 and
+            rr >= 2.2 and
+            ema_ok and
+            tem_macd and
+            (tem_liq or tem_ob)
+        )
+
+        # RSI fora da zona ideal penaliza
+        if not rsi_prata and score >= 90:
+            score = min(score, 89)
+
+        # Rebaixar se não cumpre OURO mas está com score >= 95
+        if score >= 95 and not ouro_ok:
+            score = min(score, 94)
 
         # ── CHECAGEM FINAL ────────────────────────────────────────────────────
-        if score < 70:  motivos.append(f"Score {score} < 70")
-        if rr < 2.0:    motivos.append(f"RR {rr} < 2.0")
+        # Score mínimo 90 — sem BRONZE
+        if score < 90:   motivos.append(f"Score {score} < 90 — K11 Elite exige mínimo 90")
+        if rr < 2.2:     motivos.append(f"RR {rr} < 2.2")
+        if rvol < 1.2:   motivos.append(f"RVOL {rvol:.2f} < 1.2 — Elite exige mínimo 1.2")
+        if adx < 22:     motivos.append(f"ADX {adx:.1f} < 22 — mercado sem força")
+        if not ema_ok:   motivos.append(f"EMA10/21 não alinhadas com {direcao}")
+        if not (tem_liq or tem_ob): motivos.append("Sem liquidez nem Order Block")
 
         aprovado = len(motivos) == 0
 
-        # Tier padronizado por RFC
-        if score >= 90 and rvol >= 1.5:   tier = "OURO"
-        elif score >= 80 and rvol >= 1.0: tier = "PRATA"
-        elif score >= 70 and rvol >= 0.8: tier = "BRONZE"
-        else:                              tier = "ABAIXO"
+        # Tier RFC V50 — só PRATA e OURO
+        if ouro_ok:
+            tier = "OURO"
+        elif prata_ok:
+            tier = "PRATA"
+        else:
+            tier = "ABAIXO"
 
-        conv = {"OURO":"ALTA ✅","PRATA":"BOA ⚡","BRONZE":"MODERADA 🔶"}.get(tier,"MODERADA 🔶")
+        conv = {"OURO":"MÁXIMA ✅✅","PRATA":"ALTA ✅"}.get(tier,"—")
 
-        # Prioridade por setup — ordem RFC
+        # Prioridade por setup
         if tier == "OURO" and any("Liquidez" in c for c in confirmacoes):
             prioridade = "🔥 LIQUIDEZ + REVERSÃO"
         elif tier == "OURO" and any("BOS" in c for c in confirmacoes):
             prioridade = "🔥 BOS + CONTINUAÇÃO"
-        elif tier == "OURO" and any("Order Block" in c for c in confirmacoes):
-            prioridade = "⭐ ORDER BLOCK"
         elif tier == "OURO":
-            prioridade = "⭐ INSTITUCIONAL"
+            prioridade = "🔥 INSTITUCIONAL OURO"
+        elif tier == "PRATA" and any("Liquidez" in c for c in confirmacoes):
+            prioridade = "⭐ REVERSÃO PRATA"
         elif tier == "PRATA":
-            prioridade = "⚡ ALTA QUALIDADE"
+            prioridade = "⭐ ALTA QUALIDADE"
         else:
             prioridade = ""
 
