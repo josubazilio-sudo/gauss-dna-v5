@@ -189,6 +189,27 @@ class K10Engine:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[f"Mercado lateral ADX {adx:.1f} < 18"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
 
+        # ── FILTRO RSI — não entrar em zona de exaustão ───────────────────────
+        # SHORT com RSI < 25 = sobrevendido extremo — bounce iminente
+        # LONG com RSI > 75 = sobrecomprado extremo — queda iminente
+        rsi_temp = float(dfc["rsi"].iloc[-1])
+        if direcao_temp := None:
+            pass
+        # Detectar direção pelo MACD para filtrar RSI
+        mh_temp  = float(dfc["macd_hist"].iloc[-1])
+        mh2_temp = float(dfc["macd_hist"].iloc[-2])
+        mh3_temp = float(dfc["macd_hist"].iloc[-3])
+        dir_temp = "LONG" if (mh_temp > 0 or mh_temp > mh2_temp) else "SHORT"
+
+        if dir_temp == "SHORT" and rsi_temp < 25:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[f"RSI {rsi_temp:.0f} sobrevendido extremo — bounce iminente, aguardar pullback"],
+                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
+        if dir_temp == "LONG" and rsi_temp > 75:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[f"RSI {rsi_temp:.0f} sobrecomprado extremo — pullback iminente, aguardar recuo"],
+                    "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
+
         # ── FILTRO 2: MACD — cruzamento ou aceleração recente ────────────────
         macd_cruzou_long  = any([
             macd_h2<=0 and macd_h>0,
