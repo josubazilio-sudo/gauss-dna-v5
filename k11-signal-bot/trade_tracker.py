@@ -1,158 +1,189 @@
 """
-K11 Trade Tracker — Salva no GitHub para acesso via VS Code
+K11 Sistema de Relatório
+- Registra cada sinal automaticamente
+- Envia relatório a cada 2h
+- Resumo completo às 23:30 BRT
 """
-import json, os, base64, requests
-from datetime import datetime
+import json, os, requests
+from datetime import datetime, timezone, timedelta
 
-ARQUIVO    = "k11_trades.json"
-REPO       = "josubazilio-sudo/gauss-dna-v5"
-REPO_PATH  = "k11-signal-bot/k11_trades.json"
-GH_TOKEN   = os.getenv("GH_TOKEN", os.getenv("GITHUB_TOKEN", ""))
+ARQUIVO   = "/root/gauss-dna-v5/k11-signal-bot/k11_trades.json"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+CHAT_ID   = os.getenv("ALLOWED_CHAT_IDS", "").split(",")[0].strip()
 
-def _headers():
-    return {"Authorization": f"token {GH_TOKEN}", "Content-Type": "application/json"}
+def brt_now():
+    return datetime.now(timezone.utc) - timedelta(hours=3)
 
-def _carregar_github():
-    """Carrega trades do GitHub."""
-    try:
-        r = requests.get(
-            f"https://api.github.com/repos/{REPO}/contents/{REPO_PATH}",
-            headers=_headers(), timeout=10
-        )
-        if r.status_code == 200:
-            data = r.json()
-            content = base64.b64decode(data["content"]).decode()
-            return json.loads(content), data.get("sha")
-    except:
-        pass
-    return [], None
+def _carregar():
+    if os.path.exists(ARQUIVO):
+        try:
+            with open(ARQUIVO) as f: return json.load(f)
+        except: return []
+    return []
 
-def _salvar_github(trades, sha=None):
-    """Salva trades no GitHub."""
-    try:
-        url = f"https://api.github.com/repos/{REPO}/contents/{REPO_PATH}"
-        content = json.dumps(trades, indent=2, ensure_ascii=False)
-        payload = {
-            "message": f"K11 trade #{len(trades)} registrado",
-            "content": base64.b64encode(content.encode()).decode()
-        }
-        if sha:
-            payload["sha"] = sha
-        r = requests.put(url, headers=_headers(), json=payload, timeout=15)
-        return r.status_code in (200, 201)
-    except:
-        return False
+def _salvar(trades):
+    with open(ARQUIVO, "w") as f:
+        json.dump(trades, f, indent=2, ensure_ascii=False)
 
 def registrar(sinal: dict) -> int:
-    trades, sha = _carregar_github()
+    trades = _carregar()
+    now_brt = brt_now()
     entry = {
-        "id":        len(trades) + 1,
-        "data":      datetime.utcnow().strftime("%d/%m/%Y %H:%M"),
-        "symbol":    sinal.get("symbol","").replace("/USDT:USDT",""),
-        "direcao":   sinal.get("direcao",""),
-        "timeframe": sinal.get("timeframe",""),
-        "score":     sinal.get("score", 0),
-        "tier":      sinal.get("tier",""),
-        "rvol":      round(sinal.get("rvol", 0), 2),
-        "rr_alvo":   sinal.get("rr", 0),
-        "entrada":   sinal.get("entrada", 0),
-        "tp1":       sinal.get("tp1", 0),
-        "stop":      sinal.get("stop", 0),
-        "regime":    sinal.get("regime",""),
-        "confs":     len(sinal.get("confirmacoes_smc", [])),
-        "resultado": "ABERTO",
-        "r_obtido":  None,
-        "duracao_h": None,
-        "obs":       "",
+        "id":          len(trades) + 1,
+        "data":        now_brt.strftime("%d/%m/%Y"),
+        "hora":        now_brt.strftime("%H:%M"),
+        "symbol":      sinal.get("symbol","").replace("/USDT:USDT",""),
+        "direcao":     sinal.get("direcao",""),
+        "timeframe":   sinal.get("timeframe",""),
+        "score":       sinal.get("score", 0),
+        "score_timing":sinal.get("score_timing", 0),
+        "tier":        sinal.get("tier",""),
+        "rvol":        round(sinal.get("rvol", 0), 2),
+        "rsi":         round(sinal.get("rsi", 0), 1),
+        "adx":         round(sinal.get("adx", 0), 1),
+        "rr_alvo":     sinal.get("rr", 0),
+        "entrada":     sinal.get("entrada", 0),
+        "tp1":         sinal.get("tp1", 0),
+        "stop":        sinal.get("stop", 0),
+        "regime":      sinal.get("regime",""),
+        "confs":       len(sinal.get("confirmacoes_smc", [])),
+        "resultado":   "ABERTO",
+        "r_obtido":    None,
+        "pnl_usdt":    None,
+        "duracao_h":   None,
     }
     trades.append(entry)
-    _salvar_github(trades, sha)
+    _salvar(trades)
     return entry["id"]
 
-def relatorio_completo() -> str:
-    trades, _ = _carregar_github()
-    if not trades:
-        return "Nenhum trade registrado."
-
-    hoje = datetime.utcnow().strftime("%d/%m/%Y")
-    todos     = trades
-    de_hoje   = [t for t in trades if t["data"].startswith(hoje)]
-    fechados  = [t for t in todos if t["resultado"] != "ABERTO"]
-    wins      = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
-    losses    = [t for t in fechados if t["resultado"] == "STOP"]
-
-    sep = "━━━━━━━━━━━━━━━━━━━━"
-    linhas = [
-        "📊 K11 — RELATÓRIO COMPLETO",
-        f"🗓 {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC",
-        sep,
-        f"Total de sinais: {len(todos)}",
-        f"Hoje: {len(de_hoje)} sinais",
-        f"Fechados: {len(fechados)} | Abertos: {len(todos)-len(fechados)}",
-    ]
-
-    if fechados:
-        wr = len(wins)/len(fechados)*100
-        r_vals = [t["r_obtido"] for t in fechados if t["r_obtido"] is not None]
-        linhas += [
-            f"Wins: {len(wins)} | Losses: {len(losses)}",
-            f"Win Rate: {wr:.1f}%",
-        ]
-        if r_vals:
-            r_pos = sum(r for r in r_vals if r > 0)
-            r_neg = abs(sum(r for r in r_vals if r < 0))
-            pf    = round(r_pos/r_neg, 2) if r_neg > 0 else "∞"
-            linhas += [
-                f"Profit Factor: {pf}",
-                f"R Médio: {round(sum(r_vals)/len(r_vals),2)}R",
-                f"Melhor: +{max(r_vals)}R | Pior: {min(r_vals)}R",
-            ]
-
-    linhas += [sep, "SINAIS DE HOJE"]
-    for t in de_hoje:
-        res   = t["resultado"]
-        emoji = "✅" if res in ("TP1","TP2") else "❌" if res=="STOP" else "⏳"
-        r_str = f" ({t['r_obtido']}R)" if t["r_obtido"] else ""
-        linhas.append(
-            f"{emoji} #{t['id']} {t['symbol']} {t['direcao']} {t['timeframe']} "
-            f"s={t['score']} — {res}{r_str}"
-        )
-
-    if len(fechados) < 50:
-        linhas += [sep, f"⚠️ {len(fechados)}/50 trades para análise definitiva"]
-
-    return "\n".join(linhas)
-
 def stats_rapidas() -> str:
-    """Retorna linha de estatísticas para colocar no cartão/diagnóstico."""
-    trades, _ = _carregar_github()
+    trades = _carregar()
     if not trades:
         return "📊 Sem histórico ainda"
-
     fechados = [t for t in trades if t["resultado"] != "ABERTO"]
+    abertos  = [t for t in trades if t["resultado"] == "ABERTO"]
     if not fechados:
-        total = len(trades)
-        return f"📊 {total} sinais | Aguardando resultados"
-
+        return f"📊 {len(trades)} sinais | {len(abertos)} abertos | Aguardando resultados"
     wins   = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
     losses = [t for t in fechados if t["resultado"] == "STOP"]
     wr     = len(wins)/len(fechados)*100
-
-    r_vals = [t["r_obtido"] for t in fechados if t["r_obtido"] is not None]
+    r_vals = [t["r_obtido"] for t in fechados if t.get("r_obtido") is not None]
     if r_vals:
         r_pos = sum(r for r in r_vals if r > 0)
         r_neg = abs(sum(r for r in r_vals if r < 0))
         pf    = round(r_pos/r_neg, 2) if r_neg > 0 else 0
         r_med = round(sum(r_vals)/len(r_vals), 2)
-        return (
-            f"📊 {len(fechados)} trades | "
-            f"✅{len(wins)} ❌{len(losses)} | "
-            f"WR {wr:.0f}% | "
-            f"PF {pf} | "
-            f"R̄ {r_med:+.1f}R"
-        )
-    return (
-        f"📊 {len(fechados)} trades | "
-        f"✅{len(wins)} ❌{len(losses)} | "
-        f"WR {wr:.0f}%"
-    )
+        return f"📊 {len(fechados)} trades | ✅{len(wins)} ❌{len(losses)} | WR {wr:.0f}% | PF {pf} | R̄ {r_med:+.1f}R"
+    return f"📊 {len(fechados)} trades | ✅{len(wins)} ❌{len(losses)} | WR {wr:.0f}%"
+
+def relatorio_2h() -> str:
+    trades = _carregar()
+    now_brt = brt_now()
+    sep = "━━━━━━━━━━━━━━━━━━━━"
+
+    # Sinais das últimas 2h
+    cutoff = now_brt - timedelta(hours=2)
+    recentes = []
+    for t in trades:
+        try:
+            dt = datetime.strptime(f"{t['data']} {t['hora']}", "%d/%m/%Y %H:%M")
+            dt = dt.replace(tzinfo=timezone.utc) - timedelta(hours=0)
+            if dt >= cutoff.replace(tzinfo=None if cutoff.tzinfo else timezone.utc):
+                recentes.append(t)
+        except: pass
+
+    fechados = [t for t in trades if t["resultado"] != "ABERTO"]
+    abertos  = [t for t in trades if t["resultado"] == "ABERTO"]
+    wins     = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
+    losses   = [t for t in fechados if t["resultado"] == "STOP"]
+
+    linhas = [
+        f"📊 K11 — RELATÓRIO 2H",
+        f"🕐 {now_brt.strftime('%H:%M')} BRT | {now_brt.strftime('%d/%m/%Y')}",
+        sep,
+        f"Total: {len(trades)} sinais | Abertos: {len(abertos)}",
+    ]
+
+    if fechados:
+        wr = len(wins)/len(fechados)*100
+        r_vals = [t["r_obtido"] for t in fechados if t.get("r_obtido") is not None]
+        linhas.append(f"Wins: {len(wins)} | Losses: {len(losses)} | WR: {wr:.1f}%")
+        if r_vals:
+            r_pos = sum(r for r in r_vals if r > 0)
+            r_neg = abs(sum(r for r in r_vals if r < 0))
+            pf    = round(r_pos/r_neg, 2) if r_neg > 0 else "—"
+            linhas.append(f"Profit Factor: {pf} | R Médio: {round(sum(r_vals)/len(r_vals),2):+.2f}R")
+
+    linhas += [sep, f"🔔 ÚLTIMAS 2H ({len(recentes)} sinais):"]
+    if recentes:
+        for t in recentes[-5:]:
+            emoji = "✅" if t["resultado"] in ("TP1","TP2") else "❌" if t["resultado"]=="STOP" else "⏳"
+            linhas.append(f"{emoji} {t['hora']} {t['symbol']} {t['direcao']} {t['timeframe']} s={t['score']} RVOL={t['rvol']}")
+    else:
+        linhas.append("Nenhum sinal nas últimas 2h")
+
+    if len(fechados) < 50:
+        linhas += [sep, f"⚠️ {len(fechados)}/50 trades para análise estatística definitiva"]
+
+    return "\n".join(linhas)
+
+def relatorio_diario() -> str:
+    trades = _carregar()
+    now_brt = brt_now()
+    hoje = now_brt.strftime("%d/%m/%Y")
+    sep = "━━━━━━━━━━━━━━━━━━━━"
+
+    de_hoje   = [t for t in trades if t.get("data") == hoje]
+    fechados  = [t for t in de_hoje if t["resultado"] != "ABERTO"]
+    abertos   = [t for t in de_hoje if t["resultado"] == "ABERTO"]
+    wins      = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
+    losses    = [t for t in fechados if t["resultado"] == "STOP"]
+    todos_f   = [t for t in trades if t["resultado"] != "ABERTO"]
+
+    linhas = [
+        f"🌙 K11 — RESUMO DO DIA",
+        f"📅 {hoje} | {now_brt.strftime('%H:%M')} BRT",
+        sep,
+        f"HOJE: {len(de_hoje)} sinais emitidos",
+        f"Abertos: {len(abertos)} | Fechados: {len(fechados)}",
+    ]
+
+    if fechados:
+        wr = len(wins)/len(fechados)*100
+        linhas += [f"Wins: {len(wins)} | Losses: {len(losses)} | WR hoje: {wr:.1f}%"]
+        r_vals = [t["r_obtido"] for t in fechados if t.get("r_obtido") is not None]
+        if r_vals:
+            pnl = sum(t.get("pnl_usdt",0) or 0 for t in fechados)
+            linhas.append(f"PnL hoje: {pnl:+.2f} USDT")
+
+    linhas += [sep, "TODOS OS SINAIS DE HOJE:"]
+    for t in de_hoje:
+        emoji = "✅" if t["resultado"] in ("TP1","TP2") else "❌" if t["resultado"]=="STOP" else "⏳"
+        r_str = f" {t['r_obtido']:+.1f}R" if t.get("r_obtido") is not None else ""
+        linhas.append(f"{emoji} {t['hora']} {t['symbol']} {t['direcao']} s={t['score']}{r_str}")
+
+    linhas += [sep, "HISTÓRICO GERAL:"]
+    if todos_f:
+        wr_total = len([t for t in todos_f if t["resultado"] in ("TP1","TP2")])/len(todos_f)*100
+        linhas.append(f"Total fechados: {len(todos_f)} | WR geral: {wr_total:.1f}%")
+
+        # Por tier
+        for tier in ["OURO","PRATA","BRONZE"]:
+            tt = [t for t in todos_f if t.get("tier")==tier]
+            if tt:
+                tw = [t for t in tt if t["resultado"] in ("TP1","TP2")]
+                linhas.append(f"  {tier}: {len(tw)}/{len(tt)} ({len(tw)/len(tt)*100:.0f}%)")
+
+        # Por direção
+        for dir in ["LONG","SHORT"]:
+            tt = [t for t in todos_f if t.get("direcao")==dir]
+            if tt:
+                tw = [t for t in tt if t["resultado"] in ("TP1","TP2")]
+                linhas.append(f"  {dir}: {len(tw)}/{len(tt)} ({len(tw)/len(tt)*100:.0f}%)")
+
+    linhas += [sep, "K11 — Boa noite! 🌙"]
+    return "\n".join(linhas)
+
+def enviar_telegram(msg: str):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, json={"chat_id": CHAT_ID, "text": msg[:4096]}, timeout=30)
