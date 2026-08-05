@@ -266,13 +266,18 @@ class K10Engine:
 
         # ── FILTRO 4: VOLUME ──────────────────────────────────────────────────
         if rvol >= 1.5:
-            confirmacoes.append(f"🔥 RVOL {rvol:.2f}"); score += 15
-        elif rvol >= 0.8:
-            confirmacoes.append(f"Volume RVOL {rvol:.2f}"); score += 8
-        elif rvol >= 0.6:
-            confirmacoes.append(f"Volume RVOL {rvol:.2f}"); score += 4
+            confirmacoes.append(f"🔥 Volume Institucional RVOL {rvol:.2f}"); score += 20
+        elif rvol >= 1.0:
+            confirmacoes.append(f"⚡ Volume Alto RVOL {rvol:.2f}"); score += 12
+        elif rvol >= 0.7:
+            confirmacoes.append(f"Volume RVOL {rvol:.2f}"); score += 6
         else:
             motivos.append(f"Volume insuficiente RVOL {rvol:.2f}")
+
+        # Tier institucional exige RVOL mínimo 1.30
+        # Sem volume institucional = sem label INSTITUCIONAL no cartão
+        if rvol < 1.3 and score >= 85:
+            score = min(score, 84)  # teto em PRATA se volume fraco
 
         # ── ORDER BLOCK ───────────────────────────────────────────────────────
         try:
