@@ -198,5 +198,29 @@ async def main():
 
     logger.info(f"K11: {enviados} sinais enviados")
 
+async def verificar_relatorios():
+    """Envia relatório 2h e resumo diário às 23:30 BRT."""
+    from trade_tracker import relatorio_2h, relatorio_diario, enviar_telegram
+    from datetime import datetime, timezone, timedelta
+
+    now_brt = datetime.now(timezone.utc) - timedelta(hours=3)
+    h = now_brt.hour
+    m = now_brt.minute
+
+    # Relatório a cada 2h (00,02,04,06,08,10,12,14,16,18,20,22h)
+    if m < 6 and h % 2 == 0:
+        rel = relatorio_2h()
+        enviar_telegram(rel)
+        logger.info(f"Relatório 2h enviado — {h:02d}h BRT")
+
+    # Resumo diário às 23:30 BRT
+    if h == 23 and 29 <= m <= 34:
+        rel = relatorio_diario()
+        enviar_telegram(rel)
+        logger.info("Resumo diário enviado — 23:30 BRT")
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    async def run():
+        await main()
+        await verificar_relatorios()
+    asyncio.run(run())
