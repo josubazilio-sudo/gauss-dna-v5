@@ -365,24 +365,22 @@ class K10Engine:
         except:
             eq, eq_det, eq_bloqueado = 50, {"ema21":0,"ob_fvg":0,"timing":0,"rsi":0,"bos":0}, False
 
-        if eq_bloqueado:
-            motivos.append(f"EQ bloqueado — EMA21 muito distante ou BOS antigo (>{10} velas)")
+        # MODO CALIBRAÇÃO — EQ não bloqueia, apenas registra
+        # EQ será usado para análise estatística após coleta de dados
 
-        # OURO: score>=85, EQ>=85, RVOL>=1.5, H1/H4, BOS recente
+        # OURO: score>=85, RVOL>=1.5, H1/H4 confirmando
         ouro_ok = (
-            score >= 85 and eq >= 85 and rvol >= 1.5 and
-            abs(c-e21)/atr <= 1.0 and
+            score >= 85 and rvol >= 1.5 and
             any("H1" in x or "H4" in x for x in confirmacoes) and
             any("BOS" in x or "Liquidez" in x or "Tendência forte" in x for x in confirmacoes)
         )
-        # PRATA: score>=75, EQ>=75, RVOL>=1.0
-        prata_ok = score >= 75 and eq >= 75 and rvol >= 1.0
+        # PRATA: score>=75, RVOL>=1.0
+        prata_ok = score >= 75 and rvol >= 1.0
 
-        # CHECAGEM FINAL
+        # CHECAGEM FINAL — só bloqueios críticos
         if score < 75:   motivos.append(f"Score {score} < 75")
         if rr < 2.0:     motivos.append(f"RR {rr} < 2.0")
         if rvol < 1.0:   motivos.append(f"RVOL {rvol:.2f} < 1.0")
-        if not (ouro_ok or prata_ok): motivos.append(f"EQ {eq}/100 insuficiente para tier")
 
         aprovado = len(motivos) == 0
 
