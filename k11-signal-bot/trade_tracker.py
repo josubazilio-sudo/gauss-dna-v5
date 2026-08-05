@@ -187,3 +187,74 @@ def relatorio_diario() -> str:
 def enviar_telegram(msg: str):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     requests.post(url, json={"chat_id": CHAT_ID, "text": msg[:4096]}, timeout=30)
+
+
+def verificar_resultados_automatico():
+    """
+    Verifica automaticamente resultados de trades abertos.
+    Busca preço atual e compara com TP1 e Stop.
+    """
+    try:
+        import ccxt
+        exchange = ccxt.mexc({
+            "enableRateLimit": True,
+            "options": {"defaultType": "swap"}
+        })
+    except:
+        return 0
+
+    trades, sha = _carregar_github()
+    abertos = [t for t in trades if t["resultado"] == "ABERTO"]
+    if not abertos:
+        return 0
+
+    atualizados = 0
+    for t in trades:
+        if t["resultado"] != "ABERTO":
+            continue
+        try:
+            sym = t["symbol"] + "/USDT:USDT"
+            ticker = exchange.fetch_ticker(sym)
+            preco  = ticker.get("last") or ticker.get("close", 0)
+            if not preco:
+                continue
+
+            entrada = float(t.get("entrada", 0))
+            tp1     = float(t.get("tp1", 0))
+            stop    = float(t.get("stop", 0))
+            direcao = t.get("direcao","")
+
+            if direcao == "LONG":
+                if preco >= tp1 and tp1 > 0:
+                    rr = round(abs(tp1-entrada)/abs(stop-entrada), 2) if stop != entrada else 0
+                    t["resultado"]  = "TP1"
+                    t["r_obtido"]   = rr
+                    t["pnl_usdt"]   = round(rr * 2.7, 2)
+                    atualizados += 1
+                elif preco <= stop and stop > 0:
+                    rr = -1.0
+                    t["resultado"]  = "STOP"
+                    t["r_obtido"]   = rr
+                    t["pnl_usdt"]   = round(rr * 2.7, 2)
+                    atualizados += 1
+            else:  # SHORT
+                if preco <= tp1 and tp1 > 0:
+                    rr = round(abs(tp1-entrada)/abs(stop-entrada), 2) if stop != entrada else 0
+                    t["resultado"]  = "TP1"
+                    t["r_obtido"]   = rr
+                    t["pnl_usdt"]   = round(rr * 2.7, 2)
+                    atualizados += 1
+                elif preco >= stop and stop > 0:
+                    rr = -1.0
+                    t["resultado"]  = "STOP"
+                    t["r_obtido"]   = rr
+                    t["pnl_usdt"]   = round(rr * 2.7, 2)
+                    atualizados += 1
+
+        except Exception as e:
+            continue
+
+    if atualizados > 0:
+        _salvar_github(trades, sha)
+
+    return atualizados
