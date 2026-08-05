@@ -1,0 +1,22 @@
+name: K11 Keep Alive
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Keep alive
+        run: |
+          git config user.email "bot@k11"
+          git config user.name "K11 Bot"
+          echo "$(date -u)" > k11-signal-bot/.keepalive
+          git add k11-signal-bot/.keepalive
+          git commit -m "keepalive $(date -u +%H:%M)" || echo "noop"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
