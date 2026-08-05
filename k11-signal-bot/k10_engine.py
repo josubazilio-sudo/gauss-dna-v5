@@ -529,6 +529,10 @@ class K10Engine:
         if score_timing < 40:
             motivos.append(f"⏱ Timing {score_timing}/100 — entrada tardia (mín 40)")
 
+        # ── MERCADO LATERAL — ADX mínimo ─────────────────────────────────────
+        if adx < 18:
+            motivos.append(f"Mercado lateral ADX {adx:.1f} < 18 — sem tendência")
+
         # ── CHECAGEM FINAL ────────────────────────────────────────────────────
         if score < 70:   motivos.append(f"Score {score} < 70")
         if rr < 2.0:     motivos.append(f"RR {rr} < 2.0")
