@@ -2,7 +2,7 @@ name: K11 Signal Bot
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -21,7 +21,6 @@ jobs:
           BOT_TOKEN: ${{ secrets.TG_TOKEN }}
           ALLOWED_CHAT_IDS: ${{ secrets.TG_CHATID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           cd k11-signal-bot
           python runner.py
