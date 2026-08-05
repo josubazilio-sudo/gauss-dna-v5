@@ -80,7 +80,6 @@ async def main():
                     try: return engine2.analisar(sym)
                     except: return None
 
-                from concurrent.futures import ThreadPoolExecutor, as_completed
                 with ThreadPoolExecutor(max_workers=6) as ex2:
                     futures2 = {ex2.submit(analisar2, s): s for s in wl2}
                     for f2 in as_completed(futures2):
