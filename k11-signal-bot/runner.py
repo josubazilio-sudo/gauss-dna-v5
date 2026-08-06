@@ -23,7 +23,14 @@ async def main():
     try:
         from k10_engine import K10Engine
         from watchlist import get_watchlist, WATCHLIST_FALLBACK, WATCHLIST_PRIORITY
-        from trade_tracker import registrar
+        from trade_tracker import registrar, verificar_resultados_automatico
+
+        try:
+            fechados_agora = verificar_resultados_automatico()
+            if fechados_agora:
+                logger.info(f"K11: {fechados_agora} trades fechados automaticamente")
+        except Exception as e:
+            logger.warning(f"Verificacao de resultados: {e}")
 
         engine = K10Engine()
         wl_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
@@ -172,6 +179,21 @@ async def main():
 
         cartao = formatar_cartao(sinal, bot_name="K11")
         if cartao:
+            # Auditoria GATE 10/10
+            try:
+                from datetime import datetime, timezone
+                aud = sinal.get("audit_10of10") or {}
+                linhas = ["===== GATE 10/10 =====", sinal.get("symbol",""), "="*21]
+                if aud:
+                    for k, v in aud.items():
+                        linhas.append(f"{k:<18} {v}")
+                else:
+                    linhas.append("(auditoria indisponivel)")
+                linhas.append("=====================")
+                with open("/root/gauss-dna-v5/k11-signal-bot/gate_audit.log", "a", encoding="utf-8") as fa:
+                    fa.write(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") + "\n" + "\n".join(linhas) + "\n\n")
+            except Exception as e:
+                logger.warning(f"Audit log: {e}")
             # Adicionar estatísticas no final do cartão
             try:
                 from trade_tracker import stats_rapidas

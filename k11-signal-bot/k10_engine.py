@@ -7,7 +7,10 @@ import ccxt
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone, timedelta
-from config import BANCA, RISCO_PCT
+from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K11_OURO_MIN_EQ,
+                      MODO_10_10, RVOL_MIN_10, SCORE_OURO_10, SCORE_PRATA_10, RR_MIN_10,
+                      EXIGE_ESTRUTURA_10, EXIGE_TENDENCIA_10, EXIGE_FLOW_10, EXIGE_MOMENTUM_10,
+                      EXIGE_ENTRY_50_10, ENTRY_50_PCT_10)
 
 
 def sessao_atual():
@@ -365,6 +368,11 @@ class K10Engine:
         except:
             eq, eq_det, eq_bloqueado = 50, {"ema21":0,"ob_fvg":0,"timing":0,"rsi":0,"bos":0}, False
 
+        # GATE ENTRY QUALITY — late entry bloqueia sinal
+        if ENTRY_QUALITY_BLOCK and (eq_bloqueado or eq < ENTRY_QUALITY_MIN):
+            motivos.append(f"Entry Quality {eq} < {ENTRY_QUALITY_MIN} (late entry)")
+            eq_bloqueado = True
+
         # MODO CALIBRAÇÃO — EQ registra, não bloqueia
         # OURO V2: exige zona institucional (OB ou FVG ou reteste EMA21)
         tem_ob_fvg = any("Order Block" in x or "FVG" in x for x in confirmacoes)
@@ -372,18 +380,45 @@ class K10Engine:
         tem_zona_institucional = tem_ob_fvg or reteste_ema
 
         ouro_ok = (
-            score >= 85 and eq >= 85 and rvol >= 1.5 and
+            score >= 85 and eq >= K11_OURO_MIN_EQ and rvol >= 1.5 and
             tem_zona_institucional and  # obrigatório OB, FVG ou reteste EMA21
             any("H1" in x or "H4" in x for x in confirmacoes) and
             any("BOS" in x or "Liquidez" in x or "Tendência forte" in x for x in confirmacoes)
         )
-        # PRATA: score>=75, RVOL>=1.0 — boa continuação sem zona perfeita
+        # PRATA: score>=75, RVOL>=1.0 — boa continuação sem zona ideal
         prata_ok = score >= 75 and rvol >= 1.0
 
-        # CHECAGEM FINAL — só bloqueios críticos
+        # ----- MODO 10/10: limiares rígidos p/ OURO/PRATA -----
+        if MODO_10_10:
+            ouro_ok  = (score >= SCORE_OURO_10 and rvol >= RVOL_MIN_10
+                        and rr >= RR_MIN_10 and tem_zona_institucional)
+            prata_ok = score >= SCORE_PRATA_10 and rvol >= RVOL_MIN_10 and rr >= RR_MIN_10
+
+        # CHECAGEM FINAL — bloqueios críticos (base)
         if score < 75:   motivos.append(f"Score {score} < 75")
         if rr < 2.0:     motivos.append(f"RR {rr} < 2.0")
         if rvol < 1.0:   motivos.append(f"RVOL {rvol:.2f} < 1.0")
+
+        # ----- GATE 10/10: qualidade sobre quantidade -----
+        if MODO_10_10:
+            if rvol < RVOL_MIN_10:
+                motivos.append(f"10/10 RVOL {rvol:.2f} < {RVOL_MIN_10}")
+            if rr < RR_MIN_10:
+                motivos.append(f"10/10 RR {rr:.2f} < {RR_MIN_10}")
+            if EXIGE_TENDENCIA_10 and not tend_ctx_ok:
+                motivos.append(f"10/10 {ctx_label} sem tendência alinhada")
+            if EXIGE_ESTRUTURA_10 and not (bos_ok or sweep_ok):
+                motivos.append("10/10 sem BOS/CHoCH confirmado")
+            if EXIGE_FLOW_10 and not tem_zona_institucional:
+                motivos.append("10/10 sem zona institucional (OB/FVG/reteste)")
+            if EXIGE_MOMENTUM_10 and not macd_ctx_ok:
+                motivos.append(f"10/10 MACD {ctx_label} contra direção")
+            if EXIGE_ENTRY_50_10:
+                org = ob_low if (direcao=="LONG" and ob_ok) else (ob_high if (direcao=="SHORT" and ob_ok) else entrada)
+                run = abs(c - org) if org > 0 else 0
+                dist_tp = abs(tp1 - org) if org > 0 else 0
+                if dist_tp > 0 and run / dist_tp > ENTRY_50_PCT_10:
+                    motivos.append(f"10/10 entrada atrasada {run/dist_tp*100:.0f}% até TP1")
 
         aprovado = len(motivos) == 0
 
@@ -406,6 +441,24 @@ class K10Engine:
         else:
             regime_label = "Reversão ↘" if tem_liq else "Tendência Baixa ↓" if e10<e21<e50 else "Reversão ↘"
 
+
+        # ----- AUDITORIA GATE 10/10 -----
+        _audit = {
+            "Score":          "PASS" if (score >= SCORE_PRATA_10 if MODO_10_10 else score >= 75) else "FAIL",
+            "RR":             "PASS" if rr >= (RR_MIN_10 if MODO_10_10 else 2.0) else "FAIL",
+            "RVOL":           "PASS" if rvol >= (RVOL_MIN_10 if MODO_10_10 else 1.0) else "FAIL",
+            "Trend H1/H4":    "PASS" if tend_ctx_ok else "FAIL",
+            "EMA Alignment":  "PASS" if (e10 > e21 and direcao == "LONG") or (e10 < e21 and direcao == "SHORT") else "FAIL",
+            "BOS/CHoCH":      "PASS" if (bos_ok or sweep_ok) else "FAIL",
+            "Order Block":    "PASS" if (ob_ok or reteste_ema) else "FAIL",
+            "FVG":            "PASS" if tem_ob_fvg else "FAIL",
+            "Liquidity Sweep":"PASS" if sweep_ok else "FAIL",
+            "MACD":           "PASS" if macd_ctx_ok else "FAIL",
+            "VWAP":           "PASS" if (c >= vwap and direcao == "LONG") or (c <= vwap and direcao == "SHORT") else "FAIL",
+            "Entry Quality":  "PASS" if eq >= (K11_OURO_MIN_EQ if tier == "OURO" else ENTRY_QUALITY_MIN) else "FAIL",
+            "Final Decision": "APPROVED" if aprovado else "REJECTED",
+        }
+
         gb_risco = round(BANCA * RISCO_PCT / 100, 2)
         dist = abs(c-stop)/c if c else 0.01
         pos  = round(min(gb_risco/dist, BANCA*3), 2) if dist > 0 else 0
@@ -420,6 +473,7 @@ class K10Engine:
             "score":            score,
             "entry_quality":    eq,
             "eq_detalhes":      eq_det,
+            "audit_10of10":     _audit,
             "tier":             tier,
             "conviccao":        conv,
             "prioridade":       prioridade,

@@ -57,6 +57,7 @@ def registrar(sinal: dict) -> int:
         "confs":        len(sinal.get("confirmacoes_smc", [])),
         "dist_ema21":   round(abs(sinal.get("entrada",0)-sinal.get("ema21",0)) / sinal.get("atr",1) if sinal.get("atr",0) > 0 else 0, 2),
         "resultado":    "ABERTO",
+        "be_tocado":    False,
         "r_obtido":     None,
         "pnl_usdt":     None,
         "duracao_h":    None,
@@ -65,25 +66,34 @@ def registrar(sinal: dict) -> int:
     _salvar(trades)
     return entry["id"]
 
+def metricas(trades):
+    fechados = [t for t in trades if t["resultado"] != "ABERTO"]
+    abertos  = [t for t in trades if t["resultado"] == "ABERTO"]
+    wins  = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
+    losses= [t for t in fechados if t["resultado"] == "STOP"]
+    bes   = [t for t in fechados if t["resultado"] == "BE"]
+    r_vals = [t["r_obtido"] for t in fechados if t.get("r_obtido") is not None]
+    wr   = len(wins)/len(fechados)*100 if fechados else 0
+    pf   = 0.0; exp = 0.0; r_med = 0.0
+    if r_vals:
+        r_pos = sum(r for r in r_vals if r > 0)
+        r_neg = abs(sum(r for r in r_vals if r < 0))
+        pf   = round(r_pos/r_neg, 2) if r_neg > 0 else 0
+        r_med = round(sum(r_vals)/len(r_vals), 2)
+        exp  = round(sum(r_vals)/len(fechados), 2) if fechados else 0
+    return {"total": len(trades), "fechados": len(fechados), "abertos": len(abertos),
+            "wins": len(wins), "losses": len(losses), "bes": len(bes),
+            "wr": wr, "pf": pf, "exp": exp, "r_med": r_med}
+
 def stats_rapidas() -> str:
     trades = _carregar()
     if not trades:
         return "📊 Sem histórico ainda"
-    fechados = [t for t in trades if t["resultado"] != "ABERTO"]
-    abertos  = [t for t in trades if t["resultado"] == "ABERTO"]
-    if not fechados:
-        return f"📊 {len(trades)} sinais | {len(abertos)} abertos | Aguardando resultados"
-    wins   = [t for t in fechados if t["resultado"] in ("TP1","TP2")]
-    losses = [t for t in fechados if t["resultado"] == "STOP"]
-    wr     = len(wins)/len(fechados)*100
-    r_vals = [t["r_obtido"] for t in fechados if t.get("r_obtido") is not None]
-    if r_vals:
-        r_pos = sum(r for r in r_vals if r > 0)
-        r_neg = abs(sum(r for r in r_vals if r < 0))
-        pf    = round(r_pos/r_neg, 2) if r_neg > 0 else 0
-        r_med = round(sum(r_vals)/len(r_vals), 2)
-        return f"📊 {len(fechados)} trades | ✅{len(wins)} ❌{len(losses)} | WR {wr:.0f}% | PF {pf} | R̄ {r_med:+.1f}R"
-    return f"📊 {len(fechados)} trades | ✅{len(wins)} ❌{len(losses)} | WR {wr:.0f}%"
+    m = metricas(trades)
+    if not m["fechados"]:
+        return f"📊 {m['total']} sinais | {m['abertos']} abertos | Aguardando resultados"
+    return (f"📊 {m['total']} trades | ✅{m['wins']} ❌{m['losses']} ⚖️{m['bes']} "
+            f"WR {m['wr']:.0f}% | PF {m['pf']} | Exp {m['exp']:+.2f}R")
 
 def relatorio_2h() -> str:
     trades = _carregar()
@@ -233,6 +243,8 @@ def verificar_resultados_automatico():
             stop    = float(t.get("stop", 0))
             direcao = t.get("direcao","")
 
+            be      = float(t.get("be", 0))
+            ja_be   = bool(t.get("be_tocado", False))
             if direcao == "LONG":
                 if preco >= tp1 and tp1 > 0:
                     rr = round(abs(tp1-entrada)/abs(stop-entrada), 2) if stop != entrada else 0
@@ -246,6 +258,14 @@ def verificar_resultados_automatico():
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     atualizados += 1
+                elif be > 0 and not ja_be and preco >= be:
+                    t["be_tocado"]  = True
+                    atualizados += 1
+                elif be > 0 and ja_be and preco <= be and preco > stop:
+                    t["resultado"]  = "BE"
+                    t["r_obtido"]   = 0
+                    t["pnl_usdt"]   = 0
+                    atualizados += 1
             else:  # SHORT
                 if preco <= tp1 and tp1 > 0:
                     rr = round(abs(tp1-entrada)/abs(stop-entrada), 2) if stop != entrada else 0
@@ -258,6 +278,14 @@ def verificar_resultados_automatico():
                     t["resultado"]  = "STOP"
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
+                    atualizados += 1
+                elif be > 0 and not ja_be and preco <= be:
+                    t["be_tocado"]  = True
+                    atualizados += 1
+                elif be > 0 and ja_be and preco >= be and preco < stop:
+                    t["resultado"]  = "BE"
+                    t["r_obtido"]   = 0
+                    t["pnl_usdt"]   = 0
                     atualizados += 1
 
         except Exception as e:
