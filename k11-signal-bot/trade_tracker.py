@@ -212,7 +212,7 @@ def verificar_resultados_automatico():
     except:
         return 0
 
-    trades, sha = _carregar_github()
+    trades = _carregar()
     abertos = [t for t in trades if t["resultado"] == "ABERTO"]
     if not abertos:
         return 0
@@ -264,14 +264,14 @@ def verificar_resultados_automatico():
             continue
 
     if atualizados > 0:
-        _salvar_github(trades, sha)
+        _salvar(trades)
 
     return atualizados
 
 
 def relatorio_calibracao() -> str:
     """Relatório de calibração — análise por Score, EQ, Tier, Setup."""
-    trades, _ = _carregar_github()
+    trades = _carregar()
     fechados = [t for t in trades if t["resultado"] != "ABERTO"]
     if len(fechados) < 10:
         return f"Calibração: {len(fechados)}/50 trades fechados — coletando dados..."
