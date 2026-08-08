@@ -52,13 +52,13 @@ async def main():
         aprovados.sort(key=lambda x: x.get("score",0), reverse=True)
         logger.info(f"K11: {len(aprovados)} aprovados")
 
-        # FINAL SELECTOR — Shadow Mode
+        # FINAL SELECTOR — ATIVO
         try:
             from final_selector import selecionar, CFG
             fs_state = None
             fs_selecionados, fs_rejeitados, fs_contadores, fs_state = selecionar(aprovados, fs_state)
             logger.info(
-                f"SELECTOR SHADOW | "
+                f"SELECTOR ATIVO | "
                 f"Total:{fs_contadores['candidates_total']} "
                 f"Sel:{fs_contadores['selected']} "
                 f"Timing❌:{fs_contadores['timing_rejected']} "
@@ -66,8 +66,8 @@ async def main():
                 f"Cooldown❌:{fs_contadores['cooldown_rejected']} "
                 f"Corr❌:{fs_contadores['correlation_rejected']}"
             )
-            # Shadow Mode: não bloqueia sinais reais
-            # Apenas registra o que seria selecionado
+            if fs_selecionados:
+                aprovados = fs_selecionados  # usar só os melhores
         except Exception as e:
             logger.warning(f"Final Selector: {e}")
 
@@ -201,7 +201,7 @@ async def main():
     except:
         dia_data = {"data": hoje, "count": 0, "ativos": []}
 
-    MAX_DIA = 20
+    MAX_DIA = 5
 
     enviados = 0
     for sinal in aprovados[:3]:
