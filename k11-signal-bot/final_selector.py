@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # ─── CONFIGURAÇÕES CENTRALIZADAS ────────────────────────────────────────────
 CFG = {
     "FINAL_SELECTOR_ENABLED":    True,
-    "SHADOW_MODE":               True,   # True = registra mas não bloqueia
+    "SHADOW_MODE":               False,  # False = bloqueia de verdade
     "MAX_FINAL_SIGNALS_PER_CYCLE": 2,
     "FINAL_SCORE_MIN":           82,
     "STRUCTURE_SCORE_MIN":       78,
