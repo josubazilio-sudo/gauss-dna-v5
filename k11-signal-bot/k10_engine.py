@@ -176,6 +176,42 @@ class K10Engine:
 
         return max(0, min(100, eq)), det, bloqueado
 
+
+    def _calcular_sr_dinamico(self, df):
+        """
+        Calcula Suporte e Resistência dinâmicos baseados em:
+        - Pivot Points (High/Low/Close da sessão anterior)
+        - Swing Highs e Lows recentes
+        Similar ao AYN-Indicator
+        """
+        dfc = df.iloc[:-1]
+
+        # Pivot Point clássico
+        h = float(dfc["high"].iloc[-1])
+        l = float(dfc["low"].iloc[-1])
+        c = float(dfc["close"].iloc[-1])
+        pp = (h + l + c) / 3
+
+        r1 = 2 * pp - l
+        r2 = pp + (h - l)
+        s1 = 2 * pp - h
+        s2 = pp - (h - l)
+
+        # Swing Highs/Lows dos últimos 20 candles
+        lookback = dfc.iloc[-20:]
+        swing_h = float(lookback["high"].max())
+        swing_l = float(lookback["low"].min())
+
+        return {
+            "pp": round(pp, 6),
+            "r1": round(r1, 6),
+            "r2": round(r2, 6),
+            "s1": round(s1, 6),
+            "s2": round(s2, 6),
+            "swing_h": round(swing_h, 6),
+            "swing_l": round(swing_l, 6),
+        }
+
     def _analisar_tf(self, symbol, tf="1h", tf_contexto=None):
         try:
             ctx  = tf_contexto or ("1h" if tf=="30m" else "4h")
@@ -338,26 +374,44 @@ class K10Engine:
         score = min(score, 100)
 
         # NÍVEIS
+        # Calcular S/R dinâmico
+        try:
+            sr = self._calcular_sr_dinamico(df)
+        except:
+            sr = {"r1": 0, "r2": 0, "s1": 0, "s2": 0, "swing_h": 0, "swing_l": 0}
+
         if direcao == "LONG":
             stop_base = ob_low if ob_ok else float(dfc["low"].iloc[-6:].min())
             stop = round(stop_base - atr*0.1, 6)
             if abs(c-stop)/c > 0.06: stop = round(c*0.95, 6)
             risco = abs(c-stop)
-            tp1   = round(c + risco*2.0, 6)
-            tp2   = round(c + risco*3.5, 6)
-            be    = round(c + risco*1.0, 6)
-            if tp1 > c*1.12: tp1 = round(c*1.08, 6)
-            if tp2 > c*1.20: tp2 = round(c*1.15, 6)
+            # TP1 na R1 (próxima resistência) se for melhor que 1.5R
+            tp1_sr = sr["r1"] if sr["r1"] > c * 1.005 else 0
+            tp1_rr = round(c + risco*2.0, 6)
+            tp1 = tp1_sr if tp1_sr > 0 and tp1_sr < tp1_rr * 1.3 and abs(tp1_sr-c)/risco >= 1.5 else tp1_rr
+            # TP2 na R2 ou swing high
+            tp2_sr = sr["r2"] if sr["r2"] > tp1 else sr["swing_h"]
+            tp2_rr = round(c + risco*3.5, 6)
+            tp2 = tp2_sr if tp2_sr > tp1 and tp2_sr < c*1.25 else tp2_rr
+            be  = round(c + risco*1.0, 6)
+            if tp1 > c*1.15: tp1 = round(c*1.10, 6)
+            if tp2 > c*1.25: tp2 = round(c*1.18, 6)
         else:
             stop_base = ob_high if ob_ok else float(dfc["high"].iloc[-6:].max())
             stop = round(stop_base + atr*0.1, 6)
             if abs(stop-c)/c > 0.06: stop = round(c*1.06, 6)
             risco = abs(stop-c)
-            tp1   = round(c - risco*2.0, 6)
-            tp2   = round(c - risco*3.5, 6)
-            be    = round(c - risco*1.0, 6)
-            if tp1 < c*0.88 or tp1 <= 0: tp1 = round(c*0.92, 6)
-            if tp2 < c*0.82 or tp2 <= 0: tp2 = round(c*0.88, 6)
+            # TP1 no S1 se for melhor que 1.5R
+            tp1_sr = sr["s1"] if sr["s1"] < c * 0.995 else 0
+            tp1_rr = round(c - risco*2.0, 6)
+            tp1 = tp1_sr if tp1_sr > 0 and tp1_sr > tp1_rr * 0.7 and abs(tp1_sr-c)/risco >= 1.5 else tp1_rr
+            # TP2 no S2 ou swing low
+            tp2_sr = sr["s2"] if sr["s2"] < tp1 else sr["swing_l"]
+            tp2_rr = round(c - risco*3.5, 6)
+            tp2 = tp2_sr if 0 < tp2_sr < tp1 and tp2_sr > c*0.75 else tp2_rr
+            be  = round(c - risco*1.0, 6)
+            if tp1 < c*0.85 or tp1 <= 0: tp1 = round(c*0.90, 6)
+            if tp2 < c*0.75 or tp2 <= 0: tp2 = round(c*0.85, 6)
 
         entrada = c
         rr = round(abs(tp2-c)/abs(stop-c), 2) if stop != c else 0
@@ -497,6 +551,7 @@ class K10Engine:
             "timeframe":        tf,
             "tf_contexto":      ctx_label,
             "preco_atual":      entrada,
+            "sr":               sr,
             "capital":          BANCA,
             "posicao":          pos,
             "risco_usdt":       gb_risco,
