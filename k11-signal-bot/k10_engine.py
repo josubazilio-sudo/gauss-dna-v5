@@ -16,10 +16,10 @@ from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K1
 def sessao_atual():
     h_utc = datetime.now(timezone.utc).hour
     h_brt = (h_utc - 3) % 24
-    if 9 <= h_brt < 13:  return f"LONDRES+NY ({h_brt:02d}h BRT)", 100
-    if 4 <= h_brt < 13:  return f"LONDRES ({h_brt:02d}h BRT)", 85
-    if 9 <= h_brt < 18:  return f"NY ({h_brt:02d}h BRT)", 85
-    return f"({h_brt:02d}h BRT)", 60
+    if 9 <= h_brt < 13:  return "LONDRES+NY", 100
+    if 4 <= h_brt < 13:  return "LONDRES", 85
+    if 9 <= h_brt < 18:  return "NY", 85
+    return "FORA SESSÃO", 60
 
 
 class K10Engine:
