@@ -15,10 +15,10 @@ CFG = {
     "FINAL_SELECTOR_ENABLED":    True,
     "SHADOW_MODE":               False,  # False = bloqueia de verdade
     "MAX_FINAL_SIGNALS_PER_CYCLE": 2,
-    "FINAL_SCORE_MIN":           82,
-    "STRUCTURE_SCORE_MIN":       78,
-    "ENTRY_TIMING_MIN":          72,
-    "RR_MIN":                    1.8,
+    "FINAL_SCORE_MIN":           75,
+    "STRUCTURE_SCORE_MIN":       70,
+    "ENTRY_TIMING_MIN":          65,
+    "RR_MIN":                    1.5,
     "COOLDOWN_AFTER_LOSS_MIN":   30,     # minutos de cooldown após loss
     "MAX_CORRELATED_SIGNALS":    1,
     "REVERSAL_CHURN_PENALTY":    15,
