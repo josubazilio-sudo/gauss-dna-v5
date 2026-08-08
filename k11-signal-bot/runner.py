@@ -52,6 +52,25 @@ async def main():
         aprovados.sort(key=lambda x: x.get("score",0), reverse=True)
         logger.info(f"K11: {len(aprovados)} aprovados")
 
+        # FINAL SELECTOR — Shadow Mode
+        try:
+            from final_selector import selecionar, CFG
+            fs_state = None
+            fs_selecionados, fs_rejeitados, fs_contadores, fs_state = selecionar(aprovados, fs_state)
+            logger.info(
+                f"SELECTOR SHADOW | "
+                f"Total:{fs_contadores['candidates_total']} "
+                f"Sel:{fs_contadores['selected']} "
+                f"Timing❌:{fs_contadores['timing_rejected']} "
+                f"Watch:{fs_contadores['watching']} "
+                f"Cooldown❌:{fs_contadores['cooldown_rejected']} "
+                f"Corr❌:{fs_contadores['correlation_rejected']}"
+            )
+            # Shadow Mode: não bloqueia sinais reais
+            # Apenas registra o que seria selecionado
+        except Exception as e:
+            logger.warning(f"Final Selector: {e}")
+
     except Exception:
         logger.error(traceback.format_exc())
         return
