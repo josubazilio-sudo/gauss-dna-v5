@@ -239,14 +239,7 @@ async def main():
                     fa.write(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") + "\n" + "\n".join(linhas) + "\n\n")
             except Exception as e:
                 logger.warning(f"Audit log: {e}")
-            # Adicionar estatísticas no final do cartão
-            try:
-                from trade_tracker import stats_rapidas
-                stats = stats_rapidas()
-                if stats and "Sem histórico" not in stats:
-                    cartao = cartao + "\n" + stats
-            except:
-                pass
+
             await enviar(cartao)
             cache[chave] = t.time()
             try:
