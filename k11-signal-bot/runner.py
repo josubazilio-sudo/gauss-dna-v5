@@ -162,8 +162,9 @@ async def main():
 
         return
 
-    # Anti-repetição 2h
+    # Anti-repetição 2h + limite diário + anti-correlação
     cache_file = "/tmp/k11_sent.json"
+    dia_file   = "/tmp/k11_dia.json"
     try:
         cache = json.load(open(cache_file)) if os.path.exists(cache_file) else {}
         now = t.time()
@@ -171,10 +172,35 @@ async def main():
     except:
         cache = {}
 
+    # Controle diário — máximo 20 sinais/dia
+    from datetime import datetime, timezone, timedelta
+    hoje = (datetime.now(timezone.utc) - timedelta(hours=3)).strftime("%d/%m/%Y")
+    try:
+        dia_data = json.load(open(dia_file)) if os.path.exists(dia_file) else {}
+        if dia_data.get("data") != hoje:
+            dia_data = {"data": hoje, "count": 0, "ativos": []}
+    except:
+        dia_data = {"data": hoje, "count": 0, "ativos": []}
+
+    MAX_DIA = 20
+
     enviados = 0
     for sinal in aprovados[:3]:
+        # Limite diário
+        if dia_data["count"] >= MAX_DIA:
+            logger.info(f"K11: limite diário {MAX_DIA} atingido")
+            break
+
         chave = f"{sinal['symbol']}_{sinal['direcao']}_{sinal['timeframe']}"
+        sym_base = sinal['symbol'].replace("/USDT:USDT","")
+
+        # Anti-repetição 2h
         if chave in cache:
+            continue
+
+        # Anti-correlação — não enviar LONG e SHORT do mesmo ativo no mesmo dia
+        if sym_base in dia_data["ativos"]:
+            logger.info(f"K11: {sym_base} já operado hoje — pulando correlação")
             continue
 
         cartao = formatar_cartao(sinal, bot_name="K11")
