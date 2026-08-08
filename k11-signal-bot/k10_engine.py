@@ -365,11 +365,9 @@ class K10Engine:
         elif tend_ctx_ok:
             confirmacoes.append(f"{ctx_label} tendência ok"); score += 8
 
-        # SESSÃO
-        if peso_sessao == 100:
-            confirmacoes.append(f"🕐 {sessao}"); score += 5
-        elif peso_sessao >= 85:
-            confirmacoes.append(f"🕐 {sessao}"); score += 3
+        # SESSÃO — bônus de score mas sem mostrar no cartão
+        if peso_sessao == 100:   score += 5
+        elif peso_sessao >= 85:  score += 3
 
         score = min(score, 100)
 
