@@ -261,7 +261,10 @@ class K10Engine:
         if macd_cruzou_long:
             direcao = "LONG";  confirmacoes.append("🎯 MACD cruzou para cima"); score += 25
         elif macd_cruzou_short:
-            direcao = "SHORT"; confirmacoes.append("🎯 MACD cruzou para baixo"); score += 25
+            # SHORT bloqueado temporariamente — WR histórico 19% vs LONG 39%
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
+                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
         elif macd_acel_long:
             ratio = abs(macd_h/macd_h4) if macd_h4!=0 else 99
             if ratio > 6.0:
@@ -269,11 +272,10 @@ class K10Engine:
                         "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
             direcao = "LONG";  confirmacoes.append("MACD acelerando ↑"); score += 15
         elif macd_acel_short:
-            ratio = abs(macd_h/macd_h4) if macd_h4!=0 else 99
-            if ratio > 6.0:
-                return {"symbol":symbol,"aprovado":False,"score":0,
-                        "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
-            direcao = "SHORT"; confirmacoes.append("MACD acelerando ↓"); score += 15
+            # SHORT bloqueado temporariamente
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
+                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
         else:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":["MACD sem direção"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
