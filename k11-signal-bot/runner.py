@@ -79,7 +79,7 @@ async def main():
         logger.info("K11: nenhum sinal")
 
         # Verificar se passou mais de 30 minutos sem sinal
-        cache_file = "/tmp/k11_sent.json"
+        cache_file = "/root/gauss-dna-v5/k11-signal-bot/k11_cache.json"
         diag_file  = "/tmp/k11_last_diag.json"
         try:
             now = t.time()
@@ -182,8 +182,8 @@ async def main():
         return
 
     # Anti-repetição 2h + limite diário + anti-correlação
-    cache_file = "/tmp/k11_sent.json"
-    dia_file   = "/tmp/k11_dia.json"
+    cache_file = "/root/gauss-dna-v5/k11-signal-bot/k11_cache.json"
+    dia_file   = "/root/gauss-dna-v5/k11-signal-bot/k11_dia.json"
     try:
         cache = json.load(open(cache_file)) if os.path.exists(cache_file) else {}
         now = t.time()
