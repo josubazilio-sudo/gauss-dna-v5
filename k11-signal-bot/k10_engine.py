@@ -162,17 +162,36 @@ class K10Engine:
         if (direcao=="LONG" and 40<=rsi<=68) or (direcao=="SHORT" and 32<=rsi<=60):
             eq += 10; det["rsi"] = 10
 
-        # 5. IDADE DO BOS
+        # 5. IDADE DO BOS — diferente para REVERSÃO vs CONTINUAÇÃO
+        # Para REVERSÃO: componentes primários são Sweep + OB + EMA21
+        #   BOS negativo pode ser esperado antes da reversão — não bloqueia
+        # Para CONTINUAÇÃO: BOS é primário — penalização mantida
         bos_idade = self._bos_idade(df, direcao)
+        sweep_presente = any("Liquidez" in str(c) or "Sweep" in str(c) for c in [ob_ok])
+        ob_presente = ob_ok
+
+        # Detectar se é setup de reversão (tem sweep ou OB)
+        eh_reversao = ob_presente  # OB = zona institucional = reversão provável
+
         if bos_idade <= 3:
             eq += 15; det["bos"] = 15
         elif bos_idade <= 6:
             eq += 5;  det["bos"] = 5
         elif bos_idade <= 10:
-            eq -= 10; det["bos"] = -10
+            if eh_reversao:
+                # Reversão: BOS negativo é esperado — penalidade leve
+                eq -= 5; det["bos"] = -5
+            else:
+                # Continuação: BOS é primário — penalidade normal
+                eq -= 10; det["bos"] = -10
         else:
-            bloqueado = True
-            eq -= 20; det["bos"] = -20
+            if eh_reversao:
+                # Reversão com Sweep/OB: não bloquear, só penalizar
+                eq -= 10; det["bos"] = -10
+            else:
+                # Continuação sem BOS: bloqueio mantido
+                bloqueado = True
+                eq -= 20; det["bos"] = -20
 
         return max(0, min(100, eq)), det, bloqueado
 
