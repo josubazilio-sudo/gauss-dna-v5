@@ -117,7 +117,7 @@ class K10Engine:
         mh3 = float(dfc["macd_hist"].iloc[-3])
 
         eq  = 50
-        det = {"ema21": 0, "ob_fvg": 0, "timing": 0, "rsi": 0, "bos": 0}
+        det = {"ema21": 0, "ob_fvg": 0, "timing": 0, "rsi": 0, "bos": 0, "sr": 0}
         bloqueado = False
 
         # 1. DISTÂNCIA EMA21
@@ -192,6 +192,46 @@ class K10Engine:
                 # Continuação sem BOS: bloqueio mantido
                 bloqueado = True
                 eq -= 20; det["bos"] = -20
+
+        # 6. DISTÂNCIA ATÉ RESISTÊNCIA/SUPORTE PRÓXIMO
+        # Penaliza entrada esticada contra S/R — não bloqueia, só reduz EQ
+        try:
+            lookback_sr = dfc.iloc[-20:]
+            if direcao == "LONG":
+                resistencia = float(lookback_sr["high"].iloc[:-2].max())
+                dist_res = (resistencia - c) / atr if atr > 0 else 99
+                if dist_res < 0:
+                    # Preço já acima da resistência = rompimento
+                    # Se RVOL forte = rompimento confirmado, bônus
+                    rvol_val = float(r["rvol"]) if not __import__("numpy").isnan(r["rvol"]) else 0
+                    if rvol_val >= 1.5:
+                        eq += 5; det["sr"] = 5  # rompimento com volume
+                    else:
+                        eq -= 10; det["sr"] = -10  # rompimento sem volume
+                elif dist_res < 0.5:
+                    # Muito próximo da resistência — preferir pullback
+                    eq -= 15; det["sr"] = -15
+                elif dist_res < 1.0:
+                    eq -= 5; det["sr"] = -5
+                else:
+                    det["sr"] = 0  # distância saudável
+            else:  # SHORT
+                suporte = float(lookback_sr["low"].iloc[:-2].min())
+                dist_sup = (c - suporte) / atr if atr > 0 else 99
+                if dist_sup < 0:
+                    rvol_val = float(r["rvol"]) if not __import__("numpy").isnan(r["rvol"]) else 0
+                    if rvol_val >= 1.5:
+                        eq += 5; det["sr"] = 5
+                    else:
+                        eq -= 10; det["sr"] = -10
+                elif dist_sup < 0.5:
+                    eq -= 15; det["sr"] = -15
+                elif dist_sup < 1.0:
+                    eq -= 5; det["sr"] = -5
+                else:
+                    det["sr"] = 0
+        except:
+            det["sr"] = 0
 
         return max(0, min(100, eq)), det, bloqueado
 
