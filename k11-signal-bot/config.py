@@ -17,8 +17,8 @@ ALAVANCAGEM_POR_REGIME = {
 }
 
 # Gate Entry Quality (EQ) — bloquear late entry
-ENTRY_QUALITY_BLOCK = os.getenv("ENTRY_QUALITY_BLOCK", "False").strip().lower() in ("1", "true", "yes", "on")
-ENTRY_QUALITY_MIN   = float(os.getenv("ENTRY_QUALITY_MIN", "0"))
+ENTRY_QUALITY_BLOCK = os.getenv("ENTRY_QUALITY_BLOCK", "True").strip().lower() in ("1", "true", "yes", "on")
+ENTRY_QUALITY_MIN   = float(os.getenv("ENTRY_QUALITY_MIN", "75"))
 K11_OURO_MIN_EQ     = float(os.getenv("K11_OURO_MIN_EQ", "85"))
 
 
