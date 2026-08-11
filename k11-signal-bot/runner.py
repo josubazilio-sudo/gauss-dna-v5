@@ -286,6 +286,13 @@ async def verificar_relatorios():
         rel = relatorio_2h()
         enviar_telegram(rel)
         logger.info(f"Relatório 2h enviado — {h:02d}h BRT")
+        # V58.1 FASE 1 — relatório interno de gestão pós-entrada (BE+TP1,
+        # trailing OFF). Apenas log de auditoria; não vai ao Telegram.
+        try:
+            from trade_tracker import relatorio_fase1
+            logger.info(relatorio_fase1())
+        except Exception as e:
+            logger.warning(f"Relatório FASE 1: {e}")
 
     # Resumo diário às 23:30 BRT
     if h == 23 and 29 <= m <= 34:

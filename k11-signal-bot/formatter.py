@@ -1,6 +1,7 @@
 """
 K10/K11 Formatter — Cartão limpo: Entrada, TP1, Stop
 """
+from config import TP1_FRACAO_VOLUME
 
 def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     if not r.get("aprovado"):
@@ -55,6 +56,7 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     sep = "━━━━━━━━━━━━━━"
     prioridade_line = f"{prioridade}\n\n" if prioridade else ""
 
+    frac_tp1 = int(round(TP1_FRACAO_VOLUME * 100))
     return (
         f"🏆 {symbol}\n\n"
         f"{prioridade_line}"
@@ -63,7 +65,7 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
         f"EQ: {r.get('entry_quality',0)}/100 | EMA21:{r.get('eq_detalhes',{}).get('ema21',0):+d} OB:{r.get('eq_detalhes',{}).get('ob_fvg',0):+d} MACD:{r.get('eq_detalhes',{}).get('timing',0):+d} RSI:{r.get('eq_detalhes',{}).get('rsi',0):+d} BOS:{r.get('eq_detalhes',{}).get('bos',0):+d}\n"
         f"{sep}\n\n"
         f"💰 Entrada: {entrada}\n"
-        f"🎯 TP1: {tp1} (parcial 50%)\n"
+        f"🎯 TP1: {tp1} (parcial {frac_tp1}%)\n"
         f"🎯 TP2: {tp2}\n"
         f"⚡ BE em: {be}\n"
         f"🛑 Stop: {stop}\n"

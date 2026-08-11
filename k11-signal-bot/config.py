@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 _raw = os.getenv("ALLOWED_CHAT_IDS", "")
@@ -45,3 +45,25 @@ TRAILING_ATR_MULT       = float(os.getenv("TRAILING_ATR_MULT", "1.5"))
 # Alerta (não fecha o trade) quando a estrutura que gerou o sinal virou
 # contra (EMA10<EMA21 + MACD virou) antes de bater TP/Stop.
 ESTRUTURAL_ALERTA_ATIVO = os.getenv("ESTRUTURAL_ALERTA_ATIVO", "False").strip().lower() in ("1", "true", "yes", "on")
+
+
+# ==== V58.1 — GESTÃO DE TRADE PÓS-ENTRADA (fonte única de verdade) ===========
+# Todas as regras de gestão (BE, TP1, trailing, BOS Age) centralizadas aqui.
+# O módulo de gestão (gestao_trade.py / trade_tracker.py) importa estes
+# valores. Suporte a env var com fallback centralizado — nada hardcoded.
+BE_TRIGGER_R        = float(os.getenv("BE_TRIGGER_R", "1.5"))                      # só ativa BE com R >= 1.5
+BE_EXIGE_H1_FECHADO = os.getenv("BE_EXIGE_H1_FECHADO", "True").strip().lower() in ("1", "true", "yes", "on")
+TP1_FRACAO_VOLUME   = float(os.getenv("TP1_FRACAO_VOLUME", "0.30"))                # TP1 = 30%, restante 70% p/ TP2/trailing
+BOS_AGE_MAX_CANDLES = int(os.getenv("BOS_AGE_MAX_CANDLES", "4"))                   # BOS/CHoCH real <= 4 candles
+
+def _cfg_trailing(trigger, tf):
+    return {"trigger_r": float(trigger), "timeframe": (tf or "").strip() or None}
+
+# Trailing por família de setup. REVERSÃO: 2R / H1. TENDÊNCIA: 1.5R / 30M.
+# BREAKOUT mantém a regra própria existente (ATR pós-BE): trigger 0 = só BE.
+TRAILING_SETUPS = {
+    "REVERSAO":  _cfg_trailing(os.getenv("TRAILING_TRIGGER_R_REVERSAO", "2.0"),  os.getenv("TRAILING_TIMEFRAME_REVERSAO", "1h")),
+    "TENDENCIA": _cfg_trailing(os.getenv("TRAILING_TRIGGER_R_TENDENCIA", "1.5"), os.getenv("TRAILING_TIMEFRAME_TENDENCIA", "30m")),
+    "BREAKOUT":  _cfg_trailing(os.getenv("TRAILING_TRIGGER_R_BREAKOUT", "0.0"),  os.getenv("TRAILING_TIMEFRAME_BREAKOUT", "")),
+    "DEFAULT":   _cfg_trailing("0.0", ""),
+}
