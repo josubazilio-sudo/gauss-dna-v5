@@ -52,6 +52,7 @@ def registrar(sinal: dict) -> int:
         "tp1":          sinal.get("tp1", 0),
         "tp2":          sinal.get("tp2", 0),
         "stop":         sinal.get("stop", 0),
+        "be":           sinal.get("be", 0),
         "regime":       sinal.get("regime",""),
         "setup":        sinal.get("prioridade","").replace("🔥","").replace("⭐","").strip(),
         "confs":        len(sinal.get("confirmacoes_smc", [])),
@@ -61,6 +62,9 @@ def registrar(sinal: dict) -> int:
         "r_obtido":     None,
         "pnl_usdt":     None,
         "duracao_h":    None,
+        # Gestão de Posição (2026-08-10) — ver verificar_gestao_avancada().
+        "stop_trailing":             None,
+        "alerta_estrutural_enviado": False,
     }
     trades.append(entry)
     _salvar(trades)
@@ -242,9 +246,15 @@ def verificar_resultados_automatico():
             tp1     = float(t.get("tp1", 0))
             stop    = float(t.get("stop", 0))
             direcao = t.get("direcao","")
+            risco   = abs(entrada - stop) if entrada != stop else 0
 
             be      = float(t.get("be", 0))
             ja_be   = bool(t.get("be_tocado", False))
+            # Gestão de Posição (2026-08-10) — stop_trailing só existe (e só
+            # é usado) depois que o BE já foi tocado; nunca afrouxa o stop
+            # original. Antes disso o comportamento é idêntico ao de sempre.
+            stop_trail = t.get("stop_trailing")
+            stop_efetivo = float(stop_trail) if (ja_be and stop_trail) else stop
             if direcao == "LONG":
                 if preco >= tp1 and tp1 > 0:
                     rr = round(abs(tp1-entrada)/abs(stop-entrada), 2) if stop != entrada else 0
@@ -252,16 +262,17 @@ def verificar_resultados_automatico():
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     atualizados += 1
-                elif preco <= stop and stop > 0:
-                    rr = -1.0
-                    t["resultado"]  = "STOP"
+                elif preco <= stop_efetivo and stop_efetivo > 0:
+                    trailou = ja_be and stop_trail and stop_efetivo > stop
+                    rr = round((stop_efetivo - entrada) / risco, 2) if (trailou and risco > 0) else -1.0
+                    t["resultado"]  = "TRAIL" if trailou else "STOP"
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     atualizados += 1
                 elif be > 0 and not ja_be and preco >= be:
                     t["be_tocado"]  = True
                     atualizados += 1
-                elif be > 0 and ja_be and preco <= be and preco > stop:
+                elif be > 0 and ja_be and preco <= be and preco > stop_efetivo:
                     t["resultado"]  = "BE"
                     t["r_obtido"]   = 0
                     t["pnl_usdt"]   = 0
@@ -273,16 +284,17 @@ def verificar_resultados_automatico():
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     atualizados += 1
-                elif preco >= stop and stop > 0:
-                    rr = -1.0
-                    t["resultado"]  = "STOP"
+                elif preco >= stop_efetivo and stop_efetivo > 0:
+                    trailou = ja_be and stop_trail and stop_efetivo < stop
+                    rr = round((entrada - stop_efetivo) / risco, 2) if (trailou and risco > 0) else -1.0
+                    t["resultado"]  = "TRAIL" if trailou else "STOP"
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     atualizados += 1
                 elif be > 0 and not ja_be and preco <= be:
                     t["be_tocado"]  = True
                     atualizados += 1
-                elif be > 0 and ja_be and preco >= be and preco < stop:
+                elif be > 0 and ja_be and preco >= be and preco < stop_efetivo:
                     t["resultado"]  = "BE"
                     t["r_obtido"]   = 0
                     t["pnl_usdt"]   = 0
@@ -295,6 +307,93 @@ def verificar_resultados_automatico():
         _salvar(trades)
 
     return atualizados
+
+
+def verificar_gestao_avancada() -> list:
+    """Gestão de Posição (2026-08-10) — 2 partes, ambas atrás de flag em
+    config.py (default OFF):
+
+    1. Trailing: só depois que o BE já foi tocado (be_tocado=True), sobe
+       (LONG) ou desce (SHORT) "stop_trailing" acompanhando o preço menos
+       um múltiplo de ATR — nunca afrouxa. verificar_resultados_automatico()
+       já usa esse campo pra fechar como "TRAIL" (positivo) em vez de
+       "STOP" quando o preço volta e bate nele.
+    2. Alerta de Saída Estrutural: avisa (não fecha o trade) quando a
+       estrutura que gerou o sinal virou contra (EMA10<EMA21 + MACD virou)
+       ANTES de bater TP/Stop — hoje isso não existe, o trade só "fala" de
+       novo quando bate um dos dois níveis fixos.
+
+    Roda 1x por ciclo, só sobre trades ABERTOS. Retorna os textos pra
+    mandar ao Telegram (o envio de fato é responsabilidade do runner.py,
+    mesmo padrão do resto do módulo)."""
+    from config import TRAILING_ATIVO, TRAILING_ATR_MULT, ESTRUTURAL_ALERTA_ATIVO
+    if not (TRAILING_ATIVO or ESTRUTURAL_ALERTA_ATIVO):
+        return []
+
+    trades = _carregar()
+    abertos = [t for t in trades if t["resultado"] == "ABERTO"]
+    if not abertos:
+        return []
+
+    try:
+        from k10_engine import K10Engine
+    except Exception:
+        return []
+    engine = K10Engine()
+
+    avisos = []
+    alterado = False
+
+    for t in trades:
+        if t["resultado"] != "ABERTO":
+            continue
+        direcao = t.get("direcao")
+        entrada = float(t.get("entrada", 0) or 0)
+        stop_original = float(t.get("stop", 0) or 0)
+        if not entrada or not stop_original or direcao not in ("LONG", "SHORT"):
+            continue
+
+        tf = t.get("timeframe") or "30m"
+        symbol = t["symbol"] + "/USDT:USDT"
+        try:
+            df = engine._calc(engine._fetch(symbol, tf, limit=60))
+        except Exception:
+            continue
+        if df is None or len(df) < 5:
+            continue
+
+        r = df.iloc[-2]  # última vela FECHADA (última linha do df ainda está em formação)
+        close = float(r["close"]); ema10 = float(r["ema10"]); ema21 = float(r["ema21"])
+        atr = float(r["atr"]); macd_hist = float(r["macd_hist"])
+
+        # ── 1. Trailing (só depois do BE armado) ──────────────────────────
+        if TRAILING_ATIVO and t.get("be_tocado"):
+            trail_dist = TRAILING_ATR_MULT * atr
+            candidato = (close - trail_dist) if direcao == "LONG" else (close + trail_dist)
+            atual = float(t.get("stop_trailing") or stop_original)
+            novo = max(atual, candidato) if direcao == "LONG" else min(atual, candidato)
+            if novo != atual:
+                t["stop_trailing"] = round(novo, 8)
+                alterado = True
+
+        # ── 2. Alerta de Saída Estrutural ──────────────────────────────────
+        if ESTRUTURAL_ALERTA_ATIVO and not t.get("alerta_estrutural_enviado"):
+            invalidado = (
+                (direcao == "LONG" and close < ema21 and ema10 < ema21 and macd_hist < 0) or
+                (direcao == "SHORT" and close > ema21 and ema10 > ema21 and macd_hist > 0)
+            )
+            if invalidado:
+                t["alerta_estrutural_enviado"] = True
+                alterado = True
+                avisos.append(
+                    f"🚨 K11 — Estrutura invalidada em {t['symbol']} ({direcao} {tf}): "
+                    f"tendência virou contra. Considere sair — ainda longe do TP/Stop."
+                )
+
+    if alterado:
+        _salvar(trades)
+
+    return avisos
 
 
 def relatorio_calibracao() -> str:

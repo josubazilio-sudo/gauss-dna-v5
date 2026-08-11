@@ -34,3 +34,14 @@ EXIGE_FLOW_10      = os.getenv("EXIGE_FLOW_10", "True").strip().lower() in ("1",
 EXIGE_MOMENTUM_10  = os.getenv("EXIGE_MOMENTUM_10", "True").strip().lower() in ("1", "true", "yes", "on")
 EXIGE_ENTRY_50_10  = os.getenv("EXIGE_ENTRY_50_10", "True").strip().lower() in ("1", "true", "yes", "on")
 ENTRY_50_PCT_10    = float(os.getenv("ENTRY_50_PCT_10", "0.50"))
+
+# ==== GESTÃO DE POSIÇÃO (2026-08-10) — Trailing pós-BE + Alerta Estrutural ====
+# Trailing só entra em ação DEPOIS que o BE já foi tocado (be_tocado=True) e
+# nunca afrouxa o stop — só aperta a favor do trade. Se o preço voltar e
+# bater no stop já trailado, fecha como "TRAIL" (positivo) em vez de "STOP".
+# Default OFF — ligar só depois de acompanhar o formato em produção.
+TRAILING_ATIVO          = os.getenv("TRAILING_ATIVO", "False").strip().lower() in ("1", "true", "yes", "on")
+TRAILING_ATR_MULT       = float(os.getenv("TRAILING_ATR_MULT", "1.5"))
+# Alerta (não fecha o trade) quando a estrutura que gerou o sinal virou
+# contra (EMA10<EMA21 + MACD virou) antes de bater TP/Stop.
+ESTRUTURAL_ALERTA_ATIVO = os.getenv("ESTRUTURAL_ALERTA_ATIVO", "False").strip().lower() in ("1", "true", "yes", "on")

@@ -32,6 +32,20 @@ async def main():
         except Exception as e:
             logger.warning(f"Verificacao de resultados: {e}")
 
+        # Gestao de Posicao (2026-08-10) — Trailing pos-BE + Alerta de Saida
+        # Estrutural (ver trade_tracker.verificar_gestao_avancada). Atras de
+        # flag em config.py, default OFF. Nunca lanca — erro isolado por
+        # simbolo dentro da propria funcao.
+        try:
+            from trade_tracker import verificar_gestao_avancada
+            avisos_gestao = verificar_gestao_avancada()
+            for aviso in avisos_gestao:
+                await enviar(aviso)
+            if avisos_gestao:
+                logger.info(f"K11: {len(avisos_gestao)} aviso(s) de gestao de posicao enviado(s)")
+        except Exception as e:
+            logger.warning(f"Gestao de posicao avancada: {e}")
+
         engine = K10Engine()
         wl_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
         wl_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
