@@ -236,6 +236,18 @@ async def main():
             logger.info(f"K11: {sym_base} já operado hoje — pulando correlação")
             continue
 
+        # ── SIGNAL VALIDATOR — RFC Sync ─────────────────────────────────
+        try:
+            from signal_validator import validar
+            sinal = validar(sinal)
+            if not sinal.get("valido", True):
+                reason = sinal.get("block_reason", "UNKNOWN")
+                logger.warning(f"SIGNAL_VALIDATOR: {sinal['symbol']} BLOQUEADO — {reason}")
+                continue
+        except Exception as e:
+            logger.warning(f"SIGNAL_VALIDATOR: erro na validação ({e}) — sinal liberado por fallback")
+        # ─────────────────────────────────────────────────────────────────────
+
         cartao = formatar_cartao(sinal, bot_name="K11")
         if cartao:
             # Auditoria GATE 10/10

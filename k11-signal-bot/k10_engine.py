@@ -281,6 +281,7 @@ class K10Engine:
                     "motivos_rejeicao":[str(e)],"timeframe":tf,"direcao":"—","rr":0,"rvol":0}
 
         dfc = df.iloc[:-1]; r = dfc.iloc[-1]
+        candle_ts = r["ts"].timestamp() if hasattr(r["ts"], "timestamp") else float(r["ts"])
         c    = float(r["close"]); atr = float(r["atr"])
         e10  = float(r["ema10"]); e21 = float(r["ema21"])
         e50  = float(r["ema50"]); e200= float(r["ema200"])
@@ -615,6 +616,7 @@ class K10Engine:
             "posicao":          pos,
             "risco_usdt":       gb_risco,
             "alavancagem":      alav,
+            "candle_ts":        candle_ts,
             "banca":            BANCA,
         }
 
