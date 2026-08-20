@@ -66,6 +66,21 @@ class K10Engine:
         df["vwap"]   = (v*(h+l+c)/3).cumsum()/v.cumsum()
         return df
 
+
+    def _calc_ha(self, df):
+        """Converte candles OHLCV para Heikin Ashi e recalcula indicadores."""
+        ha = df.copy()
+        ha["close"] = (df["open"] + df["high"] + df["low"] + df["close"]) / 4
+        ha_open = [(df["open"].iloc[0] + df["close"].iloc[0]) / 2]
+        for i in range(1, len(df)):
+            ha_open.append((ha_open[i-1] + ha["close"].iloc[i-1]) / 2)
+        ha["open"]  = ha_open
+        ha["high"]  = pd.concat([df["high"], ha["open"], ha["close"]], axis=1).max(axis=1)
+        ha["low"]   = pd.concat([df["low"],  ha["open"], ha["close"]], axis=1).min(axis=1)
+        ha["ts"]     = df["ts"]
+        ha["volume"] = df["volume"]
+        return self._calc(ha)
+
     def _detectar_ob(self, df, direcao):
         dfc = df.iloc[:-1]
         atr = float(dfc["atr"].iloc[-1])
@@ -274,7 +289,7 @@ class K10Engine:
     def _analisar_tf(self, symbol, tf="1h", tf_contexto=None):
         try:
             ctx  = tf_contexto or ("1h" if tf=="30m" else "4h")
-            df   = self._calc(self._fetch(symbol, tf, limit=300))
+            df   = self._calc_ha(self._fetch(symbol, tf, limit=300))  # Heikin Ashi no TF principal
             df4h = self._calc(self._fetch(symbol, ctx, limit=100))
         except Exception as e:
             return {"symbol":symbol,"aprovado":False,"score":0,
@@ -295,6 +310,47 @@ class K10Engine:
         vwap = float(r["vwap"])
         sessao, peso_sessao = sessao_atual()
 
+        # ── K12 FILTROS ──────────────────────────────────────────────────────
+        # 1. MACD TURN
+        bars_since_cross = 0
+        for i in range(-1, -5, -1):
+            if dfc["macd_hist"].iloc[i-1] <= 0 and dfc["macd_hist"].iloc[i] > 0:
+                bars_since_cross = abs(i) - 1
+                break
+        macd_turn_long = (bars_since_cross <= 2 and macd_h > 0 and macd_h > macd_h2)
+
+        # 2. NOT EXTENDED
+        MAX_DIST_EMA50_ATR = 1.8
+        dist_ema50_atr = abs(c - e50) / max(atr, 1e-10)
+        not_extended = dist_ema50_atr <= MAX_DIST_EMA50_ATR
+
+        # 3. PULLBACK EMA21
+        PULLBACK_ATR = 0.4
+        recent_lows = [float(dfc["low"].iloc[i]) for i in range(-5, 0)]
+        recent_closes = [float(dfc["close"].iloc[i]) for i in range(-5, 0)]
+        recent_opens = [float(dfc["open"].iloc[i]) for i in range(-5, 0)]
+        e21_recent = [float(dfc["ema21"].iloc[i]) for i in range(-5, 0)]
+        pullback_long = any(
+            l <= e21_recent[i] + atr * PULLBACK_ATR and
+            recent_closes[i] >= e21_recent[i] and
+            recent_closes[i] > recent_opens[i]
+            for i, l in enumerate(recent_lows)
+        )
+
+        # 4. BULL CANDLE
+        candle_range = max(float(r["high"]) - float(r["low"]), 1e-10)
+        body_size = abs(c - float(r["open"]))
+        body_ratio = body_size / candle_range
+        bull_candle = (c > float(r["open"])) and body_ratio >= 0.45
+
+        # 5. H1 QUALITY
+        r4h_last = df4h.iloc[-2]
+        h1_bull_bias = float(r4h_last["ema10"]) > float(r4h_last["ema21"])
+        h1_momentum  = float(r4h_last["macd_hist"]) > 0
+        h1_adx       = float(r4h_last["adx"]) >= 20
+        h1_quality_long = (50 if h1_bull_bias else 0) + (25 if h1_momentum else 0) + (15 if h1_adx else 0)
+        # ─────────────────────────────────────────────────────────────────────
+
         motivos = []
         confirmacoes = []
         score = 0
@@ -312,13 +368,32 @@ class K10Engine:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[f"RSI {rsi:.0f} sobrecomprado — pullback iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
 
+        # BLOQUEIO 3: Preço esticado da EMA50
+        if not not_extended:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (max 1.8x)"],
+                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+
+        # BLOQUEIO 4: Candle sem corpo
+        if not bull_candle and macd_h > 0:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":[f"Candle sem confirmacao (body ratio {body_ratio:.2f} < 0.45)"],
+                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+
         # DIREÇÃO PELO MACD
         macd_cruzou_long  = any([macd_h2<=0 and macd_h>0, macd_h3<=0 and macd_h2>0, macd_h4<=0 and macd_h3>0])
         macd_cruzou_short = any([macd_h2>=0 and macd_h<0, macd_h3>=0 and macd_h2<0, macd_h4>=0 and macd_h3<0])
         macd_acel_long    = macd_h>0 and macd_h>macd_h2 and macd_h2>macd_h3
         macd_acel_short   = macd_h<0 and macd_h<macd_h2 and macd_h2<macd_h3
 
+        # MACD declining filter: cruzamento válido mas histograma já caindo = entrada falsa
+        macd_declining = macd_h < macd_h2 and macd_h2 < macd_h3
+
         if macd_cruzou_long:
+            if macd_declining:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":[f"MACD cruzou mas histograma declinando — momentum perdido"],
+                        "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
             direcao = "LONG";  confirmacoes.append("🎯 MACD cruzou para cima"); score += 25
         elif macd_cruzou_short:
             # SHORT bloqueado temporariamente — WR histórico 19% vs LONG 39%
@@ -378,6 +453,18 @@ class K10Engine:
             confirmacoes.append("✅ Tendência forte"); score += 10
         else:
             motivos.append("Sem BOS/CHoCH/tendência")
+
+        # PULLBACK score (K12)
+        if pullback_long:
+            confirmacoes.append("Pullback EMA21"); score += 10
+        else:
+            motivos.append("Sem pullback EMA21")
+
+        # H1 QUALITY score (K12)
+        if h1_quality_long >= 75:
+            confirmacoes.append("H1 MACD+EMA confirmando"); score += 10
+        elif h1_quality_long >= 50:
+            confirmacoes.append("H4 tendencia ok"); score += 5
 
         # ORDER BLOCK
         try:

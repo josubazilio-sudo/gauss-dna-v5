@@ -217,6 +217,24 @@ async def main():
 
     MAX_DIA = 5
 
+    # STRUCTURE WATCHER
+    try:
+        from structure_watcher import verificar_quebra_estrutura
+        import ccxt as _ccxt
+        _exch = _ccxt.mexc({"enableRateLimit": True, "options": {"defaultType": "swap"}})
+        reversoes = verificar_quebra_estrutura(_exch)
+        for rev in reversoes:
+            if rev.get("aviso_apenas"):
+                await enviar(rev["msg"])
+            else:
+                from formatter import formatar_cartao
+                cartao_rev = formatar_cartao(rev, bot_name="K11")
+                if cartao_rev:
+                    await enviar(cartao_rev)
+                    logger.info(f"K11 REVERSAO: {rev['symbol']} SHORT")
+    except Exception as e:
+        logger.warning(f"STRUCTURE_WATCHER: {e}")
+
     enviados = 0
     for sinal in aprovados[:3]:
         # Limite diário
