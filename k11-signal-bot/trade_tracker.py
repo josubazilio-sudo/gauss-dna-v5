@@ -26,8 +26,20 @@ def _carregar():
     return []
 
 def _salvar(trades):
-    with open(ARQUIVO, "w") as f:
+    """
+    Escrita atômica — corrige o problema de leitura parcial observado
+    anteriormente (Shadow Outcome Tracking V1, RFC 21/08). Escreve num
+    arquivo temporário no mesmo diretório, faz flush+fsync, e só então
+    substitui o arquivo real via os.replace (atômico no mesmo filesystem).
+    Isso elimina a janela em que um leitor concorrente veria o arquivo
+    truncado/parcial — o arquivo real nunca fica num estado intermediário.
+    """
+    tmp = ARQUIVO + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(trades, f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, ARQUIVO)
 
 def registrar(sinal: dict) -> int:
     trades = _carregar()

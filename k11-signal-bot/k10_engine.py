@@ -351,6 +351,25 @@ class K10Engine:
         h1_quality_long = (50 if h1_bull_bias else 0) + (25 if h1_momentum else 0) + (15 if h1_adx else 0)
         # ─────────────────────────────────────────────────────────────────────
 
+        # Snapshot diagnóstico — SOMENTE observação (Shadow Outcome Tracking V1,
+        # RFC 21/08). Nao decide nada, nao altera nenhum threshold/comparacao
+        # existente acima. So repete valores ja calculados nas linhas acima,
+        # pra que os retornos antecipados abaixo tambem carreguem o perfil
+        # completo do candidato (hoje so o `rvol` sobrevivia a um bloqueio
+        # antecipado). Campos que dependem da direcao ja resolvida (EQ,
+        # estrutura/BOS, H1/H4) continuam indisponiveis nesses retornos —
+        # o motor nunca chega a calcula-los quando bloqueia aqui, e isso nao
+        # e alterado por este snapshot.
+        diag_snapshot = {
+            "candle_ts": candle_ts, "adx": adx, "rsi": rsi, "rvol": rvol,
+            "ema10": e10, "ema21": e21, "ema50": e50, "ema200": e200,
+            "macd_hist": macd_h, "vwap": vwap, "atr": atr,
+            "dist_ema50_atr": round(dist_ema50_atr, 3),
+            "not_extended": not_extended, "bull_candle": bull_candle,
+            "pullback_long": pullback_long, "h1_quality_long": h1_quality_long,
+            "macd_turn_long": macd_turn_long,
+        }
+
         motivos = []
         confirmacoes = []
         score = 0
@@ -358,27 +377,27 @@ class K10Engine:
         # BLOQUEIO 1: ADX
         if adx < 18:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Mercado lateral ADX {adx:.1f}"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+                    "motivos_rejeicao":[f"Mercado lateral ADX {adx:.1f}"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # BLOQUEIO 2: RSI extremo
         if rsi < 25:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"RSI {rsi:.0f} sobrevendido — bounce iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+                    "motivos_rejeicao":[f"RSI {rsi:.0f} sobrevendido — bounce iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
         if rsi > 75:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"RSI {rsi:.0f} sobrecomprado — pullback iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+                    "motivos_rejeicao":[f"RSI {rsi:.0f} sobrecomprado — pullback iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # BLOQUEIO 3: Preço esticado da EMA50
         if not not_extended:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (max 1.8x)"],
-                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # BLOQUEIO 4: Candle sem corpo
         if not bull_candle and macd_h > 0:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[f"Candle sem confirmacao (body ratio {body_ratio:.2f} < 0.45)"],
-                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # DIREÇÃO PELO MACD
         macd_cruzou_long  = any([macd_h2<=0 and macd_h>0, macd_h3<=0 and macd_h2>0, macd_h4<=0 and macd_h3>0])
@@ -393,27 +412,27 @@ class K10Engine:
             if macd_declining:
                 return {"symbol":symbol,"aprovado":False,"score":0,
                         "motivos_rejeicao":[f"MACD cruzou mas histograma declinando — momentum perdido"],
-                        "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
+                        "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol, **diag_snapshot}
             direcao = "LONG";  confirmacoes.append("🎯 MACD cruzou para cima"); score += 25
         elif macd_cruzou_short:
             # SHORT bloqueado — WR histórico 19-22% vs LONG 38-39% (confirmado em 486 trades, 05-13/08)
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
-                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
+                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol, **diag_snapshot}
         elif macd_acel_long:
             ratio = abs(macd_h/macd_h4) if macd_h4!=0 else 99
             if ratio > 6.0:
                 return {"symbol":symbol,"aprovado":False,"score":0,
-                        "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
+                        "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol, **diag_snapshot}
             direcao = "LONG";  confirmacoes.append("MACD acelerando ↑"); score += 15
         elif macd_acel_short:
             # SHORT bloqueado — WR histórico insuficiente (confirmado em 486 trades, 05-13/08)
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
-                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
+                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol, **diag_snapshot}
         else:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":["MACD sem direção"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol}
+                    "motivos_rejeicao":["MACD sem direção"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # EMA alinhada com direção
         if direcao=="LONG" and e10 < e21:
@@ -705,6 +724,7 @@ class K10Engine:
             "alavancagem":      alav,
             "candle_ts":        candle_ts,
             "banca":            BANCA,
+            **diag_snapshot,
         }
 
     def analisar(self, symbol, timeframe=None):

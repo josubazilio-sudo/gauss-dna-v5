@@ -32,6 +32,17 @@ async def main():
         except Exception as e:
             logger.warning(f"Verificacao de resultados: {e}")
 
+        # K11 SHADOW — resolve candidatos pendentes (RFC 21/08). Mesmo padrao
+        # do verificar_resultados_automatico() acima, so que sobre o dataset
+        # de candidatos bloqueados/aprovados, nao sobre trades reais.
+        try:
+            import shadow_tracker
+            resolvidos_shadow = shadow_tracker.resolver_pendentes()
+            if resolvidos_shadow:
+                logger.info(f"K11 SHADOW: {resolvidos_shadow} candidato(s) resolvido(s)")
+        except Exception as e:
+            logger.warning(f"SHADOW resolver_pendentes: {e}")
+
         # Gestao de Posicao (2026-08-10) — Trailing pos-BE + Alerta de Saida
         # Estrutural (ver trade_tracker.verificar_gestao_avancada). Atras de
         # flag em config.py, default OFF. Nunca lanca — erro isolado por
@@ -52,6 +63,7 @@ async def main():
         wl = WATCHLIST_PRIORITY + wl_sem_dup[:490]  # 500 pares total
 
         aprovados = []
+        todos_resultados = []  # p/ Shadow Outcome Tracking (RFC 21/08) — inclui bloqueados
         def analisar(sym):
             try: return engine.analisar(sym)
             except: return None
@@ -60,11 +72,24 @@ async def main():
             futures = {ex.submit(analisar, sym): sym for sym in wl[:500]}
             for f in as_completed(futures):
                 r = f.result()
+                if r:
+                    todos_resultados.append(r)
                 if r and r.get("aprovado") and r.get("score",0) >= 70:
                     aprovados.append(r)
 
         aprovados.sort(key=lambda x: x.get("score",0), reverse=True)
         logger.info(f"K11: {len(aprovados)} aprovados")
+
+        # K11 SHADOW OUTCOME TRACKING — captura observacional (RFC 21/08).
+        # So registra e le valores ja calculados pelo engine acima; nunca
+        # aprova/bloqueia/altera nada em `todos_resultados` ou `aprovados`.
+        try:
+            import shadow_tracker
+            novos_shadow = shadow_tracker.capturar_lote(todos_resultados)
+            if novos_shadow:
+                logger.info(f"K11 SHADOW: {novos_shadow} candidato(s) novo(s) capturado(s)")
+        except Exception as e:
+            logger.warning(f"SHADOW capturar_lote: {e}")
 
         # K11 APEX — snapshot da lista COMPLETA aprovada pelo engine, antes do
         # Final Selector reduzir/reordenar. O APEX e uma lente independente,
@@ -158,6 +183,14 @@ async def main():
 
                 todos.sort(key=lambda x: x.get("score",0), reverse=True)
                 top5 = todos[:5]
+
+                # K11 SHADOW — captura tambem os candidatos deste mini-scan
+                # (top-50) usado so pro diagnostico "SEM SINAL".
+                try:
+                    import shadow_tracker
+                    shadow_tracker.capturar_lote(todos)
+                except Exception as e:
+                    logger.warning(f"SHADOW capturar_lote (diag): {e}")
 
                 # Montar diagnóstico explicativo
                 from datetime import datetime, timezone
@@ -320,6 +353,11 @@ async def main():
             try:
                 trade_id = registrar(sinal)
                 logger.info(f"K11 #{trade_id}: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
+                try:
+                    import shadow_tracker
+                    shadow_tracker.marcar_aprovado_real(sinal, trade_id)
+                except Exception as e:
+                    logger.warning(f"SHADOW marcar_aprovado_real: {e}")
             except Exception as e:
                 logger.warning(f"Tracker: {e}")
             enviados += 1
@@ -344,6 +382,11 @@ async def main():
                     f"K11 APEX #{trade_id_apex}: {apex_sinal['symbol']} "
                     f"{apex_resultado['apex_tipo']} score={apex_resultado['apex_score']}"
                 )
+                try:
+                    import shadow_tracker
+                    shadow_tracker.marcar_aprovado_real(apex_sinal, trade_id_apex)
+                except Exception as e:
+                    logger.warning(f"SHADOW marcar_aprovado_real (apex): {e}")
             else:
                 logger.info(
                     f"K11 APEX: {apex_sinal['symbol']} já registrado pelo fluxo normal deste ciclo"
@@ -394,6 +437,18 @@ async def verificar_relatorios():
             logger.info("Relatório APEX (progresso) enviado — 23:30 BRT")
         except Exception as e:
             logger.warning(f"Relatório APEX: {e}")
+        # K11 SHADOW — relatorios de auditoria (RFC 21/08). So o dashboard
+        # geral vai pro Telegram; a analise por motivo/combinacoes fica so
+        # em log (texto longo, mais util revisado sob demanda que enviado
+        # todo dia).
+        try:
+            import shadow_tracker
+            enviar_telegram(shadow_tracker.relatorio_shadow())
+            logger.info("Relatório SHADOW enviado — 23:30 BRT")
+            logger.info(shadow_tracker.relatorio_por_motivo())
+            logger.info(shadow_tracker.relatorio_combinacoes())
+        except Exception as e:
+            logger.warning(f"Relatório SHADOW: {e}")
 
 if __name__ == "__main__":
     async def run():
