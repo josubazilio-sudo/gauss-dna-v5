@@ -153,7 +153,25 @@ async def main():
             now = t.time()
             # Último sinal enviado
             cache = json.load(open(cache_file)) if os.path.exists(cache_file) else {}
-            ultimo_sinal = max(cache.values()) if cache else 0
+            if cache:
+                ultimo_sinal = max(cache.values())
+            else:
+                # k11_cache.json só guarda os últimos 2h por design (anti-
+                # repetição) — pode estar vazio mesmo com sinais no passado.
+                # Cair pro último trade real registrado em vez de assumir
+                # "nunca houve sinal" (produzia "há 29 milhões de minutos").
+                ultimo_sinal = 0
+                try:
+                    from datetime import datetime as _datetime, timezone as _timezone, timedelta as _timedelta
+                    from trade_tracker import _carregar as _carregar_trades
+                    trades_hist = _carregar_trades()
+                    if trades_hist:
+                        ultimo_t = trades_hist[-1]
+                        dt_ultimo = _datetime.strptime(f"{ultimo_t['data']} {ultimo_t['hora']}", "%d/%m/%Y %H:%M")
+                        dt_ultimo = dt_ultimo.replace(tzinfo=_timezone(_timedelta(hours=-3)))  # trade_tracker grava em BRT
+                        ultimo_sinal = dt_ultimo.timestamp()
+                except Exception as e:
+                    logger.warning(f"Diag automático: fallback ultimo_sinal falhou: {e}")
             # Último diagnóstico enviado
             diag_cache = json.load(open(diag_file)) if os.path.exists(diag_file) else {"ts": 0}
             ultimo_diag = diag_cache.get("ts", 0)
