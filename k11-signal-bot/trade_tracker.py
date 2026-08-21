@@ -4,8 +4,10 @@ K11 Sistema de Relatório
 - Envia relatório a cada 2h
 - Resumo completo às 23:30 BRT
 """
-import json, os, requests
+import json, os, logging, requests
 from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 ARQUIVO   = "/root/gauss-dna-v5/k11-signal-bot/k11_trades.json"
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
@@ -18,7 +20,9 @@ def _carregar():
     if os.path.exists(ARQUIVO):
         try:
             with open(ARQUIVO) as f: return json.load(f)
-        except: return []
+        except Exception as e:
+            logger.warning(f"k11_trades.json ilegivel neste ciclo: {e}")
+            return []
     return []
 
 def _salvar(trades):
@@ -57,6 +61,13 @@ def registrar(sinal: dict) -> int:
         "setup":        sinal.get("prioridade","").replace("🔥","").replace("⭐","").strip(),
         "confs":        len(sinal.get("confirmacoes_smc", [])),
         "dist_ema21":   round(abs(sinal.get("entrada",0)-sinal.get("ema21",0)) / sinal.get("atr",1) if sinal.get("atr",0) > 0 else 0, 2),
+        # Final Selector (observabilidade — RFC correção conservadora 20/08).
+        # Aditivo: None quando o sinal veio do fallback do runner (final_selector
+        # rejeitou tudo no ciclo) em vez de ter sido de fato selecionado.
+        "fs_structure": sinal.get("fs_structure"),
+        "fs_timing":    sinal.get("fs_timing"),
+        "fs_regime":    sinal.get("fs_regime"),
+        "fs_final":     sinal.get("fs_final"),
         "resultado":    "ABERTO",
         "be_tocado":    False,
         "r_obtido":     None,

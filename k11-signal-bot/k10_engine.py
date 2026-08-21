@@ -396,7 +396,7 @@ class K10Engine:
                         "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
             direcao = "LONG";  confirmacoes.append("🎯 MACD cruzou para cima"); score += 25
         elif macd_cruzou_short:
-            # SHORT bloqueado temporariamente — WR histórico 19% vs LONG 39%
+            # SHORT bloqueado — WR histórico 19-22% vs LONG 38-39% (confirmado em 486 trades, 05-13/08)
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
                     "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
@@ -407,7 +407,7 @@ class K10Engine:
                         "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol}
             direcao = "LONG";  confirmacoes.append("MACD acelerando ↑"); score += 15
         elif macd_acel_short:
-            # SHORT bloqueado temporariamente
+            # SHORT bloqueado — WR histórico insuficiente (confirmado em 486 trades, 05-13/08)
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
                     "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol}
