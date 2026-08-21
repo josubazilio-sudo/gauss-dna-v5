@@ -66,6 +66,11 @@ async def main():
         aprovados.sort(key=lambda x: x.get("score",0), reverse=True)
         logger.info(f"K11: {len(aprovados)} aprovados")
 
+        # K11 APEX — snapshot da lista COMPLETA aprovada pelo engine, antes do
+        # Final Selector reduzir/reordenar. O APEX e uma lente independente,
+        # nao depende da selecao do Final Selector (RFC APEX v1, shadow mode).
+        aprovados_engine_full = list(aprovados)
+
         # FINAL SELECTOR — ATIVO
         try:
             from final_selector import selecionar, CFG
@@ -84,6 +89,30 @@ async def main():
                 aprovados = fs_selecionados  # usar só os melhores
         except Exception as e:
             logger.warning(f"Final Selector: {e}")
+
+        # K11 APEX — avaliação independente (shadow mode, RFC APEX v1 20/08).
+        # Roda sobre TODOS os candidatos aprovados pelo engine, nao so os que
+        # o Final Selector escolheu — o APEX pode discordar do selector.
+        # Nao altera `aprovados`, nao interfere no fluxo normal de envio.
+        apex_resultado = None
+        try:
+            import apex_engine
+            apex_resultado = apex_engine.selecionar_apex(aprovados_engine_full)
+            if apex_resultado:
+                apex_sinal = apex_resultado["sinal"]
+                apex_sinal["is_apex"]         = True
+                apex_sinal["apex_tipo"]       = apex_resultado["apex_tipo"]
+                apex_sinal["apex_score"]      = apex_resultado["apex_score"]
+                apex_sinal["apex_componentes"]= apex_resultado["componentes"]
+                logger.info(
+                    f"K11 APEX candidato: {apex_sinal['symbol']} "
+                    f"{apex_resultado['apex_tipo']} score={apex_resultado['apex_score']}"
+                )
+            else:
+                logger.info("K11 APEX: nenhum candidato atingiu a barra neste ciclo")
+        except Exception as e:
+            logger.warning(f"APEX: {e}")
+            apex_resultado = None
 
     except Exception:
         logger.error(traceback.format_exc())
@@ -236,6 +265,7 @@ async def main():
         logger.warning(f"STRUCTURE_WATCHER: {e}")
 
     enviados = 0
+    chaves_enviadas_normal = set()  # p/ dedupe do envio APEX logo abaixo
     for sinal in aprovados[:3]:
         # Limite diário
         if dia_data["count"] >= MAX_DIA:
@@ -286,6 +316,7 @@ async def main():
 
             await enviar(cartao)
             cache[chave] = t.time()
+            chaves_enviadas_normal.add(chave)
             try:
                 trade_id = registrar(sinal)
                 logger.info(f"K11 #{trade_id}: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
@@ -293,6 +324,32 @@ async def main():
                 logger.warning(f"Tracker: {e}")
             enviados += 1
             await asyncio.sleep(2)
+
+    # K11 APEX — envio do card especial (shadow mode, RFC APEX v1 20/08).
+    # Se o mesmo sinal ja foi mandado pelo fluxo normal acima (mesma chave),
+    # nao registra de novo — so complementa com o card especial. Se o APEX
+    # achou algo que o fluxo normal NAO mandou (ex.: Final Selector rejeitou),
+    # registra aqui pela primeira vez.
+    if apex_resultado:
+        apex_sinal = apex_resultado["sinal"]
+        chave_apex = f"{apex_sinal['symbol']}_{apex_sinal['direcao']}_{apex_sinal['timeframe']}"
+        try:
+            import apex_formatter
+            cartao_apex = apex_formatter.formatar_apex_cartao(apex_sinal, apex_resultado)
+            await enviar(cartao_apex)
+            cache[chave_apex] = t.time()
+            if chave_apex not in chaves_enviadas_normal:
+                trade_id_apex = registrar(apex_sinal)
+                logger.info(
+                    f"K11 APEX #{trade_id_apex}: {apex_sinal['symbol']} "
+                    f"{apex_resultado['apex_tipo']} score={apex_resultado['apex_score']}"
+                )
+            else:
+                logger.info(
+                    f"K11 APEX: {apex_sinal['symbol']} já registrado pelo fluxo normal deste ciclo"
+                )
+        except Exception as e:
+            logger.warning(f"APEX envio: {e}")
 
     try:
         with open(cache_file, "w") as f:
@@ -329,6 +386,14 @@ async def verificar_relatorios():
         rel = relatorio_diario()
         enviar_telegram(rel)
         logger.info("Resumo diário enviado — 23:30 BRT")
+        # K11 APEX — progresso da coorte de validação (shadow mode, RFC APEX v1).
+        try:
+            from trade_tracker import relatorio_apex_progresso
+            rel_apex = relatorio_apex_progresso()
+            enviar_telegram(rel_apex)
+            logger.info("Relatório APEX (progresso) enviado — 23:30 BRT")
+        except Exception as e:
+            logger.warning(f"Relatório APEX: {e}")
 
 if __name__ == "__main__":
     async def run():

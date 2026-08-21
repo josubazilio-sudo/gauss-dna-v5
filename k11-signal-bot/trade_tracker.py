@@ -68,6 +68,12 @@ def registrar(sinal: dict) -> int:
         "fs_timing":    sinal.get("fs_timing"),
         "fs_regime":    sinal.get("fs_regime"),
         "fs_final":     sinal.get("fs_final"),
+        # K11 APEX (observabilidade — RFC APEX v1 shadow mode 20/08).
+        # Aditivo: False/None quando o sinal nao passou pelo avaliador APEX.
+        "is_apex":         sinal.get("is_apex", False),
+        "apex_tipo":       sinal.get("apex_tipo"),
+        "apex_score":      sinal.get("apex_score"),
+        "apex_componentes":sinal.get("apex_componentes"),
         "resultado":    "ABERTO",
         "be_tocado":    False,
         "r_obtido":     None,
@@ -226,6 +232,102 @@ def relatorio_diario() -> str:
 def enviar_telegram(msg: str):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     requests.post(url, json={"chat_id": CHAT_ID, "text": msg[:4096]}, timeout=30)
+
+
+# ── K11 APEX — coorte de validação (shadow mode, RFC APEX v1 20/08) ─────────
+# Reaproveita o MESMO arquivo/pipeline de resolução (verificar_resultados_
+# automatico / verificar_gestao_avancada) — nao existe uma segunda fila de
+# monitoramento de preco. So filtra is_apex==True sobre os trades ja
+# rastreados normalmente. Nao decide aprovacao de nada, so mede.
+
+def _metricas_subset(subset):
+    fechados = [t for t in subset if t["resultado"] != "ABERTO"]
+    r_vals = [t["r_obtido"] for t in fechados if t.get("r_obtido") is not None]
+    n = len(fechados)
+    if n == 0:
+        return {"n": 0, "wr": 0, "pf": 0, "exp": 0, "r_medio": 0,
+                "max_drawdown_r": 0, "max_losing_streak": 0}
+    wins = [r for r in r_vals if r > 0]
+    wr = len(wins) / n * 100 if n else 0
+    r_pos = sum(r for r in r_vals if r > 0)
+    r_neg = abs(sum(r for r in r_vals if r < 0))
+    pf = round(r_pos / r_neg, 2) if r_neg > 0 else 0
+    exp = round(sum(r_vals) / n, 3) if n else 0
+    r_medio = round(sum(r_vals) / n, 3) if n else 0
+
+    # Drawdown maximo (R acumulado, sequencia de fechamento) e maior
+    # sequencia de perdas consecutivas — na ordem em que os trades fecharam.
+    acumulado = 0.0
+    pico = 0.0
+    max_dd = 0.0
+    streak = 0
+    max_streak = 0
+    for r in r_vals:
+        acumulado += r
+        pico = max(pico, acumulado)
+        max_dd = max(max_dd, pico - acumulado)
+        if r < 0:
+            streak += 1
+            max_streak = max(max_streak, streak)
+        else:
+            streak = 0
+
+    return {"n": n, "wr": round(wr, 1), "pf": pf, "exp": exp, "r_medio": r_medio,
+            "max_drawdown_r": round(max_dd, 2), "max_losing_streak": max_streak}
+
+
+def _tier_qualidade(m: dict) -> str:
+    if m["n"] < 30:
+        return "⚪ AMOSTRA INSUFICIENTE (<30)"
+    if m["pf"] < 1.20:
+        return "🟡 APEX FRACO (PF < 1.20)"
+    if m["pf"] < 1.50:
+        return "🟢 APEX PROMISSOR (PF 1.20-1.49)" if m["exp"] > 0 else "🟡 APEX FRACO (Exp negativa)"
+    if m["n"] >= 100 and m["exp"] > 0:
+        return "🏆 APEX VALIDADO (PF>=1.50, Exp+, n>=100)"
+    return "🔥 APEX FORTE (PF >= 1.50, aguardando n>=100 p/ validar)"
+
+
+def metricas_apex() -> dict:
+    """Retorna as métricas completas da coorte APEX, separadas por tipo e TF."""
+    trades = _carregar()
+    apex = [t for t in trades if t.get("is_apex")]
+    geral = _metricas_subset(apex)
+    trend = _metricas_subset([t for t in apex if t.get("apex_tipo") == "TREND"])
+    reversal = _metricas_subset([t for t in apex if t.get("apex_tipo") == "REVERSAL"])
+    tf_30m = _metricas_subset([t for t in apex if t.get("timeframe") == "30m"])
+    tf_1h = _metricas_subset([t for t in apex if t.get("timeframe") == "1h"])
+    return {"geral": geral, "trend": trend, "reversal": reversal,
+            "tf_30m": tf_30m, "tf_1h": tf_1h,
+            "total_registrados": len(apex),
+            "abertos": len([t for t in apex if t["resultado"] == "ABERTO"])}
+
+
+def relatorio_apex_progresso() -> str:
+    """Relatório de progresso da coorte de validação APEX (secao 14-15 da RFC)."""
+    m = metricas_apex()
+    sep = "━━━━━━━━━━━━━━━━━━━━"
+    g = m["geral"]
+    linhas = [
+        "🔥 K11 APEX — PROGRESSO DA VALIDAÇÃO (shadow mode)",
+        sep,
+        f"Registrados: {m['total_registrados']} | Abertos: {m['abertos']} | Fechados: {g['n']}",
+        f"Meta mínima: 100 trades fechados | Ideal: 150-200",
+    ]
+    if g["n"] > 0:
+        linhas += [
+            sep,
+            f"GERAL: WR {g['wr']}% | PF {g['pf']} | Exp {g['exp']:+.3f}R | R médio {g['r_medio']:+.3f}",
+            f"Max drawdown: {g['max_drawdown_r']:.2f}R | Maior sequência de perdas: {g['max_losing_streak']}",
+            f"Classificação: {_tier_qualidade(g)}",
+        ]
+        for label, sub in [("APEX TREND", m["trend"]), ("APEX REVERSAL", m["reversal"]),
+                            ("30m", m["tf_30m"]), ("1h", m["tf_1h"])]:
+            if sub["n"] > 0:
+                linhas.append(f"  {label}: n={sub['n']} WR={sub['wr']}% PF={sub['pf']} Exp={sub['exp']:+.3f}R")
+    else:
+        linhas += [sep, "Nenhum APEX fechado ainda — aguardando primeiros resultados."]
+    return "\n".join(linhas)
 
 
 def verificar_resultados_automatico():
