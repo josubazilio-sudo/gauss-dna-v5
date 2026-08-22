@@ -10,7 +10,8 @@ from datetime import datetime, timezone, timedelta
 from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K11_OURO_MIN_EQ,
                       MODO_10_10, RVOL_MIN_10, SCORE_OURO_10, SCORE_PRATA_10, RR_MIN_10,
                       EXIGE_ESTRUTURA_10, EXIGE_TENDENCIA_10, EXIGE_FLOW_10, EXIGE_MOMENTUM_10,
-                      EXIGE_ENTRY_50_10, ENTRY_50_PCT_10)
+                      EXIGE_ENTRY_50_10, ENTRY_50_PCT_10,
+                      SOFT_FILTERS_MODE, QUALITY_FINAL_MIN, RVOL_HARD_MIN)
 
 
 def sessao_atual():
@@ -373,6 +374,21 @@ class K10Engine:
         motivos = []
         confirmacoes = []
         score = 0
+        # SOFT FILTERS MODE (RFC reequilibrio 22/08) — quando ligado, os
+        # itens marcados SOFT abaixo tiram pontos de `soft_penalty` em vez
+        # de irem pra `motivos` (que bloqueia). `motivos_soft` guarda o
+        # texto pra diagnostico/card, sem impedir aprovacao sozinho.
+        # Quando desligado (default), comportamento identico a antes.
+        soft_penalty = 0
+        motivos_soft = []
+
+        def _bloqueio(texto: str, pontos_penalidade: int = 0, soft: bool = False):
+            if soft and SOFT_FILTERS_MODE:
+                nonlocal soft_penalty
+                soft_penalty += pontos_penalidade
+                motivos_soft.append(texto)
+            else:
+                motivos.append(texto)
 
         # BLOQUEIO 1: ADX
         if adx < 18:
@@ -436,9 +452,9 @@ class K10Engine:
 
         # EMA alinhada com direção
         if direcao=="LONG" and e10 < e21:
-            motivos.append("EMA10 < EMA21 — contra LONG")
+            _bloqueio("EMA10 < EMA21 — contra LONG", 15, soft=True)
         elif direcao=="SHORT" and e10 > e21:
-            motivos.append("EMA10 > EMA21 — contra SHORT")
+            _bloqueio("EMA10 > EMA21 — contra SHORT", 15, soft=True)
         else:
             if (e10>e21>e50>e200 and direcao=="LONG") or (e10<e21<e50<e200 and direcao=="SHORT"):
                 confirmacoes.append("EMAs 4 alinhadas"); score += 15
@@ -477,7 +493,7 @@ class K10Engine:
         if pullback_long:
             confirmacoes.append("Pullback EMA21"); score += 10
         else:
-            motivos.append("Sem pullback EMA21")
+            _bloqueio("Sem pullback EMA21", 10, soft=True)
 
         # H1 QUALITY score (K12)
         if h1_quality_long >= 75:
@@ -513,8 +529,13 @@ class K10Engine:
             confirmacoes.append(f"✅ Volume RVOL {rvol:.2f}"); score += 4
         elif rvol >= 0.8:
             confirmacoes.append(f"Volume RVOL {rvol:.2f}"); score -= 5
+        elif rvol >= RVOL_HARD_MIN:
+            # RVOL moderado-baixo: SOFT em soft mode (penalidade, nao bloqueia
+            # sozinho). Abaixo de RVOL_HARD_MIN continua bloqueio duro (RFC:
+            # "RVOL muito baixo -> bloqueio", mercado sem liquidez real).
+            _bloqueio(f"Volume insuficiente RVOL {rvol:.2f}", 10, soft=True)
         else:
-            motivos.append(f"Volume insuficiente RVOL {rvol:.2f}")
+            motivos.append(f"Volume muito baixo RVOL {rvol:.2f} < {RVOL_HARD_MIN} (sem liquidez)")
 
         # CONTEXTO SUPERIOR
         ctx_label = "H1" if tf=="30m" else "H4"
@@ -589,9 +610,19 @@ class K10Engine:
             eq, eq_det, eq_bloqueado = 50, {"ema21":0,"ob_fvg":0,"timing":0,"rsi":0,"bos":0}, False
 
         # GATE ENTRY QUALITY — late entry bloqueia sinal
-        if ENTRY_QUALITY_BLOCK and (eq_bloqueado or eq < ENTRY_QUALITY_MIN):
-            motivos.append(f"Entry Quality {eq} < {ENTRY_QUALITY_MIN} (late entry)")
+        # RFC reequilibrio 22/08: EQ baixa + estrutura excepcional + RR alto
+        # nao bloqueia mais automaticamente, so penaliza (soft). eq_bloqueado
+        # (preco > 1.5 ATR da EMA21, ou continuacao sem BOS) continua HARD
+        # sempre — isso e sobre extensao/estrutura, nao so "atraso".
+        estrutura_excepcional = (bos_ok or sweep_ok) and macd_ctx_ok and rr >= 3.0
+        eq_min_efetivo = ENTRY_QUALITY_MIN
+        if SOFT_FILTERS_MODE and estrutura_excepcional:
+            eq_min_efetivo = 50
+        if ENTRY_QUALITY_BLOCK and (eq_bloqueado or eq < eq_min_efetivo):
+            motivos.append(f"Entry Quality {eq} < {eq_min_efetivo} (late entry)")
             eq_bloqueado = True
+        elif ENTRY_QUALITY_BLOCK and eq < ENTRY_QUALITY_MIN:
+            _bloqueio(f"Entry Quality {eq} < {ENTRY_QUALITY_MIN} (aceito por estrutura excepcional)", 15, soft=True)
 
         # MODO CALIBRAÇÃO — EQ registra, não bloqueia
         # OURO V2: exige zona institucional (OB ou FVG ou reteste EMA21)
@@ -615,32 +646,65 @@ class K10Engine:
             prata_ok = score >= SCORE_PRATA_10 and rvol >= RVOL_MIN_10 and rr >= RR_MIN_10
 
         # CHECAGEM FINAL — bloqueios críticos (base)
-        if score < 75:   motivos.append(f"Score {score} < 75")
+        # RFC reequilibrio 22/08: em soft mode, Score deixa de bloquear
+        # sozinho (vira parte de quality_final abaixo); RVOL base ja foi
+        # tratado com piso RVOL_HARD_MIN la na secao de volume. RR continua
+        # HARD sempre (RFC explicito: "RR muito baixo" nunca vira soft).
+        if not SOFT_FILTERS_MODE:
+            if score < 75:   motivos.append(f"Score {score} < 75")
+            if rvol < 1.0:   motivos.append(f"RVOL {rvol:.2f} < 1.0")
         if rr < 2.0:     motivos.append(f"RR {rr} < 2.0")
-        if rvol < 1.0:   motivos.append(f"RVOL {rvol:.2f} < 1.0")
 
         # ----- GATE 10/10: qualidade sobre quantidade -----
         if MODO_10_10:
-            if rvol < RVOL_MIN_10:
-                motivos.append(f"10/10 RVOL {rvol:.2f} < {RVOL_MIN_10}")
+            if not SOFT_FILTERS_MODE:
+                if rvol < RVOL_MIN_10:
+                    motivos.append(f"10/10 RVOL {rvol:.2f} < {RVOL_MIN_10}")
+            elif rvol < RVOL_MIN_10 and rvol >= RVOL_HARD_MIN:
+                _bloqueio(f"10/10 RVOL {rvol:.2f} < {RVOL_MIN_10}", 10, soft=True)
+                # RVOL < RVOL_HARD_MIN já bloqueou HARD na seção de volume acima.
+
             if rr < RR_MIN_10:
-                motivos.append(f"10/10 RR {rr:.2f} < {RR_MIN_10}")
+                motivos.append(f"10/10 RR {rr:.2f} < {RR_MIN_10}")  # HARD sempre
+
             if EXIGE_TENDENCIA_10 and not tend_ctx_ok:
-                motivos.append(f"10/10 {ctx_label} sem tendência alinhada")
+                _bloqueio(f"10/10 {ctx_label} sem tendência alinhada", 10, soft=True)
+
             if EXIGE_ESTRUTURA_10 and not (bos_ok or sweep_ok):
-                motivos.append("10/10 sem BOS/CHoCH confirmado")
+                motivos.append("10/10 sem BOS/CHoCH confirmado")  # HARD sempre
+
             if EXIGE_FLOW_10 and not tem_zona_institucional:
-                motivos.append("10/10 sem zona institucional (OB/FVG/reteste)")
+                _bloqueio("10/10 sem zona institucional (OB/FVG/reteste)", 10, soft=True)
+
             if EXIGE_MOMENTUM_10 and not macd_ctx_ok:
-                motivos.append(f"10/10 MACD {ctx_label} contra direção")
+                _bloqueio(f"10/10 MACD {ctx_label} contra direção", 10, soft=True)
+
             if EXIGE_ENTRY_50_10:
                 org = ob_low if (direcao=="LONG" and ob_ok) else (ob_high if (direcao=="SHORT" and ob_ok) else entrada)
                 run = abs(c - org) if org > 0 else 0
                 dist_tp = abs(tp1 - org) if org > 0 else 0
                 if dist_tp > 0 and run / dist_tp > ENTRY_50_PCT_10:
-                    motivos.append(f"10/10 entrada atrasada {run/dist_tp*100:.0f}% até TP1")
+                    _bloqueio(f"10/10 entrada atrasada {run/dist_tp*100:.0f}% até TP1", 10, soft=True)
+
+        # quality_final = score menos penalidades soft. Em modo estrito
+        # (default) soft_penalty é sempre 0, então quality_final == score
+        # e não é usado pra gate nenhum — comportamento idêntico a antes.
+        quality_final = max(0, round(score - soft_penalty))
+
+        if SOFT_FILTERS_MODE and quality_final < QUALITY_FINAL_MIN:
+            motivos.append(f"Quality Final {quality_final} < {QUALITY_FINAL_MIN}")
 
         aprovado = len(motivos) == 0
+
+        # Nova classificação de qualidade (RFC reequilibrio 22/08) — SEMPRE
+        # calculada, mas só passa a determinar aprovação em SOFT_FILTERS_MODE.
+        # Coexiste com o tier OURO/PRATA/ABAIXO existente (não o substitui —
+        # final_selector.py, apex_engine.py e o formatter continuam lendo
+        # `tier` normalmente).
+        if quality_final >= 90:   tier_qualidade = "APEX"
+        elif quality_final >= 80: tier_qualidade = "PRO"
+        elif quality_final >= 70: tier_qualidade = "SETUP"
+        else:                     tier_qualidade = "ABAIXO"
 
         if ouro_ok and aprovado:    tier = "OURO"
         elif prata_ok and aprovado: tier = "PRATA"
@@ -724,6 +788,12 @@ class K10Engine:
             "alavancagem":      alav,
             "candle_ts":        candle_ts,
             "banca":            BANCA,
+            # RFC reequilibrio 22/08 — aditivo, coexiste com `score`/`tier`.
+            "quality_final":    quality_final,
+            "tier_qualidade":   tier_qualidade,
+            "soft_penalty":     soft_penalty,
+            "motivos_soft":     motivos_soft,
+            "soft_filters_mode": SOFT_FILTERS_MODE,
             **diag_snapshot,
         }
 

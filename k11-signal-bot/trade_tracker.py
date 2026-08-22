@@ -86,6 +86,14 @@ def registrar(sinal: dict) -> int:
         "apex_tipo":       sinal.get("apex_tipo"),
         "apex_score":      sinal.get("apex_score"),
         "apex_componentes":sinal.get("apex_componentes"),
+        # RFC reequilibrio 22/08 — aditivo. Marca explicitamente se o trade
+        # foi aprovado sob soft_filters_mode, pra permitir comparar depois
+        # regime estrito (antes) vs regime reequilibrado (depois) sem
+        # misturar as duas populações.
+        "quality_final":     sinal.get("quality_final"),
+        "tier_qualidade":    sinal.get("tier_qualidade"),
+        "soft_penalty":      sinal.get("soft_penalty"),
+        "soft_filters_mode": sinal.get("soft_filters_mode", False),
         "resultado":    "ABERTO",
         "be_tocado":    False,
         "r_obtido":     None,

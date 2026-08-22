@@ -56,12 +56,27 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     sep = "━━━━━━━━━━━━━━"
     prioridade_line = f"{prioridade}\n\n" if prioridade else ""
 
+    # RFC reequilibrio 22/08 — classificação de qualidade nova (APEX/PRO/
+    # SETUP), coexiste com o tier OURO/PRATA acima. Só aparece quando o
+    # engine calculou (sempre calcula agora, mas fica defensivo p/ dicts
+    # antigos/sintéticos sem esse campo).
+    tier_q = r.get("tier_qualidade")
+    tier_q_emoji = {"APEX": "🔥 APEX", "PRO": "🟢 PRO", "SETUP": "🟡 SETUP"}.get(tier_q)
+    tier_q_line = f"{tier_q_emoji} | Quality Final: {r.get('quality_final')}/100\n\n" if tier_q_emoji else ""
+
+    soft_avisos = r.get("motivos_soft") or []
+    soft_block = (
+        "⚠️ Avisos (penalizaram, não bloquearam):\n"
+        + "\n".join(f"⚠️ {m}" for m in soft_avisos) + "\n\n"
+    ) if soft_avisos else ""
+
     frac_tp1 = int(round(TP1_FRACAO_VOLUME * 100))
     return (
         f"🏆 {symbol}\n\n"
         f"{prioridade_line}"
         f"{dir_emoji} | {tf} | {tier_map.get(tier,'🥉 BRONZE')}\n\n"
         f"⭐ Score: {score} | {conv_map.get(tier,'MODERADA 🔶')}\n\n"
+        f"{tier_q_line}"
         f"EQ: {r.get('entry_quality',0)}/100 | EMA21:{r.get('eq_detalhes',{}).get('ema21',0):+d} OB:{r.get('eq_detalhes',{}).get('ob_fvg',0):+d} MACD:{r.get('eq_detalhes',{}).get('timing',0):+d} RSI:{r.get('eq_detalhes',{}).get('rsi',0):+d} BOS:{r.get('eq_detalhes',{}).get('bos',0):+d}\n"
         f"{sep}\n\n"
         f"💰 Entrada: {entrada}\n"
@@ -77,6 +92,7 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
         f"🌍 {regime}\n"
         f"📊 {setup_label} | ⏱️ {duracao}\n\n"
         f"{smc_block + chr(10) + chr(10) if smc_block else ''}"
+        f"{soft_block}"
         f"{bot_name}"
     )
 

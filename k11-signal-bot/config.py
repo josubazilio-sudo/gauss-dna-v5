@@ -35,6 +35,19 @@ EXIGE_MOMENTUM_10  = os.getenv("EXIGE_MOMENTUM_10", "True").strip().lower() in (
 EXIGE_ENTRY_50_10  = os.getenv("EXIGE_ENTRY_50_10", "True").strip().lower() in ("1", "true", "yes", "on")
 ENTRY_50_PCT_10    = float(os.getenv("ENTRY_50_PCT_10", "0.50"))
 
+# ==== SOFT FILTERS MODE (RFC reequilibrio 22/08) ====
+# Decisao explicita do usuario, CONTRA a evidencia do Shadow Tracking na
+# data desta mudanca (270 candidatos bloqueados resolvidos: WR 18.5%,
+# PF 0.45, Exp -0.447R -- toda categoria de bloqueio negativa). Default
+# False preserva o comportamento estrito de sempre; so muda algo se
+# explicitamente ligado no .env. Ver k10_engine.py para o que cada filtro
+# soft faz (penalidade de score em vez de bloqueio duro) e o que continua
+# HARD (SHORT, estrutura BOS/CHoCH, RR minimo, H4 contra tendencia FORTE,
+# RVOL muito baixo, ADX/RSI extremos, K12 extensao/candle).
+SOFT_FILTERS_MODE = os.getenv("SOFT_FILTERS_MODE", "False").strip().lower() in ("1", "true", "yes", "on")
+QUALITY_FINAL_MIN = float(os.getenv("QUALITY_FINAL_MIN", "70"))   # piso p/ aprovar em soft mode (= piso do tier SETUP)
+RVOL_HARD_MIN      = float(os.getenv("RVOL_HARD_MIN", "0.50"))    # abaixo disso, bloqueia mesmo em soft mode
+
 # ==== GESTÃO DE POSIÇÃO (2026-08-10) — Trailing pós-BE + Alerta Estrutural ====
 # Trailing só entra em ação DEPOIS que o BE já foi tocado (be_tocado=True) e
 # nunca afrouxa o stop — só aperta a favor do trade. Se o preço voltar e
