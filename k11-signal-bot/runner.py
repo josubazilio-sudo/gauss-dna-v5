@@ -307,7 +307,12 @@ async def main():
             if rev.get("aviso_apenas"):
                 await enviar(rev["msg"])
             else:
-                from formatter import formatar_cartao
+                # formatar_cartao já vem do import de módulo (topo do arquivo).
+                # NÃO reimportar aqui: um import local dentro de main() faz o
+                # Python tratar o nome como variável local em TODA a função,
+                # inclusive antes desta linha — foi exatamente isso que
+                # causou o UnboundLocalError no envio normal (linha ~350),
+                # assim que o primeiro sinal real desde 13/08 chegou lá.
                 cartao_rev = formatar_cartao(rev, bot_name="K11")
                 if cartao_rev:
                     await enviar(cartao_rev)
