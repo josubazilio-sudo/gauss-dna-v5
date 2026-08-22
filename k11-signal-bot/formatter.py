@@ -1,5 +1,5 @@
 """
-K10/K11 Formatter — Cartão limpo: Entrada, TP1, Stop
+K10/K12 Formatter — Cartão limpo: Entrada, TP1, Stop
 """
 from config import TP1_FRACAO_VOLUME
 

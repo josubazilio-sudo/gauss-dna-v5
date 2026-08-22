@@ -28,7 +28,7 @@ def formatar_apex_cartao(sinal: dict, apex_info: dict) -> str:
     frac_tp1 = int(round(TP1_FRACAO_VOLUME * 100))
 
     return (
-        f"🔥 K11 APEX\n\n"
+        f"🔥 K12 APEX\n\n"
         f"🏆 SETUP PREMIUM — {symbol}\n"
         f"🧭 APEX {tipo_label}\n\n"
         f"{dir_emoji} | {tf}\n"

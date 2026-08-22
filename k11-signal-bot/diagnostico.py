@@ -60,7 +60,7 @@ async def main():
         await tg("\n".join(linhas))
 
         for s in aprovados[:3]:
-            cartao = formatar_cartao(s, bot_name="K11")
+            cartao = formatar_cartao(s, bot_name="K12")
             if cartao: await tg(cartao)
 
     except Exception:

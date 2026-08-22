@@ -75,7 +75,7 @@ def gerar_relatorio() -> str:
 
     if not fechados:
         return (
-            f"📊 K11 Performance Tracker\n"
+            f"📊 K12 Performance Tracker\n"
             f"Total sinais: {len(trades)}\n"
             f"Abertos: {len(abertos)}\n"
             f"Fechados: 0 (mínimo 50 para análise)"
@@ -92,7 +92,7 @@ def gerar_relatorio() -> str:
     pf     = round(r_pos/r_neg, 2) if r_neg > 0 else 0
 
     linhas = [
-        f"📊 K11 Performance — {len(fechados)} trades fechados\n",
+        f"📊 K12 Performance — {len(fechados)} trades fechados\n",
         f"Win Rate: {wr:.1f}%",
         f"Profit Factor: {pf}",
         f"R médio: {r_med:.2f}",

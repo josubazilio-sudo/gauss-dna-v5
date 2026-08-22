@@ -1,5 +1,5 @@
 """
-K11 Final Selector V1 — Shadow Mode
+K12 Final Selector V1 — Shadow Mode
 Fluxo: candidatos aprovados → estrutura → timing → regime → cooldown → correlação → TOP 1-2
 
 SHADOW_MODE=True: registra decisões sem interferir no sinal real
@@ -351,7 +351,7 @@ def selecionar(candidatos: list, state: dict = None) -> tuple:
 
     # Log detalhado
     logger.info(
-        f"K11 FINAL SELECTOR | "
+        f"K12 FINAL SELECTOR | "
         f"Candidates:{contadores['candidates_total']} | "
         f"Structure❌:{contadores['structure_rejected']} | "
         f"Timing❌:{contadores['timing_rejected']} | "
@@ -379,7 +379,7 @@ def relatorio_shadow() -> str:
 
     sep = "━━━━━━━━━━━━━━━━━━━━"
     linhas = [
-        "🔬 K11 FINAL SELECTOR — SHADOW MODE",
+        "🔬 K12 FINAL SELECTOR — SHADOW MODE",
         f"Total avaliados: {total}",
         f"Selecionados: {len(selecionados)} ({len(selecionados)/total*100:.0f}%)",
         f"Rejeitados: {len(rejeitados)} ({len(rejeitados)/total*100:.0f}%)",

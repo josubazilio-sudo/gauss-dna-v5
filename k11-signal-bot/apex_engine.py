@@ -1,5 +1,5 @@
 """
-K11 APEX v1 — Camada de avaliação independente (SHADOW MODE).
+K12 APEX v1 — Camada de avaliação independente (SHADOW MODE).
 
 Não substitui k10_engine.py nem final_selector.py e não altera nenhum gate
 de aprovação existente. Roda em paralelo, em cima dos candidatos que JÁ

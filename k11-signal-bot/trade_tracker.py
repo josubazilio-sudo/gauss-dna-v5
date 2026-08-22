@@ -163,7 +163,7 @@ def relatorio_2h() -> str:
     losses   = [t for t in fechados if t["resultado"] == "STOP"]
 
     linhas = [
-        f"📊 K11 — RELATÓRIO 2H",
+        f"📊 K12 — RELATÓRIO 2H",
         f"🕐 {now_brt.strftime('%H:%M')} BRT | {now_brt.strftime('%d/%m/%Y')}",
         sep,
         f"Total: {len(trades)} sinais | Abertos: {len(abertos)}",
@@ -206,7 +206,7 @@ def relatorio_diario() -> str:
     todos_f   = [t for t in trades if t["resultado"] != "ABERTO"]
 
     linhas = [
-        f"🌙 K11 — RESUMO DO DIA",
+        f"🌙 K12 — RESUMO DO DIA",
         f"📅 {hoje} | {now_brt.strftime('%H:%M')} BRT",
         sep,
         f"HOJE: {len(de_hoje)} sinais emitidos",
@@ -246,7 +246,7 @@ def relatorio_diario() -> str:
                 tw = [t for t in tt if t["resultado"] in ("TP1","TP2")]
                 linhas.append(f"  {dir}: {len(tw)}/{len(tt)} ({len(tw)/len(tt)*100:.0f}%)")
 
-    linhas += [sep, "K11 — Boa noite! 🌙"]
+    linhas += [sep, "K12 — Boa noite! 🌙"]
     return "\n".join(linhas)
 
 def enviar_telegram(msg: str):
@@ -329,7 +329,7 @@ def relatorio_apex_progresso() -> str:
     sep = "━━━━━━━━━━━━━━━━━━━━"
     g = m["geral"]
     linhas = [
-        "🔥 K11 APEX — PROGRESSO DA VALIDAÇÃO (shadow mode)",
+        "🔥 K12 APEX — PROGRESSO DA VALIDAÇÃO (shadow mode)",
         sep,
         f"Registrados: {m['total_registrados']} | Abertos: {m['abertos']} | Fechados: {g['n']}",
         f"Meta mínima: 100 trades fechados | Ideal: 150-200",
@@ -370,7 +370,7 @@ def verificar_resultados_automatico():
         return 0
 
     import logging
-    log = logging.getLogger("K11")
+    log = logging.getLogger("K12")
     try:
         from config import TP1_FRACAO_VOLUME
         frac_tp1 = int(round(TP1_FRACAO_VOLUME * 100))
@@ -465,14 +465,14 @@ def _linha(sym, direcao):
 
 def _log_be(log, t, direcao, r, entrada, novo_stop):
     log.info(
-        "[K11][BE]\n%s\nR=%.2f\nENTRADA=%.8g\nNOVO_STOP=%.8g\nH1_CONFIRMADO=True",
+        "[K12][BE]\n%s\nR=%.2f\nENTRADA=%.8g\nNOVO_STOP=%.8g\nH1_CONFIRMADO=True",
         _linha(t["symbol"], direcao), r, entrada, novo_stop
     )
 
 
 def _log_tp1(log, t, direcao, rr, frac):
     log.info(
-        "[K11][TP1]\n%s\nR=%.2f\nVOLUME_FECHADO=%d%%\nVOLUME_RESTANTE=%d%%",
+        "[K12][TP1]\n%s\nR=%.2f\nVOLUME_FECHADO=%d%%\nVOLUME_RESTANTE=%d%%",
         _linha(t["symbol"], direcao), rr, frac, 100 - frac
     )
 
@@ -486,21 +486,21 @@ def _set_r_devolvido(t, r_final):
 
 def _log_trailing(log, t, direcao, familia, tf, ref, old, novo, r_atual):
     log.info(
-        "[K11][TRAILING]\n%s\nR=%.2f\nSETUP=%s\nTF=%s\nREF=%.8g\nOLD_STOP=%.8g\nNEW_STOP=%.8g",
+        "[K12][TRAILING]\n%s\nR=%.2f\nSETUP=%s\nTF=%s\nREF=%.8g\nOLD_STOP=%.8g\nNEW_STOP=%.8g",
         _linha(t["symbol"], direcao), r_atual, familia, (tf or ""), ref, old, novo
     )
 
 
 def _log_block(log, t, direcao, familia, tf, ref, old):
     log.info(
-        "[K11][TRAILING][BLOCK]\n%s\nNovo stop rejeitado\nMotivo: reduziria proteção\nSETUP=%s TF=%s REF=%.8g OLD=%.8g",
+        "[K12][TRAILING][BLOCK]\n%s\nNovo stop rejeitado\nMotivo: reduziria proteção\nSETUP=%s TF=%s REF=%.8g OLD=%.8g",
         _linha(t["symbol"], direcao), familia, (tf or ""), ref, old
     )
 
 
 def _log_bos(log, t, direcao, idade, limite):
     log.info(
-        "[K11][BOS]\n%s\nBOS/CHoCH idade=%d > %d — estrutura antiga, trailing bloqueado",
+        "[K12][BOS]\n%s\nBOS/CHoCH idade=%d > %d — estrutura antiga, trailing bloqueado",
         _linha(t["symbol"], direcao), idade, limite
     )
 
@@ -522,7 +522,7 @@ def verificar_gestao_avancada() -> list:
     Roda 1x por ciclo, só sobre trades ABERTOS. Retorna os textos pro
     Telegram (envio de fato é responsabilidade do runner.py)."""
     import logging
-    log = logging.getLogger("K11")
+    log = logging.getLogger("K12")
     from config import TRAILING_ATIVO, ESTRUTURAL_ALERTA_ATIVO, BOS_AGE_MAX_CANDLES
     from gestao_trade import (avaliar_be, aplicar_be_stop, bos_age,
                               calcular_r, candidato_trailing, config_trailing,
@@ -534,7 +534,7 @@ def verificar_gestao_avancada() -> list:
         return []
 
     if not TRAILING_ATIVO:
-        log.info("[K11][TRAILING]\nstatus=OFF")
+        log.info("[K12][TRAILING]\nstatus=OFF")
 
     try:
         from k10_engine import K10Engine
@@ -571,7 +571,7 @@ def verificar_gestao_avancada() -> list:
             r_atual = calcular_r(entrada, stop_original, close_h1, direcao)
             stop_atual = float(t.get("stop_trailing") or stop_original)
             log.info(
-                "[K11][GESTAO]\n%s\nSETUP=%s\nR=%.2f\nBE=%s\nH1_FECHADO=SIM\nSTOP_ATUAL=%.8g",
+                "[K12][GESTAO]\n%s\nSETUP=%s\nR=%.2f\nBE=%s\nH1_FECHADO=SIM\nSTOP_ATUAL=%.8g",
                 _linha(t["symbol"], direcao), familia, r_atual,
                 ("SIM" if t.get("be_tocado") else "NAO"), stop_atual
             )
@@ -639,7 +639,7 @@ def verificar_gestao_avancada() -> list:
                     t["alerta_estrutural_enviado"] = True
                     alterado = True
                     avisos.append(
-                        f"🚨 K11 — Estrutura invalidada em {t['symbol']} ({direcao} {tf}): "
+                        f"🚨 K12 — Estrutura invalidada em {t['symbol']} ({direcao} {tf}): "
                         f"tendência virou contra. Considere sair — ainda longe do TP/Stop."
                     )
 
@@ -659,7 +659,7 @@ def relatorio_calibracao() -> str:
     sep = "━━━━━━━━━━━━━━━━━━━━"
     now_brt = brt_now()
     linhas = [
-        f"🔬 K11 — RELATÓRIO DE CALIBRAÇÃO",
+        f"🔬 K12 — RELATÓRIO DE CALIBRAÇÃO",
         f"📅 {now_brt.strftime('%d/%m/%Y %H:%M')} BRT",
         f"Total fechados: {len(fechados)}",
         sep
@@ -709,7 +709,7 @@ def relatorio_calibracao() -> str:
     stats([t for t in fechados if t.get("timeframe")=="30m"], "30m")
     stats([t for t in fechados if t.get("timeframe")=="1h"],  "1h ")
 
-    linhas += [sep, "🔬 K11 Calibração Estatística"]
+    linhas += [sep, "🔬 K12 Calibração Estatística"]
     return "\n".join(linhas)
 
 
@@ -744,7 +744,7 @@ def relatorio_fase1() -> str:
     sep = "━━━━━━━━━━━━━━━━━━━━"
 
     linhas = [
-        "📊 K11 — RELATÓRIO FASE 1 (BE 1.5R + H1 + TP1 30%, trailing OFF)",
+        "📊 K12 — RELATÓRIO FASE 1 (BE 1.5R + H1 + TP1 30%, trailing OFF)",
         f"📅 {brt_now().strftime('%d/%m/%Y %H:%M')} BRT",
         sep,
     ]
@@ -814,5 +814,5 @@ def relatorio_fase1() -> str:
         f"  R devolvido (R>0) : {round(sum(devolv) / len(devolv), 2) if devolv else 0:+.2f} em {len(devolv)} trades",
     ]
 
-    linhas += [sep, "🔬 K11 FASE 1 — coleta de dados"]
+    linhas += [sep, "🔬 K12 FASE 1 — coleta de dados"]
     return "\n".join(linhas)

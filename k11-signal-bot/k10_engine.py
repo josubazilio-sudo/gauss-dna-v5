@@ -1,5 +1,5 @@
 """
-K11 Engine EQ V3 — Entry Quality Motor
+K12 Engine EQ V3 — Entry Quality Motor
 Foco: qualidade do ponto de entrada, não quantidade de filtros
 """
 

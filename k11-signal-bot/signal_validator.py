@@ -92,9 +92,10 @@ def validar(sinal: dict) -> dict:
     # ── 1. Buscar preço atual ────────────────────────────────────────────────
     preco_atual = _fetch_current_price(symbol)
     if preco_atual is None:
-        # Falha de rede — não bloquear por isso, deixar passar com aviso
-        logger.warning(f"SIGNAL_VALIDATOR: {symbol} — sem preço atual, sinal liberado por fallback")
-        sinal["valido"] = True
+        reason = "PRICE_UNAVAILABLE"
+        logger.warning(f"SIGNAL_VALIDATOR: {symbol} — sem preço atual, sinal bloqueado")
+        sinal["valido"] = False
+        sinal["block_reason"] = reason
         sinal["preco_no_envio"] = None
         return sinal
 

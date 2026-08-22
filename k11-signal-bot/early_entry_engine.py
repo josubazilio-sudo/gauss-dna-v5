@@ -1,5 +1,5 @@
 """
-K11 Early Entry Engine V1 — SHADOW MODE
+K12 Early Entry Engine V1 — SHADOW MODE
 Captura início do movimento com qualidade institucional.
 Roda em paralelo ao engine principal — não envia sinal, só registra.
 """

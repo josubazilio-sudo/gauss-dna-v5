@@ -1,9 +1,9 @@
 """
-K11 V58.1 — Gestão de Trade pós-entrada.
+K12 V58.1 — Gestão de Trade pós-entrada.
 
 Fonte única de verdade: config.py. Este módulo centraliza as regras de
 gestão (BE, proteção monotônica de stop, trailing por setup e BOS Age)
-e não altera nada na lógica de entrada do K11.
+e não altera nada na lógica de entrada do K12.
 """
 import logging
 
@@ -125,7 +125,7 @@ def candidato_trailing(df, cfg, entrada, stop_original, direcao):
 
 
 def bos_age(engine, df, direcao, max_age=None):
-    """Idade do BOS/CHoCH REutilizando a detecção real já existente no K11
+    """Idade do BOS/CHoCH REutilizando a detecção real já existente no K12
     (engine._bos_idade). NÃO cria detector simplificado novo.
     Retorna (idade, ok): ok = idade <= max_age."""
     limite = BOS_AGE_MAX_CANDLES if max_age is None else max_age

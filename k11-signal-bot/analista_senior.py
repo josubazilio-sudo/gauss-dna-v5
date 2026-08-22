@@ -1,5 +1,5 @@
 """
-K11 Analista Sênior — IA raciocina como trader experiente
+K12 Analista Sênior — IA raciocina como trader experiente
 Analisa dados e decide como um operador vendo o gráfico
 """
 import httpx, json, os

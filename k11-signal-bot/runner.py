@@ -1,5 +1,5 @@
 """
-K11 Runner — SMC Engine
+K12 Runner — SMC Engine
 """
 import asyncio, logging, os, httpx, traceback, json, time as t
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -19,7 +19,7 @@ async def enviar(texto: str):
         logger.info(f"TG: {r.status_code}")
 
 async def main():
-    logger.info("K11 SMC iniciado")
+    logger.info("K12 SMC iniciado")
     try:
         from k10_engine import K10Engine
         from watchlist import get_watchlist, WATCHLIST_FALLBACK, WATCHLIST_PRIORITY
@@ -28,7 +28,7 @@ async def main():
         try:
             fechados_agora = verificar_resultados_automatico()
             if fechados_agora:
-                logger.info(f"K11: {fechados_agora} trades fechados automaticamente")
+                logger.info(f"K12: {fechados_agora} trades fechados automaticamente")
         except Exception as e:
             logger.warning(f"Verificacao de resultados: {e}")
 
@@ -39,7 +39,7 @@ async def main():
             import shadow_tracker
             resolvidos_shadow = shadow_tracker.resolver_pendentes()
             if resolvidos_shadow:
-                logger.info(f"K11 SHADOW: {resolvidos_shadow} candidato(s) resolvido(s)")
+                logger.info(f"K12 SHADOW: {resolvidos_shadow} candidato(s) resolvido(s)")
         except Exception as e:
             logger.warning(f"SHADOW resolver_pendentes: {e}")
 
@@ -53,7 +53,7 @@ async def main():
             for aviso in avisos_gestao:
                 await enviar(aviso)
             if avisos_gestao:
-                logger.info(f"K11: {len(avisos_gestao)} aviso(s) de gestao de posicao enviado(s)")
+                logger.info(f"K12: {len(avisos_gestao)} aviso(s) de gestao de posicao enviado(s)")
         except Exception as e:
             logger.warning(f"Gestao de posicao avancada: {e}")
 
@@ -78,7 +78,7 @@ async def main():
                     aprovados.append(r)
 
         aprovados.sort(key=lambda x: x.get("score",0), reverse=True)
-        logger.info(f"K11: {len(aprovados)} aprovados")
+        logger.info(f"K12: {len(aprovados)} aprovados")
 
         # K11 SHADOW OUTCOME TRACKING — captura observacional (RFC 21/08).
         # So registra e le valores ja calculados pelo engine acima; nunca
@@ -87,7 +87,7 @@ async def main():
             import shadow_tracker
             novos_shadow = shadow_tracker.capturar_lote(todos_resultados)
             if novos_shadow:
-                logger.info(f"K11 SHADOW: {novos_shadow} candidato(s) novo(s) capturado(s)")
+                logger.info(f"K12 SHADOW: {novos_shadow} candidato(s) novo(s) capturado(s)")
         except Exception as e:
             logger.warning(f"SHADOW capturar_lote: {e}")
 
@@ -110,8 +110,7 @@ async def main():
                 f"Cooldown❌:{fs_contadores['cooldown_rejected']} "
                 f"Corr❌:{fs_contadores['correlation_rejected']}"
             )
-            if fs_selecionados:
-                aprovados = fs_selecionados  # usar só os melhores
+            aprovados = fs_selecionados  # usar só os selecionados; sem fallback para rejeitados
         except Exception as e:
             logger.warning(f"Final Selector: {e}")
 
@@ -130,11 +129,11 @@ async def main():
                 apex_sinal["apex_score"]      = apex_resultado["apex_score"]
                 apex_sinal["apex_componentes"]= apex_resultado["componentes"]
                 logger.info(
-                    f"K11 APEX candidato: {apex_sinal['symbol']} "
+                    f"K12 APEX candidato: {apex_sinal['symbol']} "
                     f"{apex_resultado['apex_tipo']} score={apex_resultado['apex_score']}"
                 )
             else:
-                logger.info("K11 APEX: nenhum candidato atingiu a barra neste ciclo")
+                logger.info("K12 APEX: nenhum candidato atingiu a barra neste ciclo")
         except Exception as e:
             logger.warning(f"APEX: {e}")
             apex_resultado = None
@@ -144,7 +143,7 @@ async def main():
         return
 
     if not aprovados:
-        logger.info("K11: nenhum sinal")
+        logger.info("K12: nenhum sinal")
 
         # Verificar se passou mais de 30 minutos sem sinal
         cache_file = "/root/gauss-dna-v5/k11-signal-bot/k11_cache.json"
@@ -214,7 +213,7 @@ async def main():
                 from datetime import datetime, timezone
                 hora = datetime.now(timezone.utc).strftime("%H:%M UTC")
                 linhas = [
-                    f"📊 K11 — SEM SINAL há {sem_sinal_ha:.0f} minutos",
+                    f"📊 K12 — SEM SINAL há {sem_sinal_ha:.0f} minutos",
                     f"🕐 {hora} | Mercado em análise",
                     "━━━━━━━━━━━━━━",
                     "🔍 TOP ATIVOS MAIS PRÓXIMOS:",
@@ -263,7 +262,7 @@ async def main():
                     linhas.append(stats)
                 except:
                     pass
-                linhas.append("K11 continua monitorando...")
+                linhas.append("K12 continua monitorando...")
 
                 await enviar("\n".join(linhas))
 
@@ -313,10 +312,10 @@ async def main():
                 # inclusive antes desta linha — foi exatamente isso que
                 # causou o UnboundLocalError no envio normal (linha ~350),
                 # assim que o primeiro sinal real desde 13/08 chegou lá.
-                cartao_rev = formatar_cartao(rev, bot_name="K11")
+                cartao_rev = formatar_cartao(rev, bot_name="K12")
                 if cartao_rev:
                     await enviar(cartao_rev)
-                    logger.info(f"K11 REVERSAO: {rev['symbol']} SHORT")
+                    logger.info(f"K12 REVERSAO: {rev['symbol']} SHORT")
     except Exception as e:
         logger.warning(f"STRUCTURE_WATCHER: {e}")
 
@@ -325,7 +324,7 @@ async def main():
     for sinal in aprovados[:3]:
         # Limite diário
         if dia_data["count"] >= MAX_DIA:
-            logger.info(f"K11: limite diário {MAX_DIA} atingido")
+            logger.info(f"K12: limite diário {MAX_DIA} atingido")
             break
 
         chave = f"{sinal['symbol']}_{sinal['direcao']}_{sinal['timeframe']}"
@@ -337,7 +336,7 @@ async def main():
 
         # Anti-correlação — não enviar LONG e SHORT do mesmo ativo no mesmo dia
         if sym_base in dia_data["ativos"]:
-            logger.info(f"K11: {sym_base} já operado hoje — pulando correlação")
+            logger.info(f"K12: {sym_base} já operado hoje — pulando correlação")
             continue
 
         # ── SIGNAL VALIDATOR — RFC Sync ─────────────────────────────────
@@ -352,7 +351,7 @@ async def main():
             logger.warning(f"SIGNAL_VALIDATOR: erro na validação ({e}) — sinal liberado por fallback")
         # ─────────────────────────────────────────────────────────────────────
 
-        cartao = formatar_cartao(sinal, bot_name="K11")
+        cartao = formatar_cartao(sinal, bot_name="K12")
         if cartao:
             # Auditoria GATE 10/10
             try:
@@ -375,7 +374,7 @@ async def main():
             chaves_enviadas_normal.add(chave)
             try:
                 trade_id = registrar(sinal)
-                logger.info(f"K11 #{trade_id}: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
+                logger.info(f"K12 #{trade_id}: {sinal['symbol']} {sinal['direcao']} score={sinal['score']}")
                 try:
                     import shadow_tracker
                     shadow_tracker.marcar_aprovado_real(sinal, trade_id)
@@ -414,9 +413,9 @@ async def main():
             logger.warning(f"APEX checar posição ativa: {e}")
 
         if apex_ja_ativo:
-            logger.info(f"K11 APEX: {sym_apex_base} já tem posição ABERTA — não reenviando")
+            logger.info(f"K12 APEX: {sym_apex_base} já tem posição ABERTA — não reenviando")
         elif chave_apex in cache:
-            logger.info(f"K11 APEX: {sym_apex_base} já enviado nas últimas 2h — não reenviando")
+            logger.info(f"K12 APEX: {sym_apex_base} já enviado nas últimas 2h — não reenviando")
         else:
             try:
                 import apex_formatter
@@ -426,7 +425,7 @@ async def main():
                 if chave_apex not in chaves_enviadas_normal:
                     trade_id_apex = registrar(apex_sinal)
                     logger.info(
-                        f"K11 APEX #{trade_id_apex}: {apex_sinal['symbol']} "
+                        f"K12 APEX #{trade_id_apex}: {apex_sinal['symbol']} "
                         f"{apex_resultado['apex_tipo']} score={apex_resultado['apex_score']}"
                     )
                     try:
@@ -436,7 +435,7 @@ async def main():
                         logger.warning(f"SHADOW marcar_aprovado_real (apex): {e}")
                 else:
                     logger.info(
-                        f"K11 APEX: {apex_sinal['symbol']} já registrado pelo fluxo normal deste ciclo"
+                        f"K12 APEX: {apex_sinal['symbol']} já registrado pelo fluxo normal deste ciclo"
                     )
             except Exception as e:
                 logger.warning(f"APEX envio: {e}")
@@ -447,7 +446,7 @@ async def main():
     except:
         pass
 
-    logger.info(f"K11: {enviados} sinais enviados")
+    logger.info(f"K12: {enviados} sinais enviados")
 
 async def verificar_relatorios():
     """Envia relatório 2h e resumo diário às 23:30 BRT."""

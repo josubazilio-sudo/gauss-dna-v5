@@ -407,7 +407,7 @@ def relatorio_shadow() -> str:
 
     sep = "━━━━━━━━━━━━━━━━━━━━"
     linhas = [
-        "🔬 K11 SHADOW REPORT",
+        "🔬 K12 SHADOW REPORT",
         sep,
         f"Total candidatos: {total}",
         f"Aprovados: {aprovados}",
@@ -447,7 +447,7 @@ def relatorio_por_motivo() -> str:
             por_motivo[reason].append(c)
 
     sep = "━━━━━━━━━━━━━━━━━━━━"
-    linhas = ["🔬 K11 SHADOW — BLOCK REASON ANALYSIS", sep]
+    linhas = ["🔬 K12 SHADOW — BLOCK REASON ANALYSIS", sep]
     if not por_motivo:
         linhas.append("Sem candidatos bloqueados registrados ainda")
         return "\n".join(linhas)
@@ -490,7 +490,7 @@ def relatorio_combinacoes(min_freq: int = 5) -> str:
 
     freq = {combo: cands for combo, cands in por_combo.items() if len(cands) >= min_freq}
     sep = "━━━━━━━━━━━━━━━━━━━━"
-    linhas = [f"🔬 K11 SHADOW — COMBINAÇÕES FREQUENTES (min {min_freq}x)", sep]
+    linhas = [f"🔬 K12 SHADOW — COMBINAÇÕES FREQUENTES (min {min_freq}x)", sep]
     if not freq:
         linhas.append("Nenhuma combinação atingiu a frequência mínima ainda")
         return "\n".join(linhas)
