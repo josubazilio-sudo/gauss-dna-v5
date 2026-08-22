@@ -388,29 +388,53 @@ async def main():
     # registra aqui pela primeira vez.
     if apex_resultado:
         apex_sinal = apex_resultado["sinal"]
+        sym_apex_base = apex_sinal['symbol'].replace("/USDT:USDT", "").replace("/USDT", "")
         chave_apex = f"{apex_sinal['symbol']}_{apex_sinal['direcao']}_{apex_sinal['timeframe']}"
+
+        # Anti-repetição do APEX: um mesmo symbol+direção não deve ser
+        # reenviado enquanto já existir uma posição ABERTA registrada, nem
+        # dentro do cache de 2h (mesma janela usada pelo fluxo normal).
+        # Só gera um novo card quando a posição anterior fechar (TP/STOP/BE)
+        # ou passarem as 2h.
+        apex_ja_ativo = False
         try:
-            import apex_formatter
-            cartao_apex = apex_formatter.formatar_apex_cartao(apex_sinal, apex_resultado)
-            await enviar(cartao_apex)
-            cache[chave_apex] = t.time()
-            if chave_apex not in chaves_enviadas_normal:
-                trade_id_apex = registrar(apex_sinal)
-                logger.info(
-                    f"K11 APEX #{trade_id_apex}: {apex_sinal['symbol']} "
-                    f"{apex_resultado['apex_tipo']} score={apex_resultado['apex_score']}"
-                )
-                try:
-                    import shadow_tracker
-                    shadow_tracker.marcar_aprovado_real(apex_sinal, trade_id_apex)
-                except Exception as e:
-                    logger.warning(f"SHADOW marcar_aprovado_real (apex): {e}")
-            else:
-                logger.info(
-                    f"K11 APEX: {apex_sinal['symbol']} já registrado pelo fluxo normal deste ciclo"
-                )
+            from trade_tracker import _carregar as _carregar_trades_apex
+            for tr in _carregar_trades_apex():
+                if (tr.get("resultado") == "ABERTO" and tr.get("is_apex")
+                        and tr.get("symbol") == sym_apex_base
+                        and tr.get("direcao") == apex_sinal['direcao']):
+                    apex_ja_ativo = True
+                    break
         except Exception as e:
-            logger.warning(f"APEX envio: {e}")
+            logger.warning(f"APEX checar posição ativa: {e}")
+
+        if apex_ja_ativo:
+            logger.info(f"K11 APEX: {sym_apex_base} já tem posição ABERTA — não reenviando")
+        elif chave_apex in cache:
+            logger.info(f"K11 APEX: {sym_apex_base} já enviado nas últimas 2h — não reenviando")
+        else:
+            try:
+                import apex_formatter
+                cartao_apex = apex_formatter.formatar_apex_cartao(apex_sinal, apex_resultado)
+                await enviar(cartao_apex)
+                cache[chave_apex] = t.time()
+                if chave_apex not in chaves_enviadas_normal:
+                    trade_id_apex = registrar(apex_sinal)
+                    logger.info(
+                        f"K11 APEX #{trade_id_apex}: {apex_sinal['symbol']} "
+                        f"{apex_resultado['apex_tipo']} score={apex_resultado['apex_score']}"
+                    )
+                    try:
+                        import shadow_tracker
+                        shadow_tracker.marcar_aprovado_real(apex_sinal, trade_id_apex)
+                    except Exception as e:
+                        logger.warning(f"SHADOW marcar_aprovado_real (apex): {e}")
+                else:
+                    logger.info(
+                        f"K11 APEX: {apex_sinal['symbol']} já registrado pelo fluxo normal deste ciclo"
+                    )
+            except Exception as e:
+                logger.warning(f"APEX envio: {e}")
 
     try:
         with open(cache_file, "w") as f:
