@@ -60,3 +60,30 @@ reversão LONG pode ter mérito, mas precisa entrar via SOFT_FILTERS_MODE (ou
 uma flag nova) com teste old-vs-new antes de ir pra produção — não editando
 o gate direto. Se tiver dúvida, pergunte ao usuário antes de editar
 k10_engine.py sem commit.
+
+## Atualização 2026-08-23 ~12:00 UTC — sessão desktop
+
+**Mudança:** `k10_engine.py` — RFC reequilibrio-reversao 23/08 (commit
+`1da3b01`). EMA10-contra-direção (LONG) e H4-desalinhado-leve (10/10) não
+viram mais soft automaticamente quando `SOFT_FILTERS_MODE=true` — agora só
+reclassificam de HARD pra SOFT (penalidade 15pts) se houver estrutura real
+confirmada (sweep ou BOS). Sem estrutura, continuam bloqueando igual sempre
+bloquearam. H4 CONTRA FORTE (adx>28) e bloqueio de SHORT continuam HARD
+sempre, sem exceção — não foram tocados.
+
+**Por quê:** o teste real anterior com soft mode irrestrito (7 trades: 6
+STOP, 1 aberto, WR 0%) mostrou que cruzou a EMA sozinho não é evidência
+suficiente de reversão. Dado histórico (3337 candidatos): EMA-contra COM
+estrutura Exp -0.28R vs SEM estrutura Exp -0.64R — ainda negativo nos dois,
+mas a diferença justifica exigir estrutura como condição mínima.
+
+**Estado do deploy:** `SOFT_FILTERS_MODE` continua `false` em produção —
+essa mudança é comportamentalmente idêntica à produção anterior enquanto a
+flag estiver desligada (testado: 0 diferenças em 50 combos reais). Ou seja,
+o código foi pro ar mas está dormente. **Decisão pendente com o usuário:**
+se/quando ligar `SOFT_FILTERS_MODE=true` de novo pra sinais reais.
+
+**Se você é a outra sessão:** não ligue `SOFT_FILTERS_MODE=true` sem
+avisar/confirmar com o usuário — o teste anterior com essa flag ligada
+perdeu dinheiro real (WR 0%). Se for mexer em `k10_engine.py`, dê
+`git log -3` primeiro pra ver este commit.
