@@ -451,10 +451,18 @@ class K10Engine:
                     "motivos_rejeicao":["MACD sem direção"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # EMA alinhada com direção
+        # RFC reequilibrio-reversao 23/08: a decisao soft/hard so pode ser
+        # tomada DEPOIS de saber se ha estrutura real (sweep/BOS) — por isso
+        # aqui sempre bloqueia (hard) por enquanto; logo abaixo, apos a
+        # estrutura ser calculada, reclassifica pra soft SE houver evidencia
+        # de reversao confirmada. Dado real (3337 candidatos historicos):
+        # EMA-contra COM estrutura Exp -0.28R vs SEM estrutura Exp -0.64R —
+        # ainda negativo em ambos, mas a diferenca e grande o suficiente pra
+        # nao tratar "cruzou a EMA" sozinho como motivo de reversao.
         if direcao=="LONG" and e10 < e21:
-            _bloqueio("EMA10 < EMA21 — contra LONG", 15, soft=True)
+            motivos.append("EMA10 < EMA21 — contra LONG")
         elif direcao=="SHORT" and e10 > e21:
-            _bloqueio("EMA10 > EMA21 — contra SHORT", 15, soft=True)
+            motivos.append("EMA10 > EMA21 — contra SHORT")
         else:
             if (e10>e21>e50>e200 and direcao=="LONG") or (e10<e21<e50<e200 and direcao=="SHORT"):
                 confirmacoes.append("EMAs 4 alinhadas"); score += 15
@@ -488,6 +496,17 @@ class K10Engine:
             confirmacoes.append("✅ Tendência forte"); score += 10
         else:
             motivos.append("Sem BOS/CHoCH/tendência")
+
+        # EMA-contra: reclassifica de HARD pra SOFT somente se houver
+        # estrutura real confirmada (sweep ou BOS) — "LONG REVERSÃO" exige
+        # evidência, não só o cruzamento da EMA (RFC reequilibrio-reversao
+        # 23/08). Sem estrutura, o bloqueio HARD acima permanece.
+        estrutura_real = sweep_ok or bos_ok
+        for _ema_motivo in ("EMA10 < EMA21 — contra LONG", "EMA10 > EMA21 — contra SHORT"):
+            if SOFT_FILTERS_MODE and estrutura_real and _ema_motivo in motivos:
+                motivos.remove(_ema_motivo)
+                soft_penalty += 15
+                motivos_soft.append(f"{_ema_motivo} (aceito: reversão com estrutura confirmada)")
 
         # PULLBACK score (K12)
         if pullback_long:
@@ -668,7 +687,15 @@ class K10Engine:
                 motivos.append(f"10/10 RR {rr:.2f} < {RR_MIN_10}")  # HARD sempre
 
             if EXIGE_TENDENCIA_10 and not tend_ctx_ok:
-                _bloqueio(f"10/10 {ctx_label} sem tendência alinhada", 10, soft=True)
+                # RFC reequilibrio-reversao 23/08: H4 desalinhado so vira soft
+                # com estrutura real confirmada (dado: com estrutura Exp
+                # -0.59R vs sem estrutura Exp -0.88R). H4 CONTRA FORTE
+                # (bloqueio da linha ~546) continua HARD sempre, sem excecao.
+                if SOFT_FILTERS_MODE and (bos_ok or sweep_ok):
+                    soft_penalty += 15
+                    motivos_soft.append(f"10/10 {ctx_label} sem tendência alinhada (aceito: estrutura confirmada)")
+                else:
+                    motivos.append(f"10/10 {ctx_label} sem tendência alinhada")
 
             if EXIGE_ESTRUTURA_10 and not (bos_ok or sweep_ok):
                 motivos.append("10/10 sem BOS/CHoCH confirmado")  # HARD sempre
