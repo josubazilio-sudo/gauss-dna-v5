@@ -15,9 +15,21 @@ CFG = {
     "FINAL_SELECTOR_ENABLED":    True,
     "SHADOW_MODE":               False,  # False = bloqueia de verdade
     "MAX_FINAL_SIGNALS_PER_CYCLE": 2,
-    "FINAL_SCORE_MIN":           75,
-    "STRUCTURE_SCORE_MIN":       70,
-    "ENTRY_TIMING_MIN":          65,
+    # RFC frequencia-sinais 23/08 (3a rodada) — os 3 pisos abaixo eram
+    # matematicamente inalcancaveis: testados contra candidatos reais
+    # (incluindo o UNICO aprovado pelo k10_engine no periodo, score 89,
+    # BOS confirmado, RR 3.5), o maximo observado foi Structure=57.8
+    # (piso era 70), Timing=60.2 (piso era 65), Final=58.9 (piso era 75).
+    # Ou seja, o Final Selector bloqueava 100% dos candidatos SEMPRE,
+    # independente de qualidade -- um bloqueio silencioso downstream do
+    # k10_engine, que o usuario pediu explicitamente pra investigar.
+    # Recalibrado com margem real sobre o unico candidato confirmado bom
+    # (UB score89 folga ~13-20pts em cada piso) mantendo discriminacao
+    # sobre candidatos fracos observados (ex.: BNB 30m timing=3.1, ainda
+    # bloqueia).
+    "FINAL_SCORE_MIN":           45,
+    "STRUCTURE_SCORE_MIN":       45,
+    "ENTRY_TIMING_MIN":          40,
     "RR_MIN":                    1.5,
     "COOLDOWN_AFTER_LOSS_MIN":   30,     # minutos de cooldown após loss
     "MAX_CORRELATED_SIGNALS":    1,
