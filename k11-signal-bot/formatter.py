@@ -25,6 +25,7 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     posicao = r.get("posicao", 0)
     alav    = r.get("alavancagem", 8)
     risco   = r.get("risco_usdt", 2.7)
+    risco_pct = r.get("risco_pct_aplicado", 3.0)
     duracao = {"30m":"4–8h","1h":"6–12h","4h":"24–48h","1d":"3–7d"}.get(tf,"6–12h")
     prioridade = r.get("prioridade","")
 
@@ -86,7 +87,7 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
         f"🛑 Stop: {stop}\n"
         f"⚖️ RR: {rr}\n\n"
         f"💵 Banca: {capital} USDT | 🚀 {alav}x\n"
-        f"⚠️ Risco: {risco} USDT (3%)\n"
+        f"⚠️ Risco: {risco} USDT ({risco_pct:g}%)\n"
         f"📦 Posição: {posicao} USDT\n\n"
         f"{sep}\n\n"
         f"🌍 {regime}\n"
