@@ -69,6 +69,30 @@ BE_EXIGE_H1_FECHADO = os.getenv("BE_EXIGE_H1_FECHADO", "True").strip().lower() i
 TP1_FRACAO_VOLUME   = float(os.getenv("TP1_FRACAO_VOLUME", "0.30"))                # TP1 = 30%, restante 70% p/ TP2/trailing
 BOS_AGE_MAX_CANDLES = int(os.getenv("BOS_AGE_MAX_CANDLES", "4"))                   # BOS/CHoCH real <= 4 candles
 
+# ==== STOP DUPLO + RISCO ADAPTATIVO (RFC stop-duplo 23/08) ====
+# STOP1 (tecnico, extremo recente + buffer pequeno) e STOP2 (estrutural,
+# extremo mais amplo + buffer maior) sao SEMPRE calculados e registrados
+# (observacao), mas so passam a determinar o `stop` real (o que efetivamente
+# fecha o trade em verificar_resultados_automatico) e o position sizing
+# quando STOP_DUPLO_ATIVO estiver ligado. Default OFF preserva 100% o
+# comportamento atual (stop = extremo tecnico de sempre). Objetivo do
+# periodo OFF: acumular REGISTRO OBRIGATORIO (stop1_tocado, salvo_por_stop2,
+# mfe_apos_stop1) pra medir empiricamente quantas operacoes o STOP1 mata
+# que teriam batido TP, antes de ligar de vez.
+STOP_DUPLO_ATIVO  = os.getenv("STOP_DUPLO_ATIVO", "False").strip().lower() in ("1", "true", "yes", "on")
+STOP2_ATR_BUFFER  = float(os.getenv("STOP2_ATR_BUFFER", "1.0"))   # buffer maior que o STOP1 (0.1x ATR)
+
+# Risco adaptativo por regime de saude — reaproveita a classificacao de
+# qualidade ja existente (tier_qualidade: APEX/PRO/SETUP/ABAIXO, RFC
+# reequilibrio 22/08), nao cria criterio novo. Default OFF: risco continua
+# fixo em RISCO_PCT pra todo sinal, igual sempre foi.
+RISCO_ADAPTATIVO_ATIVO = os.getenv("RISCO_ADAPTATIVO_ATIVO", "False").strip().lower() in ("1", "true", "yes", "on")
+RISCO_MUITO_SAUDAVEL   = float(os.getenv("RISCO_MUITO_SAUDAVEL", "6.0"))  # tier_qualidade APEX  (🔥)
+RISCO_SAUDAVEL         = float(os.getenv("RISCO_SAUDAVEL",       "4.0"))  # tier_qualidade PRO   (🟢)
+RISCO_NORMAL           = float(os.getenv("RISCO_NORMAL",         "3.0"))  # tier_qualidade SETUP (🟡) = RISCO_PCT default
+RISCO_FRACO            = float(os.getenv("RISCO_FRACO",          "1.0"))  # tier_qualidade ABAIXO(🔴)
+
+
 def _cfg_trailing(trigger, tf):
     return {"trigger_r": float(trigger), "timeframe": (tf or "").strip() or None}
 

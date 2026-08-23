@@ -11,7 +11,9 @@ from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K1
                       MODO_10_10, RVOL_MIN_10, SCORE_OURO_10, SCORE_PRATA_10, RR_MIN_10,
                       EXIGE_ESTRUTURA_10, EXIGE_TENDENCIA_10, EXIGE_FLOW_10, EXIGE_MOMENTUM_10,
                       EXIGE_ENTRY_50_10, ENTRY_50_PCT_10,
-                      SOFT_FILTERS_MODE, QUALITY_FINAL_MIN, RVOL_HARD_MIN)
+                      SOFT_FILTERS_MODE, QUALITY_FINAL_MIN, RVOL_HARD_MIN,
+                      STOP_DUPLO_ATIVO, STOP2_ATR_BUFFER, RISCO_ADAPTATIVO_ATIVO,
+                      RISCO_MUITO_SAUDAVEL, RISCO_SAUDAVEL, RISCO_NORMAL, RISCO_FRACO)
 
 
 def sessao_atual():
@@ -473,14 +475,19 @@ class K10Engine:
 
         # LIQUIDEZ / BOS / TENDÊNCIA
         sweep_ok = False
+        sweep_extremo = 0.0  # preco do wick que varreu a liquidez (RFC stop-duplo 23/08)
         lookback = dfc.iloc[-20:-6]
         swing_high = float(lookback["high"].max())
         swing_low  = float(lookback["low"].min())
         for i in range(-6, -1):
             vela = dfc.iloc[i]
             hv=float(vela["high"]); lv=float(vela["low"]); cv=float(vela["close"])
-            if direcao=="LONG" and lv < swing_low*1.001 and cv > swing_low: sweep_ok=True
-            if direcao=="SHORT" and hv > swing_high*0.999 and cv < swing_high: sweep_ok=True
+            if direcao=="LONG" and lv < swing_low*1.001 and cv > swing_low:
+                sweep_ok=True
+                sweep_extremo = lv if sweep_extremo == 0.0 else min(sweep_extremo, lv)
+            if direcao=="SHORT" and hv > swing_high*0.999 and cv < swing_high:
+                sweep_ok=True
+                sweep_extremo = hv if sweep_extremo == 0.0 else max(sweep_extremo, hv)
 
         highs = float(dfc["high"].iloc[-10:-2].max())
         lows  = float(dfc["low"].iloc[-10:-2].min())
@@ -770,8 +777,46 @@ class K10Engine:
             "Final Decision": "APPROVED" if aprovado else "REJECTED",
         }
 
-        gb_risco = round(BANCA * RISCO_PCT / 100, 2)
-        dist = abs(c-stop)/c if c else 0.01
+        # ==== STOP 1 / STOP 2 + RISCO ADAPTATIVO (RFC stop-duplo 23/08) ====
+        # Calculado por ULTIMO, depois de aprovado/motivos/tier/rr/TPs ja
+        # resolvidos com o `stop` original (agora chamado STOP1) — nao
+        # influencia gate nenhum, so o que sai no cartao/registro e (se os
+        # flags estiverem ligados) o `stop` final e o position sizing.
+        stop1 = stop
+        dist_stop1 = abs(c - stop1)
+        if direcao == "LONG":
+            stop2_base = min(swing_low, stop1)
+            stop2 = round(stop2_base - atr * STOP2_ATR_BUFFER, 6)
+            stop2 = min(stop2, stop1)               # STOP2 nunca mais apertado que STOP1
+            if abs(c - stop2) / c > 0.12:
+                stop2 = round(c * 0.90, 6)           # protecao de emergencia — teto 12%
+            liquidez_relevante = swing_low
+        else:
+            stop2_base = max(swing_high, stop1)
+            stop2 = round(stop2_base + atr * STOP2_ATR_BUFFER, 6)
+            stop2 = max(stop2, stop1)
+            if abs(stop2 - c) / c > 0.12:
+                stop2 = round(c * 1.10, 6)
+            liquidez_relevante = swing_high
+        dist_stop2 = abs(c - stop2)
+
+        # Regime de saude reaproveita a classificacao de qualidade JA
+        # EXISTENTE (tier_qualidade, RFC reequilibrio 22/08) — nao cria
+        # criterio novo, so mapeia pra risco%.
+        _SAUDE_MAP = {
+            "APEX":   ("MUITO_SAUDAVEL", RISCO_MUITO_SAUDAVEL),
+            "PRO":    ("SAUDAVEL",       RISCO_SAUDAVEL),
+            "SETUP":  ("NORMAL",         RISCO_NORMAL),
+            "ABAIXO": ("FRACO",          RISCO_FRACO),
+        }
+        saude_mercado, risco_pct_sugerido = _SAUDE_MAP.get(tier_qualidade, ("NORMAL", RISCO_NORMAL))
+        risco_pct_aplicado = risco_pct_sugerido if RISCO_ADAPTATIVO_ATIVO else RISCO_PCT
+
+        stop_final = stop2 if STOP_DUPLO_ATIVO else stop1
+        dist_final = abs(c - stop_final)
+
+        gb_risco = round(BANCA * risco_pct_aplicado / 100, 2)
+        dist = dist_final/c if c else 0.01
         pos  = round(min(gb_risco/dist, BANCA*3), 2) if dist > 0 else 0
         alav = 20 if tier=="OURO" else 15
 
@@ -789,7 +834,7 @@ class K10Engine:
             "conviccao":        conv,
             "prioridade":       prioridade,
             "entrada":          entrada,
-            "stop":             stop,
+            "stop":             stop_final,
             "tp1":              tp1,
             "tp2":              tp2,
             "be":               be,
@@ -821,6 +866,18 @@ class K10Engine:
             "soft_penalty":     soft_penalty,
             "motivos_soft":     motivos_soft,
             "soft_filters_mode": SOFT_FILTERS_MODE,
+            # RFC stop-duplo 23/08 — aditivo. stop1/stop2 sempre calculados
+            # (observacao); `stop` acima so vira stop2 se STOP_DUPLO_ATIVO.
+            "stop1":                stop1,
+            "stop2":                stop2,
+            "dist_stop1":           round(dist_stop1, 6),
+            "dist_stop2":           round(dist_stop2, 6),
+            "sweep_extremo":        sweep_extremo if sweep_extremo else None,
+            "liquidez_relevante":   liquidez_relevante,
+            "saude_mercado":        saude_mercado,
+            "risco_pct_aplicado":   risco_pct_aplicado,
+            "stop_duplo_ativo":     STOP_DUPLO_ATIVO,
+            "risco_adaptativo_ativo": RISCO_ADAPTATIVO_ATIVO,
             **diag_snapshot,
         }
 

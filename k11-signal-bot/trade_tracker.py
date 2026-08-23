@@ -94,6 +94,24 @@ def registrar(sinal: dict) -> int:
         "tier_qualidade":    sinal.get("tier_qualidade"),
         "soft_penalty":      sinal.get("soft_penalty"),
         "soft_filters_mode": sinal.get("soft_filters_mode", False),
+        # RFC stop-duplo 23/08 — REGISTRO OBRIGATÓRIO. Aditivo: None/False
+        # em trades antigos (campo não existia antes desta RFC).
+        "atr":                 sinal.get("atr"),
+        "saude_mercado":       sinal.get("saude_mercado"),
+        "risco_pct_aplicado":  sinal.get("risco_pct_aplicado"),
+        "posicao_usdt":        sinal.get("posicao"),
+        "liquidez_relevante":  sinal.get("liquidez_relevante"),
+        "sweep_extremo":       sinal.get("sweep_extremo"),
+        "stop1":                sinal.get("stop1"),
+        "stop2":                sinal.get("stop2"),
+        "dist_stop1":           sinal.get("dist_stop1"),
+        "dist_stop2":           sinal.get("dist_stop2"),
+        "stop_duplo_ativo":     sinal.get("stop_duplo_ativo", False),
+        "risco_adaptativo_ativo": sinal.get("risco_adaptativo_ativo", False),
+        "stop1_tocado":         False,
+        "salvo_por_stop2":      False,
+        "mfe_apos_stop1":       None,   # máx. excursão favorável DEPOIS de tocar STOP1
+        "max_r_adverso":        None,   # máx. excursão adversa (MAE, candle H1 fechado)
         "resultado":    "ABERTO",
         "be_tocado":    False,
         "r_obtido":     None,
@@ -409,6 +427,8 @@ def verificar_resultados_automatico():
                     t["r_tp1"]      = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     _set_r_devolvido(t, rr)
+                    if t.get("stop1_tocado"):
+                        t["salvo_por_stop2"] = True
                     atualizados += 1
                     _log_tp1(log, t, direcao, rr, frac_tp1)
                 elif preco <= stop_efetivo and stop_efetivo > 0:
@@ -433,6 +453,8 @@ def verificar_resultados_automatico():
                     t["r_tp1"]      = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     _set_r_devolvido(t, rr)
+                    if t.get("stop1_tocado"):
+                        t["salvo_por_stop2"] = True
                     atualizados += 1
                     _log_tp1(log, t, direcao, rr, frac_tp1)
                 elif preco >= stop_efetivo and stop_efetivo > 0:
@@ -583,6 +605,35 @@ def verificar_gestao_avancada() -> list:
             if r_pico > float(t.get("max_r_favoravel") or 0):
                 t["max_r_favoravel"] = round(r_pico, 2)
                 alterado = True
+
+            # MAE — máxima excursão adversa (pior R contra, candle H1 fechado)
+            if direcao == "LONG":
+                r_pior = calcular_r(entrada, stop_original, float(vela_h1["low"]), "LONG")
+            else:
+                r_pior = calcular_r(entrada, stop_original, float(vela_h1["high"]), "SHORT")
+            if t.get("max_r_adverso") is None or r_pior < t["max_r_adverso"]:
+                t["max_r_adverso"] = round(r_pior, 2)
+                alterado = True
+
+            # RFC stop-duplo 23/08 — STOP1 é só monitorado/logado aqui, NUNCA
+            # fecha o trade (fechamento continua via `stop`/stop_efetivo em
+            # verificar_resultados_automatico). Objetivo: medir empiricamente
+            # quantas operações o STOP1 mataria que sobrevivem até o TP.
+            stop1_val = t.get("stop1")
+            if stop1_val:
+                if direcao == "LONG":
+                    tocou_stop1 = float(vela_h1["low"]) <= float(stop1_val)
+                else:
+                    tocou_stop1 = float(vela_h1["high"]) >= float(stop1_val)
+                if tocou_stop1 and not t.get("stop1_tocado"):
+                    t["stop1_tocado"] = True
+                    t["mfe_apos_stop1"] = 0.0
+                    alterado = True
+                if t.get("stop1_tocado"):
+                    mfe_atual = max(r_pico, 0.0)
+                    if t.get("mfe_apos_stop1") is None or mfe_atual > t["mfe_apos_stop1"]:
+                        t["mfe_apos_stop1"] = round(mfe_atual, 2)
+                        alterado = True
 
         # ── 0. BE V58.1 (sempre ativo) — R>=BE_TRIGGER_R em H1 fechado ──
         if not t.get("be_tocado"):
