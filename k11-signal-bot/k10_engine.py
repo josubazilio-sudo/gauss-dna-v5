@@ -358,7 +358,7 @@ class K10Engine:
         candle_range = max(float(r["high"]) - float(r["low"]), 1e-10)
         body_size = abs(c - float(r["open"]))
         body_ratio = body_size / candle_range
-        bull_candle = (c > float(r["open"])) and body_ratio >= 0.45
+        bull_candle = (c > float(r["open"])) and body_ratio >= 0.30
 
         # 5. H1 QUALITY
         r4h_last = df4h.iloc[-2]
@@ -428,7 +428,7 @@ class K10Engine:
         # BLOQUEIO 4: Candle sem corpo
         if not bull_candle and macd_h > 0:
             return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Candle sem confirmacao (body ratio {body_ratio:.2f} < 0.45)"],
+                    "motivos_rejeicao":[f"Candle sem confirmacao (body ratio {body_ratio:.2f} < 0.30)"],
                     "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # DIREÇÃO PELO MACD
@@ -666,7 +666,17 @@ class K10Engine:
         if SOFT_FILTERS_MODE and estrutura_excepcional:
             eq_min_efetivo = 50
         if ENTRY_QUALITY_BLOCK and (eq_bloqueado or eq < eq_min_efetivo):
-            motivos.append(f"Entry Quality {eq} < {eq_min_efetivo} (late entry)")
+            # RFC eficiencia-gate 23/08: a mensagem antiga sempre dizia "EQ X <
+            # Y" mesmo quando o bloqueio veio de `eq_bloqueado` (extensao >1.5
+            # ATR da EMA21, ou continuacao sem BOS recente) -- uma causa
+            # totalmente diferente do valor de EQ, produzindo mensagens
+            # matematicamente falsas tipo "Entry Quality 55 < 50". O bloqueio
+            # em si continua legitimo (extensao extrema e risco real), so a
+            # descricao agora reflete a causa de fato.
+            if eq_bloqueado:
+                motivos.append(f"Entrada esticada/sem estrutura recente (EQ={eq})")
+            else:
+                motivos.append(f"Entry Quality {eq} < {eq_min_efetivo} (late entry)")
             eq_bloqueado = True
         elif ENTRY_QUALITY_BLOCK and eq < ENTRY_QUALITY_MIN:
             _bloqueio(f"Entry Quality {eq} < {ENTRY_QUALITY_MIN} (aceito por estrutura excepcional)", 15, soft=True)
