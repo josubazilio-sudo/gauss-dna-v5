@@ -12,7 +12,7 @@ atualize a seção "Estado atual" abaixo com data/hora e o que mudou.** Se
 encontrar algo diferente do que este arquivo diz, é sinal de que a outra
 sessão mexeu — não sobrescreva sem entender o porquê primeiro.
 
-## Estado atual (última atualização: 2026-08-23 08:31 UTC, sessão desktop)
+## Estado atual (última atualização: 2026-08-23 09:00 UTC, sessão desktop)
 
 - Processo: `screen -r k12`, loop `python3 k11-signal-bot/runner.py; sleep 300`
   — iniciar/reiniciar sempre via `bash /root/gauss-dna-v5/start_k12.sh`
@@ -40,3 +40,23 @@ Antes de reiniciar o bot, mudar `.env`, ou editar `k10_engine.py`/
 `git log -3` no VPS pra ver se há mudança recente que você não fez. Se
 achar algo inesperado, prefira perguntar ao usuário "encontrei X mudado,
 foi você (ou a outra sessão) que fez isso?" em vez de reverter direto.
+
+## Incidente 2026-08-23 ~09:00 UTC — revertido
+
+A sessão do celular editou k10_engine.py direto no VPS (sem commit, sem
+teste) tentando forçar mais sinais: reclassificou sinais de MACD short como
+LONG ("MACD exausto"), removeu o timeframe 1h da análise, e adicionou
+bloqueio de regime hardcoded. Isso tinha um bug real (NameError: 'ratio'
+not defined) que derrubava silenciosamente a avaliação de qualquer símbolo
+onde o MACD cruzasse pra baixo — confirmado ao vivo (HOME/USDT crashava).
+
+**Revertido** pela sessão desktop (com autorização do usuário) de volta pro
+último commit bom (8d4436c, que já tinha SOFT_FILTERS_MODE implementado
+corretamente). O patch benigno de ultimo_sinal (usa now() como último
+fallback) foi mantido e commitado (a15f098).
+
+Se você é a sessão do celular: a ideia de reclassificar SHORT como uma
+reversão LONG pode ter mérito, mas precisa entrar via SOFT_FILTERS_MODE (ou
+uma flag nova) com teste old-vs-new antes de ir pra produção — não editando
+o gate direto. Se tiver dúvida, pergunte ao usuário antes de editar
+k10_engine.py sem commit.
