@@ -6,6 +6,7 @@ Foco: qualidade do ponto de entrada, não quantidade de filtros
 import ccxt
 import pandas as pd
 import numpy as np
+import time
 from datetime import datetime, timezone, timedelta
 from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K11_OURO_MIN_EQ,
                       MODO_10_10, RVOL_MIN_10, SCORE_OURO_10, SCORE_PRATA_10, RR_MIN_10,
@@ -33,13 +34,26 @@ class K10Engine:
         })
 
     def _fetch(self, symbol, tf, limit=300):
-        try:
-            raw = self.exchange.fetch_ohlcv(symbol, tf, limit=limit)
-            df  = pd.DataFrame(raw, columns=["ts","open","high","low","close","volume"])
-            df["ts"] = pd.to_datetime(df["ts"], unit="ms")
-            return df
-        except Exception as e:
-            raise RuntimeError(f"{symbol} {tf}: {e}")
+        # RFC frequencia-sinais 23/08 (2a rodada): retry com backoff curto pra
+        # erro 510 (rate limit) da MEXC. Antes, uma unica falha de rede matava
+        # a analise inteira daquele symbol/tf no ciclo -- com outro processo
+        # na mesma VPS tambem batendo na MEXC (mesmo IP, mesmo limite),
+        # isso descartava boa parte do watchlist por ciclo sem nenhum erro de
+        # logica. Nao muda nada quando a chamada ja funciona de primeira.
+        ultimo_erro = None
+        for tentativa in range(3):
+            try:
+                raw = self.exchange.fetch_ohlcv(symbol, tf, limit=limit)
+                df  = pd.DataFrame(raw, columns=["ts","open","high","low","close","volume"])
+                df["ts"] = pd.to_datetime(df["ts"], unit="ms")
+                return df
+            except Exception as e:
+                ultimo_erro = e
+                if "510" in str(e) or "too frequent" in str(e).lower():
+                    time.sleep(0.6 * (tentativa + 1))
+                    continue
+                break
+        raise RuntimeError(f"{symbol} {tf}: {ultimo_erro}")
 
     def _calc(self, df):
         c, h, l, v = df["close"], df["high"], df["low"], df["volume"]
