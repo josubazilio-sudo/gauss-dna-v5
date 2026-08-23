@@ -159,7 +159,7 @@ async def main():
                 # repetição) — pode estar vazio mesmo com sinais no passado.
                 # Cair pro último trade real registrado em vez de assumir
                 # "nunca houve sinal" (produzia "há 29 milhões de minutos").
-                ultimo_sinal = 0
+                ultimo_sinal = now  # sem historico = considera agora
                 try:
                     from datetime import datetime as _datetime, timezone as _timezone, timedelta as _timedelta
                     from trade_tracker import _carregar as _carregar_trades
