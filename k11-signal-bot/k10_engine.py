@@ -14,7 +14,9 @@ from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K1
                       EXIGE_ENTRY_50_10, ENTRY_50_PCT_10,
                       SOFT_FILTERS_MODE, QUALITY_FINAL_MIN, SOFT_PENALTY_MAX, RVOL_HARD_MIN,
                       STOP_DUPLO_ATIVO, STOP2_ATR_BUFFER, RISCO_ADAPTATIVO_ATIVO,
-                      RISCO_MUITO_SAUDAVEL, RISCO_SAUDAVEL, RISCO_NORMAL, RISCO_FRACO)
+                      RISCO_MUITO_SAUDAVEL, RISCO_SAUDAVEL, RISCO_NORMAL, RISCO_FRACO,
+                      STOP2_BUFFER_MUITO_SAUDAVEL, STOP2_BUFFER_SAUDAVEL,
+                      STOP2_BUFFER_NORMAL, STOP2_BUFFER_FRACO)
 
 
 def sessao_atual():
@@ -833,6 +835,26 @@ class K10Engine:
         # resolvidos com o `stop` original (agora chamado STOP1) — nao
         # influencia gate nenhum, so o que sai no cartao/registro e (se os
         # flags estiverem ligados) o `stop` final e o position sizing.
+
+        # Regime de saude reaproveita a classificacao de qualidade JA
+        # EXISTENTE (tier_qualidade, RFC reequilibrio 22/08) — nao cria
+        # criterio novo, so mapeia pra risco% E pro buffer do STOP2. RFC
+        # protecao-liquidez 23/08 (2a rodada): pedido explicito do usuario
+        # pra que mercado forte tenha stop mais largo (mais chance de
+        # alcancar o alvo) e mercado fraco tenha stop mais apertado (menos
+        # risco) -- antes o buffer do STOP2 era fixo (1x ATR) pra qualquer
+        # sinal, independente da forca do setup.
+        _SAUDE_MAP = {
+            "APEX":   ("MUITO_SAUDAVEL", RISCO_MUITO_SAUDAVEL, STOP2_BUFFER_MUITO_SAUDAVEL),
+            "PRO":    ("SAUDAVEL",       RISCO_SAUDAVEL,       STOP2_BUFFER_SAUDAVEL),
+            "SETUP":  ("NORMAL",         RISCO_NORMAL,         STOP2_BUFFER_NORMAL),
+            "ABAIXO": ("FRACO",          RISCO_FRACO,          STOP2_BUFFER_FRACO),
+        }
+        saude_mercado, risco_pct_sugerido, stop2_buffer_sugerido = _SAUDE_MAP.get(
+            tier_qualidade, ("NORMAL", RISCO_NORMAL, STOP2_BUFFER_NORMAL))
+        risco_pct_aplicado = risco_pct_sugerido if RISCO_ADAPTATIVO_ATIVO else RISCO_PCT
+        stop2_buffer_aplicado = stop2_buffer_sugerido if RISCO_ADAPTATIVO_ATIVO else STOP2_ATR_BUFFER
+
         stop1 = stop
         dist_stop1 = abs(c - stop1)
         if direcao == "LONG":
@@ -847,7 +869,7 @@ class K10Engine:
             if sweep_ok and sweep_extremo:
                 referencias.append(sweep_extremo)
             stop2_base = min(referencias)
-            stop2 = round(stop2_base - atr * STOP2_ATR_BUFFER, 6)
+            stop2 = round(stop2_base - atr * stop2_buffer_aplicado, 6)
             stop2 = min(stop2, stop1)               # STOP2 nunca mais apertado que STOP1
             if abs(c - stop2) / c > 0.12:
                 stop2 = round(c * 0.90, 6)           # protecao de emergencia — teto 12%
@@ -857,24 +879,12 @@ class K10Engine:
             if sweep_ok and sweep_extremo:
                 referencias.append(sweep_extremo)
             stop2_base = max(referencias)
-            stop2 = round(stop2_base + atr * STOP2_ATR_BUFFER, 6)
+            stop2 = round(stop2_base + atr * stop2_buffer_aplicado, 6)
             stop2 = max(stop2, stop1)
             if abs(stop2 - c) / c > 0.12:
                 stop2 = round(c * 1.10, 6)
             liquidez_relevante = sweep_extremo if (sweep_ok and sweep_extremo) else swing_high
         dist_stop2 = abs(c - stop2)
-
-        # Regime de saude reaproveita a classificacao de qualidade JA
-        # EXISTENTE (tier_qualidade, RFC reequilibrio 22/08) — nao cria
-        # criterio novo, so mapeia pra risco%.
-        _SAUDE_MAP = {
-            "APEX":   ("MUITO_SAUDAVEL", RISCO_MUITO_SAUDAVEL),
-            "PRO":    ("SAUDAVEL",       RISCO_SAUDAVEL),
-            "SETUP":  ("NORMAL",         RISCO_NORMAL),
-            "ABAIXO": ("FRACO",          RISCO_FRACO),
-        }
-        saude_mercado, risco_pct_sugerido = _SAUDE_MAP.get(tier_qualidade, ("NORMAL", RISCO_NORMAL))
-        risco_pct_aplicado = risco_pct_sugerido if RISCO_ADAPTATIVO_ATIVO else RISCO_PCT
 
         stop_final = stop2 if STOP_DUPLO_ATIVO else stop1
         dist_final = abs(c - stop_final)
@@ -940,6 +950,7 @@ class K10Engine:
             "liquidez_relevante":   liquidez_relevante,
             "saude_mercado":        saude_mercado,
             "risco_pct_aplicado":   risco_pct_aplicado,
+            "stop2_buffer_aplicado": stop2_buffer_aplicado,
             "stop_duplo_ativo":     STOP_DUPLO_ATIVO,
             "risco_adaptativo_ativo": RISCO_ADAPTATIVO_ATIVO,
             **diag_snapshot,

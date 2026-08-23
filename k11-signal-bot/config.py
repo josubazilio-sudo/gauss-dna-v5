@@ -90,7 +90,19 @@ BOS_AGE_MAX_CANDLES = int(os.getenv("BOS_AGE_MAX_CANDLES", "4"))                
 # mfe_apos_stop1) pra medir empiricamente quantas operacoes o STOP1 mata
 # que teriam batido TP, antes de ligar de vez.
 STOP_DUPLO_ATIVO  = os.getenv("STOP_DUPLO_ATIVO", "False").strip().lower() in ("1", "true", "yes", "on")
-STOP2_ATR_BUFFER  = float(os.getenv("STOP2_ATR_BUFFER", "1.0"))   # buffer maior que o STOP1 (0.1x ATR)
+STOP2_ATR_BUFFER  = float(os.getenv("STOP2_ATR_BUFFER", "1.0"))   # buffer maior que o STOP1 (0.1x ATR) -- usado quando RISCO_ADAPTATIVO_ATIVO=False
+
+# RFC protecao-liquidez 23/08 (2a rodada) — pedido explicito do usuario:
+# "se o mercado estiver fraco, menos risco; se estiver forte, stop maior
+# pra chance de alvo maior". O buffer do STOP2 passa a escalar com o mesmo
+# regime de saude usado no risco adaptativo (tier_qualidade) em vez de ser
+# fixo pra todo sinal. So tem efeito quando RISCO_ADAPTATIVO_ATIVO=True
+# (mesma flag que já liga o resto do regime de saude); com ela desligada,
+# usa STOP2_ATR_BUFFER fixo, igual sempre foi.
+STOP2_BUFFER_MUITO_SAUDAVEL = float(os.getenv("STOP2_BUFFER_MUITO_SAUDAVEL", "1.5"))
+STOP2_BUFFER_SAUDAVEL       = float(os.getenv("STOP2_BUFFER_SAUDAVEL",       "1.2"))
+STOP2_BUFFER_NORMAL         = float(os.getenv("STOP2_BUFFER_NORMAL",         "1.0"))
+STOP2_BUFFER_FRACO          = float(os.getenv("STOP2_BUFFER_FRACO",          "0.6"))
 
 # Risco adaptativo por regime de saude — reaproveita a classificacao de
 # qualidade ja existente (tier_qualidade: APEX/PRO/SETUP/ABAIXO, RFC
