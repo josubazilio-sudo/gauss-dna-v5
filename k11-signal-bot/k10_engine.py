@@ -836,19 +836,32 @@ class K10Engine:
         stop1 = stop
         dist_stop1 = abs(c - stop1)
         if direcao == "LONG":
-            stop2_base = min(swing_low, stop1)
+            # RFC protecao-liquidez 23/08: quando houve sweep confirmado,
+            # `sweep_extremo` (o pavio real que varreu a liquidez) entra
+            # como referencia explicita -- antes o STOP2 so olhava
+            # `swing_low` (a zona ampla) e ficava abaixo do pavio real só
+            # por proximidade (sweep_ok exige lv < swing_low*1.001, uma
+            # diferenca de no maximo 0.1%), nao por garantia. Agora e
+            # garantido: STOP2 sempre fica alem do pavio observado.
+            referencias = [swing_low, stop1]
+            if sweep_ok and sweep_extremo:
+                referencias.append(sweep_extremo)
+            stop2_base = min(referencias)
             stop2 = round(stop2_base - atr * STOP2_ATR_BUFFER, 6)
             stop2 = min(stop2, stop1)               # STOP2 nunca mais apertado que STOP1
             if abs(c - stop2) / c > 0.12:
                 stop2 = round(c * 0.90, 6)           # protecao de emergencia — teto 12%
-            liquidez_relevante = swing_low
+            liquidez_relevante = sweep_extremo if (sweep_ok and sweep_extremo) else swing_low
         else:
-            stop2_base = max(swing_high, stop1)
+            referencias = [swing_high, stop1]
+            if sweep_ok and sweep_extremo:
+                referencias.append(sweep_extremo)
+            stop2_base = max(referencias)
             stop2 = round(stop2_base + atr * STOP2_ATR_BUFFER, 6)
             stop2 = max(stop2, stop1)
             if abs(stop2 - c) / c > 0.12:
                 stop2 = round(c * 1.10, 6)
-            liquidez_relevante = swing_high
+            liquidez_relevante = sweep_extremo if (sweep_ok and sweep_extremo) else swing_high
         dist_stop2 = abs(c - stop2)
 
         # Regime de saude reaproveita a classificacao de qualidade JA
