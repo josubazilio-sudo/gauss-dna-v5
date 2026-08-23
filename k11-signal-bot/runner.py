@@ -184,7 +184,12 @@ async def main():
                 from k10_engine import K10Engine
                 from watchlist import get_watchlist, WATCHLIST_FALLBACK, WATCHLIST_PRIORITY
                 engine2 = K10Engine()
-                wl2 = (WATCHLIST_PRIORITY + (get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK))[:50]
+                # dedupe entre PRIORITY e a lista geral (mesmo padrao do scan
+                # principal) -- sem isso um symbol em WATCHLIST_PRIORITY podia
+                # ser analisado duas vezes e aparecer duplicado no TOP 5.
+                wl2_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
+                wl2_sem_dup = [p for p in wl2_geral if p not in WATCHLIST_PRIORITY]
+                wl2 = (WATCHLIST_PRIORITY + wl2_sem_dup)[:50]
 
                 todos = []
                 def analisar2(sym):
