@@ -11,7 +11,7 @@ from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K1
                       MODO_10_10, RVOL_MIN_10, SCORE_OURO_10, SCORE_PRATA_10, RR_MIN_10,
                       EXIGE_ESTRUTURA_10, EXIGE_TENDENCIA_10, EXIGE_FLOW_10, EXIGE_MOMENTUM_10,
                       EXIGE_ENTRY_50_10, ENTRY_50_PCT_10,
-                      SOFT_FILTERS_MODE, QUALITY_FINAL_MIN, RVOL_HARD_MIN,
+                      SOFT_FILTERS_MODE, QUALITY_FINAL_MIN, SOFT_PENALTY_MAX, RVOL_HARD_MIN,
                       STOP_DUPLO_ATIVO, STOP2_ATR_BUFFER, RISCO_ADAPTATIVO_ATIVO,
                       RISCO_MUITO_SAUDAVEL, RISCO_SAUDAVEL, RISCO_NORMAL, RISCO_FRACO)
 
@@ -640,7 +640,14 @@ class K10Engine:
         # nao bloqueia mais automaticamente, so penaliza (soft). eq_bloqueado
         # (preco > 1.5 ATR da EMA21, ou continuacao sem BOS) continua HARD
         # sempre — isso e sobre extensao/estrutura, nao so "atraso".
-        estrutura_excepcional = (bos_ok or sweep_ok) and macd_ctx_ok and rr >= 3.0
+        # RFC frequencia-sinais 23/08: removido o requisito macd_ctx_ok daqui.
+        # Numa reversao real (sweep/BOS + RR bom), o MACD do H4 ainda NAO
+        # virou por definicao — exigir macd_ctx_ok pra liberar o piso de EQ
+        # era contraditorio com o proprio conceito de reversao (RFC pediu
+        # explicitamente pra permitir EMA/H4/MACD parcialmente contra num
+        # setup de reversao). RR>=3.0 + estrutura real seguem sendo o filtro
+        # de seguranca — nao removidos.
+        estrutura_excepcional = (bos_ok or sweep_ok) and rr >= 3.0
         eq_min_efetivo = ENTRY_QUALITY_MIN
         if SOFT_FILTERS_MODE and estrutura_excepcional:
             eq_min_efetivo = 50
@@ -720,10 +727,16 @@ class K10Engine:
                 if dist_tp > 0 and run / dist_tp > ENTRY_50_PCT_10:
                     _bloqueio(f"10/10 entrada atrasada {run/dist_tp*100:.0f}% até TP1", 10, soft=True)
 
-        # quality_final = score menos penalidades soft. Em modo estrito
-        # (default) soft_penalty é sempre 0, então quality_final == score
-        # e não é usado pra gate nenhum — comportamento idêntico a antes.
-        quality_final = max(0, round(score - soft_penalty))
+        # quality_final = score menos penalidades soft, COM TETO (RFC
+        # frequencia-sinais 23/08: sem teto, penalidades simultaneas — EMA+
+        # MACD+zona+RVOL — chegavam a somar 45pts e matavam candidatos de
+        # score 85-99 mesmo com estrutura real confirmada. Ver SOFT_PENALTY_MAX
+        # em config.py pro dado que embasou o valor. `motivos_soft` continua
+        # listando TODOS os filtros soft acionados (sem teto) — só o efeito
+        # no gate de aprovacao e limitado. Em modo estrito (default)
+        # soft_penalty é sempre 0, então quality_final == score sempre —
+        # comportamento idêntico a antes.
+        quality_final = max(0, round(score - min(soft_penalty, SOFT_PENALTY_MAX)))
 
         if SOFT_FILTERS_MODE and quality_final < QUALITY_FINAL_MIN:
             motivos.append(f"Quality Final {quality_final} < {QUALITY_FINAL_MIN}")

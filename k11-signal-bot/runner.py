@@ -249,14 +249,48 @@ async def main():
                     linhas.append("📉 Volume baixo — institucional ausente")
                 if med_score < 50:
                     linhas.append("😴 Sem momentum — aguardar movimento")
-                motivos_freq = {}
+
+                # RFC frequencia-sinais 23/08 — DIAGNÓSTICO OBRIGATÓRIO. Reaproveita
+                # audit_10of10 (já calculado pelo engine p/ cada candidato, nada
+                # novo) em vez de reparsear texto de motivos_rejeicao. Separa
+                # HARD (motivos_rejeicao, bloqueia sozinho) de SOFT (motivos_soft,
+                # só penaliza — só existe quando SOFT_FILTERS_MODE=true).
+                n = len(todos)
+                _audits = [r2.get("audit_10of10") or {} for r2 in todos]
+                n_estrutura = sum(1 for a in _audits if a.get("BOS/CHoCH") == "PASS" or a.get("Liquidity Sweep") == "PASS")
+                n_sweep     = sum(1 for a in _audits if a.get("Liquidity Sweep") == "PASS")
+                n_bos       = sum(1 for a in _audits if a.get("BOS/CHoCH") == "PASS")
+                n_rvol_ok   = sum(1 for a in _audits if a.get("RVOL") == "PASS")
+                n_tardia    = sum(1 for a in _audits if a.get("Entry Quality") == "FAIL")
+
+                linhas += [
+                    "━━━━━━━━━━━━━━",
+                    f"📋 DIAGNÓSTICO ({n} candidatos analisados)",
+                    f"Estrutura válida (BOS/Sweep): {n_estrutura}",
+                    f"Sweep válido (com reclaim): {n_sweep}",
+                    f"BOS/CHoCH: {n_bos}",
+                    f"RVOL válido: {n_rvol_ok}",
+                    f"Entrada tardia: {n_tardia}",
+                ]
+
+                motivos_hard_freq = {}
+                motivos_soft_freq = {}
                 for r2 in todos:
                     for m in (r2.get("motivos_rejeicao") or []):
-                        chave = m[:30]
-                        motivos_freq[chave] = motivos_freq.get(chave, 0) + 1
-                top_motivo = max(motivos_freq, key=motivos_freq.get) if motivos_freq else ""
-                if top_motivo:
-                    linhas.append(f"🚫 Principal bloqueio: {top_motivo}")
+                        chave = m[:40]
+                        motivos_hard_freq[chave] = motivos_hard_freq.get(chave, 0) + 1
+                    for m in (r2.get("motivos_soft") or []):
+                        chave = m[:40]
+                        motivos_soft_freq[chave] = motivos_soft_freq.get(chave, 0) + 1
+
+                if motivos_hard_freq:
+                    linhas.append("🚫 HARD BLOCK:")
+                    for motivo, cnt in sorted(motivos_hard_freq.items(), key=lambda x: -x[1])[:3]:
+                        linhas.append(f"→ {motivo} ({cnt}x)")
+                if motivos_soft_freq:
+                    linhas.append("🟡 SOFT FILTER (penaliza, não bloqueia sozinho):")
+                    for motivo, cnt in sorted(motivos_soft_freq.items(), key=lambda x: -x[1])[:3]:
+                        linhas.append(f"→ {motivo} ({cnt}x)")
 
                 linhas.append("━━━━━━━━━━━━━━")
                 # Estatísticas

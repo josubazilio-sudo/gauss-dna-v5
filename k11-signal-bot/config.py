@@ -45,7 +45,17 @@ ENTRY_50_PCT_10    = float(os.getenv("ENTRY_50_PCT_10", "0.50"))
 # HARD (SHORT, estrutura BOS/CHoCH, RR minimo, H4 contra tendencia FORTE,
 # RVOL muito baixo, ADX/RSI extremos, K12 extensao/candle).
 SOFT_FILTERS_MODE = os.getenv("SOFT_FILTERS_MODE", "False").strip().lower() in ("1", "true", "yes", "on")
-QUALITY_FINAL_MIN = float(os.getenv("QUALITY_FINAL_MIN", "70"))   # piso p/ aprovar em soft mode (= piso do tier SETUP)
+# RFC frequencia-sinais 23/08: piso e cap recalibrados com dado real (51
+# candidatos reais, 22h, symbols BNB/XLM/WLD/FIL/ONDO/FARTCOIN/SPX500 citados
+# pelo usuario). Achado: penalidades soft empilham sem limite (EMA+MACD+
+# zona+RVOL simultaneos = ate 45pts), o que matava candidatos de score
+# 85-99 mesmo com toda estrutura real confirmada (BOS, RR>=3, RVOL bom) --
+# um bloqueio silencioso via o piso agregado, nao um filtro individual.
+# Cap de 25 + piso 60 testados contra os 51 candidatos reais: aprova 8/51,
+# TODOS com score>=87, ZERO candidato fraco (score<70) passa. Antes (piso
+# 70, sem cap): so 2/51 aprovavam.
+QUALITY_FINAL_MIN = float(os.getenv("QUALITY_FINAL_MIN", "60"))
+SOFT_PENALTY_MAX   = float(os.getenv("SOFT_PENALTY_MAX", "25"))   # teto da penalidade soft somada
 RVOL_HARD_MIN      = float(os.getenv("RVOL_HARD_MIN", "0.50"))    # abaixo disso, bloqueia mesmo em soft mode
 
 # ==== GESTÃO DE POSIÇÃO (2026-08-10) — Trailing pós-BE + Alerta Estrutural ====
