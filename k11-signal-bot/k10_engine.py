@@ -133,7 +133,7 @@ class K10Engine:
                 return n - 1 - i
         return 99
 
-    def _entry_quality(self, df, direcao, ob_ok, ob_low, ob_high):
+    def _entry_quality(self, df, direcao, ob_ok, ob_low, ob_high, bos_ok=False):
         """
         Entry Quality V3 — qualidade do ponto de entrada (0-100)
         Base 50: sobe com bônus, cai com penalidades
@@ -205,7 +205,17 @@ class K10Engine:
         # Detectar se é setup de reversão (tem sweep ou OB)
         eh_reversao = ob_presente  # OB = zona institucional = reversão provável
 
-        if bos_idade <= 3:
+        # RFC ajuste-b3 23/08: `bos_ok` (mesma definicao usada no cartao pra
+        # "BOS confirmado", calculada em _analisar_tf) tem prioridade sobre
+        # `_bos_idade()` -- que usa uma janela de swing diferente (5 velas)
+        # e podia achar um rompimento "velho" mesmo com bos_ok=True agora,
+        # causando a contradicao real observada: cartao mostrava "BOS
+        # confirmado" (bonus) e Entry Quality mostrava "BOS -10" (penalidade)
+        # pra MESMA vela. Se bos_ok=True, a estrutura esta confirmada AGORA
+        # -- nunca pode penalizar.
+        if bos_ok:
+            eq += 15; det["bos"] = 15
+        elif bos_idade <= 3:
             eq += 15; det["bos"] = 15
         elif bos_idade <= 6:
             eq += 5;  det["bos"] = 5
@@ -535,11 +545,15 @@ class K10Engine:
         else:
             _bloqueio("Sem pullback EMA21", 10, soft=True)
 
-        # H1 QUALITY score (K12)
-        if h1_quality_long >= 75:
-            confirmacoes.append("H1 MACD+EMA confirmando"); score += 10
-        elif h1_quality_long >= 50:
-            confirmacoes.append("H4 tendencia ok"); score += 5
+        # RFC ajuste-b3 23/08: bloco "H1 QUALITY score" removido daqui --
+        # duplicava a MESMA confirmacao (contexto H1/H4 alinhado) que a
+        # secao "CONTEXTO SUPERIOR" abaixo ja pontua (macd_ctx_ok/tend_ctx_ok,
+        # +18/+8), so que calculada de outro jeito (h1_quality_long composto).
+        # Resultado real observado: "H1 MACD+EMA confirmando" aparecia 2x no
+        # cartao e o score somava os dois (+10 E +18 pela mesma coisa),
+        # inflando o Score artificialmente. h1_quality_long continua
+        # calculado (usado no diag_snapshot/shadow tracker), so nao pontua
+        # mais aqui.
 
         # ORDER BLOCK
         try:
@@ -645,7 +659,7 @@ class K10Engine:
 
         # ENTRY QUALITY V3
         try:
-            eq, eq_det, eq_bloqueado = self._entry_quality(df, direcao, ob_ok, ob_low, ob_high)
+            eq, eq_det, eq_bloqueado = self._entry_quality(df, direcao, ob_ok, ob_low, ob_high, bos_ok)
         except:
             eq, eq_det, eq_bloqueado = 50, {"ema21":0,"ob_fvg":0,"timing":0,"rsi":0,"bos":0}, False
 
