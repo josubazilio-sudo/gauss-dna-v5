@@ -316,6 +316,26 @@ async def main():
     # Anti-repetição 2h + limite diário + anti-correlação
     cache_file = "/root/gauss-dna-v5/k11-signal-bot/k11_cache.json"
     dia_file   = "/root/gauss-dna-v5/k11-signal-bot/k11_dia.json"
+
+    def _salvar_cache_agora():
+        # RFC anti-duplicata 24/08: antes o cache so era salvo em disco UMA
+        # vez, no fim do ciclo inteiro (depois de processar todos os
+        # aprovados + bloco APEX). Se o processo fosse morto no meio disso
+        # (ex.: restart do bot durante um deploy) DEPOIS de enviar um sinal
+        # mas ANTES de chegar nessa escrita final, a entrada no cache se
+        # perdia -- o proximo ciclo via o candle 1h ainda fechado (mesma
+        # entrada) e reenviava o MESMO sinal (caso real: ASTER 20:10,
+        # dois cartoes pro mesmo candle). Agora salva imediatamente apos
+        # cada envio, com escrita atomica (tmp+replace, igual trade_tracker).
+        try:
+            tmp = cache_file + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(cache, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, cache_file)
+        except Exception as e:
+            logger.warning(f"Cache anti-repeticao: falha ao salvar imediatamente ({e})")
     try:
         cache = json.load(open(cache_file)) if os.path.exists(cache_file) else {}
         now = t.time()
@@ -410,6 +430,7 @@ async def main():
 
             await enviar(cartao)
             cache[chave] = t.time()
+            _salvar_cache_agora()
             chaves_enviadas_normal.add(chave)
             try:
                 trade_id = registrar(sinal)
@@ -461,6 +482,7 @@ async def main():
                 cartao_apex = apex_formatter.formatar_apex_cartao(apex_sinal, apex_resultado)
                 await enviar(cartao_apex)
                 cache[chave_apex] = t.time()
+                _salvar_cache_agora()
                 if chave_apex not in chaves_enviadas_normal:
                     trade_id_apex = registrar(apex_sinal)
                     logger.info(
@@ -479,11 +501,8 @@ async def main():
             except Exception as e:
                 logger.warning(f"APEX envio: {e}")
 
-    try:
-        with open(cache_file, "w") as f:
-            json.dump(cache, f)
-    except:
-        pass
+    # Escrita final removida — agora _salvar_cache_agora() ja persiste
+    # imediatamente apos cada envio (ver comentario acima da funcao).
 
     logger.info(f"K12: {enviados} sinais enviados")
 
