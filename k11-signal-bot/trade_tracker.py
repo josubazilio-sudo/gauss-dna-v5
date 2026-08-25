@@ -4,7 +4,7 @@ K11 Sistema de Relatório
 - Envia relatório a cada 2h
 - Resumo completo às 23:30 BRT
 """
-import json, os, logging, requests
+import json, os, logging, requests, time
 from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
@@ -125,6 +125,18 @@ def registrar(sinal: dict) -> int:
         "r_be_momento":     None,   # R no momento em que o BE ativou
         "r_tp1":            None,   # R quando o TP1 é atingido
         "r_devolvido":      None,   # R devolvido = max_r_favoravel - r_final
+        # RFC operacao-rapida 24/08 — instrumentacao de tempo (pre-requisito
+        # pra medir R/hora, tempo ate TP1/STOP, MFE/MAE com timestamp).
+        # `duracao_h` acima existia no schema desde sempre mas NUNCA era
+        # preenchido -- esse e o gap real que bloqueava a Fase 1 pedida
+        # (medir duracao dos trades atuais). Aditivo, zero impacto em
+        # gates/entrada/stop/TP.
+        "entrada_ts":       time.time(),
+        "fechado_ts":       None,
+        "tempo_ate_tp1_h":  None,
+        "tempo_ate_stop_h": None,
+        "tempo_ate_mfe_h":  None,   # quando o max_r_favoravel bateu o pico
+        "tempo_ate_mae_h":  None,   # quando o max_r_adverso bateu o fundo
     }
     trades.append(entry)
     _salvar(trades)
@@ -427,6 +439,7 @@ def verificar_resultados_automatico():
                     t["r_tp1"]      = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     _set_r_devolvido(t, rr)
+                    _marcar_fechamento(t)
                     if t.get("stop1_tocado"):
                         t["salvo_por_stop2"] = True
                     atualizados += 1
@@ -438,12 +451,14 @@ def verificar_resultados_automatico():
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     _set_r_devolvido(t, rr)
+                    _marcar_fechamento(t)
                     atualizados += 1
                 elif be > 0 and ja_be and preco <= be and preco > stop_efetivo:
                     t["resultado"]  = "BE"
                     t["r_obtido"]   = 0
                     t["pnl_usdt"]   = 0
                     _set_r_devolvido(t, 0)
+                    _marcar_fechamento(t)
                     atualizados += 1
             else:  # SHORT
                 if preco <= tp1 and tp1 > 0:
@@ -453,6 +468,7 @@ def verificar_resultados_automatico():
                     t["r_tp1"]      = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     _set_r_devolvido(t, rr)
+                    _marcar_fechamento(t)
                     if t.get("stop1_tocado"):
                         t["salvo_por_stop2"] = True
                     atualizados += 1
@@ -464,12 +480,14 @@ def verificar_resultados_automatico():
                     t["r_obtido"]   = rr
                     t["pnl_usdt"]   = round(rr * 2.7, 2)
                     _set_r_devolvido(t, rr)
+                    _marcar_fechamento(t)
                     atualizados += 1
                 elif be > 0 and ja_be and preco >= be and preco < stop_efetivo:
                     t["resultado"]  = "BE"
                     t["r_obtido"]   = 0
                     t["pnl_usdt"]   = 0
                     _set_r_devolvido(t, 0)
+                    _marcar_fechamento(t)
                     atualizados += 1
 
         except Exception as e:
@@ -504,6 +522,23 @@ def _set_r_devolvido(t, r_final):
     max_r = t.get("max_r_favoravel")
     base = max_r if max_r is not None else r_final
     t["r_devolvido"] = round(base - r_final, 2)
+
+
+def _marcar_fechamento(t):
+    """RFC operacao-rapida 24/08 — grava fechado_ts/duracao_h/tempo_ate_*
+    no momento em que o trade sai de ABERTO. Chamado sempre junto de
+    _set_r_devolvido (mesmo evento de fechamento). Aditivo, so le/escreve
+    campos de tempo -- nao influencia resultado nem r_obtido."""
+    agora = time.time()
+    entrada_ts = t.get("entrada_ts")
+    t["fechado_ts"] = agora
+    if entrada_ts:
+        duracao_h = round((agora - entrada_ts) / 3600, 2)
+        t["duracao_h"] = duracao_h
+        if t.get("resultado") == "TP1":
+            t["tempo_ate_tp1_h"] = duracao_h
+        elif t.get("resultado") in ("STOP", "TRAIL"):
+            t["tempo_ate_stop_h"] = duracao_h
 
 
 def _log_trailing(log, t, direcao, familia, tf, ref, old, novo, r_atual):
@@ -604,6 +639,11 @@ def verificar_gestao_avancada() -> list:
                 r_pico = calcular_r(entrada, stop_original, float(vela_h1["low"]), "SHORT")
             if r_pico > float(t.get("max_r_favoravel") or 0):
                 t["max_r_favoravel"] = round(r_pico, 2)
+                # RFC operacao-rapida 24/08 — tempo ate o pico (MFE), pra
+                # distinguir "foi rapido e devolveu" (gestao) de "nunca
+                # teve momentum" (secao 8 da RFC).
+                if t.get("entrada_ts"):
+                    t["tempo_ate_mfe_h"] = round((time.time() - t["entrada_ts"]) / 3600, 2)
                 alterado = True
 
             # MAE — máxima excursão adversa (pior R contra, candle H1 fechado)
@@ -613,6 +653,8 @@ def verificar_gestao_avancada() -> list:
                 r_pior = calcular_r(entrada, stop_original, float(vela_h1["high"]), "SHORT")
             if t.get("max_r_adverso") is None or r_pior < t["max_r_adverso"]:
                 t["max_r_adverso"] = round(r_pior, 2)
+                if t.get("entrada_ts"):
+                    t["tempo_ate_mae_h"] = round((time.time() - t["entrada_ts"]) / 3600, 2)
                 alterado = True
 
             # RFC stop-duplo 23/08 — STOP1 é só monitorado/logado aqui, NUNCA
