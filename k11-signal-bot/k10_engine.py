@@ -9,7 +9,7 @@ import numpy as np
 import time
 from datetime import datetime, timezone, timedelta
 from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K11_OURO_MIN_EQ,
-                      MODO_10_10, RVOL_MIN_10, SCORE_OURO_10, SCORE_PRATA_10, RR_MIN_10,
+                      MODO_10_10, RVOL_MIN_10, RVOL_MIN_10_RAPIDO, SCORE_OURO_10, SCORE_PRATA_10, RR_MIN_10,
                       EXIGE_ESTRUTURA_10, EXIGE_TENDENCIA_10, EXIGE_FLOW_10, EXIGE_MOMENTUM_10,
                       EXIGE_ENTRY_50_10, ENTRY_50_PCT_10,
                       SOFT_FILTERS_MODE, QUALITY_FINAL_MIN, SOFT_PENALTY_MAX, RVOL_HARD_MIN,
@@ -730,11 +730,15 @@ class K10Engine:
 
         # ----- GATE 10/10: qualidade sobre quantidade -----
         if MODO_10_10:
+            # RFC correcao-15m5m 25/08: RVOL_MIN_10=1.80 foi calibrado para
+            # 30m/1h; em 5m/15m usa-se o piso separado RVOL_MIN_10_RAPIDO,
+            # calibrado sobre o RVOL real observado nesses timeframes.
+            rvol_min_10_efetivo = RVOL_MIN_10_RAPIDO if tf in ("5m", "15m") else RVOL_MIN_10
             if not SOFT_FILTERS_MODE:
-                if rvol < RVOL_MIN_10:
-                    motivos.append(f"10/10 RVOL {rvol:.2f} < {RVOL_MIN_10}")
-            elif rvol < RVOL_MIN_10 and rvol >= RVOL_HARD_MIN:
-                _bloqueio(f"10/10 RVOL {rvol:.2f} < {RVOL_MIN_10}", 10, soft=True)
+                if rvol < rvol_min_10_efetivo:
+                    motivos.append(f"10/10 RVOL {rvol:.2f} < {rvol_min_10_efetivo}")
+            elif rvol < rvol_min_10_efetivo and rvol >= RVOL_HARD_MIN:
+                _bloqueio(f"10/10 RVOL {rvol:.2f} < {rvol_min_10_efetivo}", 10, soft=True)
                 # RVOL < RVOL_HARD_MIN já bloqueou HARD na seção de volume acima.
 
             if rr < RR_MIN_10:

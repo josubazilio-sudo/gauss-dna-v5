@@ -25,6 +25,13 @@ K11_OURO_MIN_EQ     = float(os.getenv("K11_OURO_MIN_EQ", "85"))
 # ==== GATE 10/10 (qualidade sobre quantidade) ====
 MODO_10_10         = os.getenv("MODO_10_10", "False").strip().lower() in ("1", "true", "yes", "on")
 RVOL_MIN_10        = float(os.getenv("RVOL_MIN_10", "1.80"))
+# RFC correcao-15m5m 25/08 — RVOL_MIN_10=1.80 foi calibrado sobre o
+# comportamento de RVOL em 30m/1h (janela de 20 velas = 10-20h de historico).
+# Em 5m/15m a mesma janela cobre so 100-300min; RVOL medido real nesses TFs
+# (candidatos com score>=70, amostra real 25/08) tem mediana 0.96-1.10, nao
+# 1.80 — o piso antigo bloqueava 93-96% dos candidatos so por isso. Piso
+# separado, so para 5m/15m, calibrado no p40-p50 real observado.
+RVOL_MIN_10_RAPIDO = float(os.getenv("RVOL_MIN_10_RAPIDO", "1.00"))
 SCORE_OURO_10      = float(os.getenv("SCORE_OURO_10", "90"))
 SCORE_PRATA_10     = float(os.getenv("SCORE_PRATA_10", "80"))
 RR_MIN_10          = float(os.getenv("RR_MIN_10", "2.50"))
