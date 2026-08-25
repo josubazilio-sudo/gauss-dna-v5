@@ -594,7 +594,7 @@ class K10Engine:
             motivos.append(f"Volume muito baixo RVOL {rvol:.2f} < {RVOL_HARD_MIN} (sem liquidez)")
 
         # CONTEXTO SUPERIOR
-        ctx_label = "H1" if tf=="30m" else "H4"
+        ctx_label = {"1h":"H1","4h":"H4","30m":"M30"}.get(ctx, ctx.upper())
         r4h = df4h.iloc[-1]
         macd_ctx = float(r4h["macd_hist"])
         e21_ctx  = float(r4h["ema21"]); e50_ctx = float(r4h["ema50"])
@@ -957,7 +957,7 @@ class K10Engine:
         }
 
     def analisar(self, symbol, timeframe=None):
-        pares = [("30m","1h"), ("1h","4h")]
+        pares = [("30m","1h"), ("1h","4h"), ("15m","1h"), ("5m","30m")]
         if timeframe:
             return self._analisar_tf(symbol, timeframe)
         resultados = []

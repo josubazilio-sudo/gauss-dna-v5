@@ -27,6 +27,8 @@ def _get_exchange():
 # ── Configurações ────────────────────────────────────────────────────────────
 # Máximo de candles de atraso permitidos por timeframe
 TF_MAX_CANDLE_AGE_SEC = {
+    "5m":  5  * 60 * 1.5,   # 7.5 min
+    "15m": 15 * 60 * 1.5,   # 22.5 min
     "30m": 30 * 60 * 1.5,   # 45 min — 1.5 candles de margem
     "1h":  60 * 60 * 1.5,   # 90 min
     "4h":  4  * 60 * 60 * 1.5,

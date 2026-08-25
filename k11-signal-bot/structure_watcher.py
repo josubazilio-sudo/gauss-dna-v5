@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 TRADES_FILE = "/root/gauss-dna-v5/k11-signal-bot/k11_trades.json"
 WATCHER_LOG = "/root/gauss-dna-v5/k11-signal-bot/structure_watcher.log"
 MIN_CANDLES_WAIT = 1
-MAX_WATCH_SEC = {"30m": 14400, "1h": 21600, "4h": 57600}
+MAX_WATCH_SEC = {"5m": 1800, "15m": 3600, "30m": 14400, "1h": 21600, "4h": 57600}
 DEFAULT_MAX_WATCH = 21600
 
 def _load_trades():
@@ -75,7 +75,7 @@ def verificar_quebra_estrutura(exchange):
             ts = datetime.fromisoformat(trade.get("ts","")).timestamp()
         except: ts = agora - 9999
         if agora - ts > MAX_WATCH_SEC.get(tf, DEFAULT_MAX_WATCH): continue
-        tf_sec = {"30m":1800,"1h":3600,"4h":14400}.get(tf,3600)
+        tf_sec = {"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400}.get(tf,3600)
         if agora - ts < tf_sec * MIN_CANDLES_WAIT: continue
         try:
             preco = float(exchange.fetch_ticker(symbol)["last"])

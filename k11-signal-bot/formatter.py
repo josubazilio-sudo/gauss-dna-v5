@@ -26,7 +26,7 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
     alav    = r.get("alavancagem", 8)
     risco   = r.get("risco_usdt", 2.7)
     risco_pct = r.get("risco_pct_aplicado", 3.0)
-    duracao = {"30m":"4–8h","1h":"6–12h","4h":"24–48h","1d":"3–7d"}.get(tf,"6–12h")
+    duracao = {"5m":"20–40min","15m":"1–2h","30m":"4–8h","1h":"6–12h","4h":"24–48h","1d":"3–7d"}.get(tf,"6–12h")
     prioridade = r.get("prioridade","")
 
     dir_emoji = "🟢 LONG" if direcao == "LONG" else "🔴 SHORT"
