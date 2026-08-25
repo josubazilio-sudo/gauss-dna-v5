@@ -93,6 +93,12 @@ def registrar(sinal: dict) -> int:
         "quality_final":     sinal.get("quality_final"),
         "tier_qualidade":    sinal.get("tier_qualidade"),
         "soft_penalty":      sinal.get("soft_penalty"),
+        # RFC operacao-rapida 24/08 — faltava o TEXTO dos motivos soft, so
+        # o numero agregado (soft_penalty) era salvo. Sem isso, nao da pra
+        # diagnosticar RETROATIVAMENTE por que um trade caiu pra ABAIXO
+        # (ex.: os 13 trades ABAIXO de 23-24/08 tinham score 86-94 mas
+        # soft_penalty 20-50 -- sabiamos O QUANTO penalizou, nao O QUE).
+        "motivos_soft":      sinal.get("motivos_soft"),
         "soft_filters_mode": sinal.get("soft_filters_mode", False),
         # RFC stop-duplo 23/08 — REGISTRO OBRIGATÓRIO. Aditivo: None/False
         # em trades antigos (campo não existia antes desta RFC).

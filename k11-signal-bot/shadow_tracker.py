@@ -48,6 +48,12 @@ CAMPOS_SNAPSHOT = [
     "entry_quality", "candle_ts", "aprovado", "motivos_rejeicao",
     "confirmacoes_smc", "not_extended", "bull_candle", "pullback_long",
     "h1_quality_long", "dist_ema50_atr",
+    # RFC operacao-rapida 24/08 — gap conhecido desde a RFC reequilibrio
+    # 22/08, nunca corrigido: faltavam os campos de soft/quality/tier
+    # novos, impedindo diagnostico de PORQUE um candidato caiu num tier
+    # (ex.: ABAIXO com score alto mas soft_penalty batendo o teto).
+    "quality_final", "tier_qualidade", "soft_penalty", "motivos_soft",
+    "soft_filters_mode", "saude_mercado", "risco_pct_aplicado",
 ]
 
 # Mapeamento motivo (texto do k10_engine) -> código canônico de bloqueio.
