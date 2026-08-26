@@ -60,10 +60,7 @@ async def main():
         engine = K10Engine()
         wl_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
         wl_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
-        # Watchlist reduzida (150 pares por volume) — scanner restrito a 15m/5m
-        # precisa de ciclos rápidos; com 500 pares o candle de 5m fica STALE
-        # antes do scan terminar (ciclo levava ~5min, igual a 1 candle inteiro).
-        wl = WATCHLIST_PRIORITY + wl_sem_dup[:140]  # 150 pares total
+        wl = WATCHLIST_PRIORITY + wl_sem_dup[:490]  # 500 pares total
 
         aprovados = []
         todos_resultados = []  # p/ Shadow Outcome Tracking (RFC 21/08) — inclui bloqueados
@@ -72,7 +69,7 @@ async def main():
             except: return None
 
         with ThreadPoolExecutor(max_workers=6) as ex:
-            futures = {ex.submit(analisar, sym): sym for sym in wl[:150]}
+            futures = {ex.submit(analisar, sym): sym for sym in wl[:500]}
             for f in as_completed(futures):
                 r = f.result()
                 if r:

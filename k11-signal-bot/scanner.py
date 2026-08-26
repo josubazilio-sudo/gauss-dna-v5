@@ -11,7 +11,7 @@ from watchlist import get_watchlist, WATCHLIST_FALLBACK
 
 logger = logging.getLogger(__name__)
 
-TIMEFRAMES = ["5m", "15m"]
+TIMEFRAMES = ["30m", "1h", "4h", "1d"]
 
 
 class K10Scanner:

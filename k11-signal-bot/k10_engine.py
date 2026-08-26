@@ -983,7 +983,14 @@ class K10Engine:
         }
 
     def analisar(self, symbol, timeframe=None):
-        pares = [("15m","1h"), ("5m","30m")]
+        # RFC correcao-15m5m 25/08 PAUSADA: 50 trades reais fecharam com
+        # Exp -0.40R/-0.48R (5m/15m) vs +0.06R/-0.02R (30m/1h) -- qualidade
+        # pior que os timeframes antigos apesar do funil ter parado de
+        # bloquear tudo. Volta para 30m/1h ate investigar qual das 4
+        # correcoes (RVOL/H4/janela estrutura/STALE_SIGNAL) causou a queda.
+        # As 4 correcoes continuam no codigo, condicionadas a tf in
+        # ("5m","15m") -- ficam sem efeito pratico com este pares abaixo.
+        pares = [("30m","1h"), ("1h","4h")]
         if timeframe:
             return self._analisar_tf(symbol, timeframe)
         resultados = []
