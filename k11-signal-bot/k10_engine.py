@@ -500,12 +500,24 @@ class K10Engine:
                 confirmacoes.append("EMA10/21 ok"); score += 5
 
         # LIQUIDEZ / BOS / TENDÊNCIA
+        # RFC correcao-15m5m 25/08: testado empiricamente contra dados reais
+        # (25 simbolos, ambas direcoes) -- em 5m a janela original (20/6,6/1,
+        # 10/2 velas) ja da a maior taxa de estrutura confirmada (88%); em
+        # 15m, a MESMA janela cai pra 68%, e reduzir pela metade (10/3,3/1,
+        # 5/1) sobe pra 84%. Aumentar a janela (testado antes) piorou os dois
+        # -- swing mais amplo = nivel mais extremo = sweep menos provavel.
+        # Sem mudanca para 30m/1h/4h/1d.
+        if tf == "15m":
+            lb_hi, lb_lo, sw_hi, sw_lo, bos_hi, bos_lo = 10, 3, 3, 1, 5, 1
+        else:
+            lb_hi, lb_lo, sw_hi, sw_lo, bos_hi, bos_lo = 20, 6, 6, 1, 10, 2
+
         sweep_ok = False
         sweep_extremo = 0.0  # preco do wick que varreu a liquidez (RFC stop-duplo 23/08)
-        lookback = dfc.iloc[-20:-6]
+        lookback = dfc.iloc[-lb_hi:-lb_lo]
         swing_high = float(lookback["high"].max())
         swing_low  = float(lookback["low"].min())
-        for i in range(-6, -1):
+        for i in range(-sw_hi, -sw_lo):
             vela = dfc.iloc[i]
             hv=float(vela["high"]); lv=float(vela["low"]); cv=float(vela["close"])
             if direcao=="LONG" and lv < swing_low*1.001 and cv > swing_low:
@@ -515,8 +527,8 @@ class K10Engine:
                 sweep_ok=True
                 sweep_extremo = hv if sweep_extremo == 0.0 else max(sweep_extremo, hv)
 
-        highs = float(dfc["high"].iloc[-10:-2].max())
-        lows  = float(dfc["low"].iloc[-10:-2].min())
+        highs = float(dfc["high"].iloc[-bos_hi:-bos_lo].max())
+        lows  = float(dfc["low"].iloc[-bos_hi:-bos_lo].min())
         bos_ok = (c > highs) if direcao=="LONG" else (c < lows)
         tend_forte = (e10>e21>e50 and macd_h>0 and adx>22 and direcao=="LONG") or \
                      (e10<e21<e50 and macd_h<0 and adx>22 and direcao=="SHORT")
