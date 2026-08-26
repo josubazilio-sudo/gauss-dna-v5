@@ -604,7 +604,17 @@ class K10Engine:
         tend_ctx_ok = (tend_ctx and direcao=="LONG") or (not tend_ctx and direcao=="SHORT")
 
         if not tend_ctx_ok and adx_ctx > 28:
-            motivos.append(f"❌ {ctx_label} contra tendência forte")
+            # RFC correcao-15m5m 25/08: em 30m/1h/4h/1d este bloqueio segue
+            # HARD sempre (decisao RFC reequilibrio-reversao 23/08, validada
+            # com dados reais daqueles timeframes: mesmo com estrutura
+            # confirmada, Exp continuava negativo). Nunca revalidado para
+            # 5m/15m — la, suaviza igual ao padrao ja usado em EMA-contra e
+            # no GATE 10/10 "sem tendencia alinhada": SOFT somente quando ha
+            # estrutura real confirmada (sweep ou BOS), senao HARD.
+            if tf in ("5m", "15m") and (bos_ok or sweep_ok):
+                _bloqueio(f"{ctx_label} contra tendência forte (aceito: estrutura confirmada)", 15, soft=True)
+            else:
+                motivos.append(f"❌ {ctx_label} contra tendência forte")
         elif macd_ctx_ok and tend_ctx_ok:
             confirmacoes.append(f"✅ {ctx_label} MACD+EMA confirmando"); score += 18
         elif tend_ctx_ok:
