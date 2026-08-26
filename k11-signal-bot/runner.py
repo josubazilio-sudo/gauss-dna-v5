@@ -138,6 +138,48 @@ async def main():
             logger.warning(f"APEX: {e}")
             apex_resultado = None
 
+        # SHORT SHADOW — RFC short-shadow 26/08. Experiencia isolada,
+        # roda DEPOIS do fluxo LONG (nunca atrasa o envio real). So
+        # captura em short_shadow_candidates.jsonl, nunca aprova/envia/
+        # registra trade real. Falha isolada nunca derruba o ciclo.
+        try:
+            from short_shadow_engine import ShortShadowEngine, capturar_lote as capturar_short, resolver_pendentes as resolver_short
+            resolvidos_short = resolver_short()
+            if resolvidos_short:
+                logger.info(f"K12 SHORT_SHADOW: {resolvidos_short} candidato(s) resolvido(s)")
+
+            short_engine = ShortShadowEngine()
+            wl_short = wl[:150]  # subconjunto — nao pesa o ciclo principal
+            def analisar_short(sym):
+                candidatos_sym = []
+                for tf_s in ("30m", "1h"):
+                    try:
+                        r = short_engine.analisar_tf(sym, tf_s)
+                        if r:
+                            candidatos_sym.append(r)
+                    except Exception:
+                        pass
+                return candidatos_sym
+
+            todos_short = []
+            with ThreadPoolExecutor(max_workers=4) as ex_short:
+                futures_short = {ex_short.submit(analisar_short, sym): sym for sym in wl_short}
+                for f_short in as_completed(futures_short):
+                    todos_short.extend(f_short.result())
+
+            novos_short = capturar_short(todos_short)
+            aprovados_short = [c for c in todos_short if c.get("aprovado_shadow")]
+            if aprovados_short:
+                logger.info(
+                    f"K12 SHORT_SHADOW: {len(aprovados_short)} regime(s) bearish forte "
+                    f"({', '.join(c['symbol'] for c in aprovados_short)}) | "
+                    f"{novos_short} novo(s) capturado(s) no total"
+                )
+            elif novos_short:
+                logger.info(f"K12 SHORT_SHADOW: {novos_short} candidato(s) novo(s) capturado(s), nenhum atingiu a barra")
+        except Exception as e:
+            logger.warning(f"SHORT_SHADOW: {e}")
+
     except Exception:
         logger.error(traceback.format_exc())
         return
