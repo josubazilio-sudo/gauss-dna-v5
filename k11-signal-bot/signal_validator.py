@@ -27,7 +27,15 @@ def _get_exchange():
 # ── Configurações ────────────────────────────────────────────────────────────
 # Máximo de candles de atraso permitidos por timeframe
 TF_MAX_CANDLE_AGE_SEC = {
-    "5m":  5  * 60 * 1.5,   # 7.5 min
+    # RFC correcao-15m5m 25/08: 1.5x (7.5min) media que o pipeline sequencial
+    # inteiro (scan 150 pares ~2-4min + shadow + final selector) precisa
+    # terminar bem mais rapido que a propria vela de 5m -- confirmado ao vivo
+    # bloqueando um candidato real (score 85, EQ 95) com candle de 9min.
+    # 2.5x da a mesma folga proporcional que os outros timeframes ja tem
+    # (30m/1h/4h/1d usam 1.5x mas o scan neles e desprezivel perto da vela).
+    # MAX_DIST_ATR (abaixo) continua validando o preco de verdade -- isto so
+    # afeta o teto de idade do candle, nao a distancia/desvio de preco.
+    "5m":  5  * 60 * 2.5,   # 12.5 min
     "15m": 15 * 60 * 1.5,   # 22.5 min
     "30m": 30 * 60 * 1.5,   # 45 min — 1.5 candles de margem
     "1h":  60 * 60 * 1.5,   # 90 min
