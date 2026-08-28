@@ -218,7 +218,7 @@ def relatorio_2h() -> str:
     linhas += [sep, f"🔔 ÚLTIMAS 2H ({len(recentes)} sinais):"]
     if recentes:
         for t in recentes[-5:]:
-            emoji = "✅" if t["resultado"] in ("TP1","TP2") else "❌" if t["resultado"]=="STOP" else "⏳"
+            emoji = "✅" if t["resultado"] in ("TP1","TP2") else "❌" if t["resultado"] in ("STOP","TIMEOUT") else "⏳"
             linhas.append(f"{emoji} {t['hora']} {t['symbol']} {t['direcao']} {t['timeframe']} s={t['score']} RVOL={t['rvol']}")
     else:
         linhas.append("Nenhum sinal nas últimas 2h")
@@ -259,7 +259,7 @@ def relatorio_diario() -> str:
 
     linhas += [sep, "TODOS OS SINAIS DE HOJE:"]
     for t in de_hoje:
-        emoji = "✅" if t["resultado"] in ("TP1","TP2") else "❌" if t["resultado"]=="STOP" else "⏳"
+        emoji = "✅" if t["resultado"] in ("TP1","TP2") else "❌" if t["resultado"] in ("STOP","TIMEOUT") else "⏳"
         r_str = f" {t['r_obtido']:+.1f}R" if t.get("r_obtido") is not None else ""
         linhas.append(f"{emoji} {t['hora']} {t['symbol']} {t['direcao']} s={t['score']}{r_str}")
 
@@ -412,6 +412,10 @@ def verificar_resultados_automatico():
         frac_tp1 = int(round(TP1_FRACAO_VOLUME * 100))
     except Exception:
         frac_tp1 = 30
+    try:
+        from config import TRADE_TIMEOUT_HORAS
+    except Exception:
+        TRADE_TIMEOUT_HORAS = 168
 
     atualizados = 0
     for t in trades:
@@ -466,6 +470,15 @@ def verificar_resultados_automatico():
                     _set_r_devolvido(t, 0)
                     _marcar_fechamento(t)
                     atualizados += 1
+                elif risco > 0 and (_idade_horas(t) or 0) > TRADE_TIMEOUT_HORAS:
+                    rr = round((preco - entrada) / risco, 2)
+                    t["resultado"]  = "TIMEOUT"
+                    t["r_obtido"]   = rr
+                    t["pnl_usdt"]   = round(rr * 2.7, 2)
+                    _set_r_devolvido(t, rr)
+                    _marcar_fechamento(t)
+                    atualizados += 1
+                    log.info(f"[K12][TIMEOUT] {t['symbol']} LONG fechado apos {TRADE_TIMEOUT_HORAS:.0f}h sem TP/stop | preco={preco} r={rr:+.2f}")
             else:  # SHORT
                 if preco <= tp1 and tp1 > 0:
                     rr = round(abs(tp1-entrada)/abs(stop-entrada), 2) if stop != entrada else 0
@@ -495,6 +508,15 @@ def verificar_resultados_automatico():
                     _set_r_devolvido(t, 0)
                     _marcar_fechamento(t)
                     atualizados += 1
+                elif risco > 0 and (_idade_horas(t) or 0) > TRADE_TIMEOUT_HORAS:
+                    rr = round((entrada - preco) / risco, 2)
+                    t["resultado"]  = "TIMEOUT"
+                    t["r_obtido"]   = rr
+                    t["pnl_usdt"]   = round(rr * 2.7, 2)
+                    _set_r_devolvido(t, rr)
+                    _marcar_fechamento(t)
+                    atualizados += 1
+                    log.info(f"[K12][TIMEOUT] {t['symbol']} SHORT fechado apos {TRADE_TIMEOUT_HORAS:.0f}h sem TP/stop | preco={preco} r={rr:+.2f}")
 
         except Exception as e:
             continue
@@ -521,6 +543,25 @@ def _log_tp1(log, t, direcao, rr, frac):
         "[K12][TP1]\n%s\nR=%.2f\nVOLUME_FECHADO=%d%%\nVOLUME_RESTANTE=%d%%",
         _linha(t["symbol"], direcao), rr, frac, 100 - frac
     )
+
+
+def _idade_horas(t):
+    """Idade do trade em horas. Usa entrada_ts (instrumentado desde
+    24/08) quando existe; para trades mais antigos, cai no fallback de
+    data/hora (string 'DD/MM/YYYY'/'HH:MM', formato usado desde sempre
+    no registro). Retorna None se nao houver nenhuma fonte de tempo."""
+    entrada_ts = t.get("entrada_ts")
+    if entrada_ts:
+        return (time.time() - entrada_ts) / 3600
+    data_str, hora_str = t.get("data"), t.get("hora")
+    if not data_str or not hora_str:
+        return None
+    try:
+        dt = datetime.strptime(f"{data_str} {hora_str}", "%d/%m/%Y %H:%M")
+        dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+    except Exception:
+        return None
 
 
 def _set_r_devolvido(t, r_final):

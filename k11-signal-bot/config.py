@@ -62,6 +62,18 @@ SOFT_FILTERS_MODE = os.getenv("SOFT_FILTERS_MODE", "False").strip().lower() in (
 # TODOS com score>=87, ZERO candidato fraco (score<70) passa. Antes (piso
 # 70, sem cap): so 2/51 aprovavam.
 QUALITY_FINAL_MIN = float(os.getenv("QUALITY_FINAL_MIN", "60"))
+
+# RFC timeout-trade 27/08 — achado real: 2 trades (TTWOSTOCK #296, INDA
+# #388) ficaram 20 dias ABERTO sem nunca bater TP nem stop, lateralizados
+# numa faixa estreita. Nao e bug (simbolos respondem normal na exchange),
+# e mercado genuinamente parado — mas o sistema nao tinha nenhum mecanismo
+# de expiracao, entao a alocacao de risco ficava presa indefinidamente.
+# Valor conservador: amostra real de duracao de trades ja resolvidos
+# (30m: n=5, max=6.9h; 1h: n=3, max=36.6h) e pequena demais para calibrar
+# um percentil com confianca, entao o timeout foi fixado bem acima de
+# qualquer duracao normal observada (7 dias = 168h) para so pegar casos
+# genuinamente presos, sem fechar trades normais cedo demais.
+TRADE_TIMEOUT_HORAS = float(os.getenv("TRADE_TIMEOUT_HORAS", "168"))
 SOFT_PENALTY_MAX   = float(os.getenv("SOFT_PENALTY_MAX", "25"))   # teto da penalidade soft somada
 RVOL_HARD_MIN      = float(os.getenv("RVOL_HARD_MIN", "0.50"))    # abaixo disso, bloqueia mesmo em soft mode
 
