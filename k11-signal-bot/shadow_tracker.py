@@ -373,6 +373,16 @@ def resolver_pendentes(limite: int = 50) -> int:
         c for c in estado.values()
         if c.get("outcome_simulable") and (c.get("shadow") or {}).get("status") == "PENDING"
     ]
+    # RFC prioridade-shadow 28/08 — achado real: com 16k+ pendentes e so
+    # `limite` resolvidos por ciclo, a fila (ordem cronologica de captura)
+    # e dominada por candidatos BLOQUEADOS (muito mais numerosos que
+    # aprovados a cada ciclo). Resultado: 935 de 944 aprovados nunca
+    # chegavam a ser resolvidos, ficando "afogados" atras da fila -- nao
+    # e que aprovados performem pior, e que quase nao havia dado real
+    # sobre eles ainda. Prioriza aprovados primeiro (sort estavel, mantem
+    # ordem cronologica dentro de cada grupo); nao muda nenhuma logica de
+    # aprovacao/estrategia, so a ordem de resolucao do shadow.
+    pendentes.sort(key=lambda c: not c.get("aprovado"))
 
     resolvidos = 0
     for cand in pendentes[:limite]:
