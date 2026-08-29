@@ -915,6 +915,21 @@ class K10Engine:
         stop_final = stop2 if STOP_DUPLO_ATIVO else stop1
         dist_final = abs(c - stop_final)
 
+        # RFC correcao-rr 28/08 — BUG REAL identificado por auditoria: `rr`
+        # (calculado la em cima, linha ~682) usava `stop` == STOP1 (mais
+        # apertado), mas o stop que de fato protege o trade e `stop_final`
+        # (STOP2 quando STOP_DUPLO_ATIVO). O card sempre mostrava RR~3.5
+        # (o valor "puro" usado pra derivar tp2), enquanto o RR real medido
+        # em trades fechados (amostra real, 25-28/08) ficava em media 2.25,
+        # as vezes ate 1.56 — RR_MIN nunca via o risco real. Nao e mudanca
+        # de estrategia: e o mesmo piso RR<2.0 ja tratado como HARD sempre
+        # em todo o resto do arquivo, agora aplicado sobre o stop correto.
+        rr_final = round(abs(tp2 - c) / abs(stop_final - c), 2) if stop_final != c else 0
+        if aprovado and rr_final < 2.0:
+            motivos.append(f"RR real {rr_final} < 2.0 (com stop final aplicado, era exibido {rr})")
+            aprovado = False
+        rr = rr_final
+
         gb_risco = round(BANCA * risco_pct_aplicado / 100, 2)
         dist = dist_final/c if c else 0.01
         pos  = round(min(gb_risco/dist, BANCA*3), 2) if dist > 0 else 0
