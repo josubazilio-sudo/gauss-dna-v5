@@ -93,6 +93,9 @@ def registrar(sinal: dict) -> int:
         "quality_final":     sinal.get("quality_final"),
         "tier_qualidade":    sinal.get("tier_qualidade"),
         "soft_penalty":      sinal.get("soft_penalty"),
+        # RFC modo-operavel 29/08 — classificacao final do modulo de
+        # liberacao (NAO_OPERAVEL nunca chega aqui; ACEITAVEL/BOM/PREMIUM).
+        "classificacao_operavel": sinal.get("classificacao_operavel"),
         # RFC operacao-rapida 24/08 — faltava o TEXTO dos motivos soft, so
         # o numero agregado (soft_penalty) era salvo. Sem isso, nao da pra
         # diagnosticar RETROATIVAMENTE por que um trade caiu pra ABAIXO

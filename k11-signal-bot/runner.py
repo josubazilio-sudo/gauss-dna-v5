@@ -3,7 +3,7 @@ K12 Runner — SMC Engine
 """
 import asyncio, logging, os, httpx, traceback, json, time as t
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from formatter import formatar_cartao
+from formatter import formatar_cartao, formatar_cartao_operavel
 from config import BOT_TOKEN, ALLOWED_CHAT_IDS
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -452,7 +452,33 @@ async def main():
             logger.warning(f"SIGNAL_VALIDATOR: erro na validação ({e}) — sinal liberado por fallback")
         # ─────────────────────────────────────────────────────────────────────
 
-        cartao = formatar_cartao(sinal, bot_name="K12")
+        # ── MODO OPERÁVEL REAL — RFC 29/08 ──────────────────────────────
+        # Módulo FINAL de liberação. Roda depois de motor+Final
+        # Selector+signal_validator já terem aprovado — se bloquear aqui,
+        # o sinal NÃO é enviado nem registrado, só logado (motivos_bloqueio).
+        avaliacao = None
+        try:
+            import modo_operavel
+            avaliacao = modo_operavel.avaliar(sinal)
+            if not avaliacao["operar"]:
+                logger.info(
+                    f"MODO_OPERAVEL: {sinal['symbol']} {sinal['direcao']} NAO OPERAVEL — "
+                    + "; ".join(avaliacao["motivos_bloqueio"])
+                )
+                continue
+        except Exception as e:
+            logger.warning(f"MODO_OPERAVEL: erro na avaliação ({e}) — sinal bloqueado por segurança")
+            continue
+
+        # Sobrescreve os campos de risco do sinal com o risco% do modo
+        # operavel (RFC 29/08), ANTES de registrar() — assim o trade
+        # persistido reflete o risco real usado, nao o adaptativo antigo.
+        sinal["risco_pct_aplicado"] = avaliacao["risco_pct_final"]
+        sinal["risco_usdt"] = avaliacao["risco_usdt_final"]
+        sinal["posicao"] = avaliacao["posicao_final"]
+        sinal["classificacao_operavel"] = avaliacao["classificacao"]
+
+        cartao = formatar_cartao_operavel(sinal, avaliacao)
         if cartao:
             # Auditoria GATE 10/10
             try:

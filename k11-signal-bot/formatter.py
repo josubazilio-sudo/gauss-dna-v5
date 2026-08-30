@@ -99,3 +99,58 @@ def formatar_cartao(r: dict, bot_name: str = "K10") -> str:
 
 def formatar_rejeicao(r: dict) -> str:
     return None
+
+
+def formatar_cartao_operavel(r: dict, avaliacao: dict) -> str:
+    """RFC modo-operavel 29/08 — formato de card do modulo final de
+    liberacao. So chamado quando avaliacao['operar'] e True (o caso
+    NAO OPERAR nao gera card de producao, so log — a RFC pede mostrar
+    'somente os 3 principais motivos', o que fica no log, nao no
+    Telegram, para nao gerar ruido de mensagens de sinais que nao saem)."""
+    symbol  = r["symbol"].replace("/USDT:USDT", "").replace("/USDT", "")
+    direcao = r["direcao"]
+    tf      = r.get("timeframe", "30m")
+    dir_emoji = "🟢 LONG" if direcao == "LONG" else "🔴 SHORT"
+
+    classe = avaliacao["classificacao"]
+    classe_emoji = {"PREMIUM": "🔥 PREMIUM", "BOM": "🟢 BOM", "ACEITAVEL": "🟡 ACEITÁVEL"}.get(classe, classe)
+
+    est = avaliacao["estrutura"]
+    ctx = avaliacao["contexto"]
+    ok = lambda b: "✅" if b else "⚠️"
+
+    sep = "━━━━━━━━━━━━━━━━━━━━"
+    return (
+        f"🏆 {symbol}\n\n"
+        f"🔥 K12 OPERÁVEL\n\n"
+        f"{dir_emoji} | {tf}\n"
+        f"⭐ {classe_emoji}\n\n"
+        f"Score: {r.get('score')}\n"
+        f"EQ: {r.get('entry_quality')}\n"
+        f"RVOL: {r.get('rvol', 0):.2f}\n"
+        f"RR: {r.get('rr', 0):.2f}\n\n"
+        f"{sep}\n\n"
+        f"🧠 ESTRUTURA\n"
+        f"BOS/CHoCH: {ok(est['bos_choch'])}\n"
+        f"Liquidez: {ok(est['liquidez'])}\n"
+        f"Pullback/reteste: {ok(est['pullback'])}\n"
+        f"Zona institucional: {ok(est['zona_institucional'])}\n\n"
+        f"📊 CONTEXTO\n"
+        f"H1/H4: {ok(ctx['htf_alinhado'])}\n"
+        f"EMA: {ok(ctx['ema_ok'])}\n"
+        f"MACD: {ok(ctx['macd_ok'])}\n"
+        f"Volume: {ok(ctx['volume_ok'])}\n\n"
+        f"{sep}\n\n"
+        f"💰 Entrada: {r.get('entrada')}\n"
+        f"🎯 TP1: {r.get('tp1')}\n"
+        f"🎯 TP2: {r.get('tp2')}\n"
+        f"⚡ BE: {r.get('be')}\n"
+        f"🛑 Stop: {r.get('stop')}\n\n"
+        f"⚖️ RR: {r.get('rr', 0):.2f}\n\n"
+        f"💵 Banca: {r.get('capital')} USDT\n"
+        f"⚠️ Risco: {avaliacao['risco_usdt_final']} USDT ({avaliacao['risco_pct_final']:.2f}%)\n"
+        f"📦 Posição: {avaliacao['posicao_final']} USDT\n\n"
+        f"{sep}\n\n"
+        f"🟢 DECISÃO: OPERAR\n\n"
+        f"K12"
+    )

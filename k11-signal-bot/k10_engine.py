@@ -994,6 +994,16 @@ class K10Engine:
             "stop2_buffer_aplicado": stop2_buffer_aplicado,
             "stop_duplo_ativo":     STOP_DUPLO_ATIVO,
             "risco_adaptativo_ativo": RISCO_ADAPTATIVO_ATIVO,
+            # RFC modo-operavel 29/08 — aditivo, expõe flags que já existiam
+            # internamente (nunca calculadas de novo) para o modulo de
+            # liberacao final poder usar sem reparsear texto de
+            # confirmacoes_smc/motivos_rejeicao.
+            "bos_ok":               bos_ok,
+            "sweep_ok":             sweep_ok,
+            "tem_zona_institucional": tem_zona_institucional,
+            "macd_ctx_ok":          macd_ctx_ok,
+            "tend_ctx_ok":          tend_ctx_ok,
+            "adx_ctx":              round(adx_ctx, 1),
             **diag_snapshot,
         }
 
