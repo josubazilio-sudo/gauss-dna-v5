@@ -1,0 +1,545 @@
+//@version=6
+indicator("K12 SMC - Fiel ao Engine", shorttitle="K12 SMC", overlay=true, max_lines_count=20, max_labels_count=20)
+
+// ════════════════════════════════════════════════════════════
+// INPUTS — mesmos nomes/valores do config.py do K12
+// ════════════════════════════════════════════════════════════
+grpTrend = "TENDENCIA"
+grpGate  = "GATES"
+grpRisk  = "RISCO / STOP"
+
+ema10Len  = input.int(10,  "EMA10",  group=grpTrend)
+ema21Len  = input.int(21,  "EMA21",  group=grpTrend)
+ema50Len  = input.int(50,  "EMA50",  group=grpTrend)
+ema200Len = input.int(200, "EMA200", group=grpTrend)
+
+macdFast   = input.int(12, "MACD Fast",   group=grpTrend)
+macdSlow   = input.int(26, "MACD Slow",   group=grpTrend)
+macdSignal = input.int(9,  "MACD Signal", group=grpTrend)
+
+adxLen = input.int(14, "ADX Length", group=grpGate)
+rsiLen = input.int(14, "RSI Length", group=grpGate)
+atrLen = input.int(14, "ATR Length", group=grpGate)
+rvolLen = input.int(20, "Media Volume (RVOL)", group=grpGate)
+
+softFiltersMode = input.bool(true, "SOFT_FILTERS_MODE (igual producao)", group=grpGate)
+modo1010        = input.bool(true, "MODO_10_10 (igual producao)", group=grpGate)
+
+rvolHardMin  = input.float(0.50, "RVOL_HARD_MIN", group=grpGate)
+rvolMin10    = input.float(1.80, "RVOL_MIN_10", group=grpGate)
+scoreOuro10  = input.float(90,   "SCORE_OURO_10", group=grpGate)
+scorePrata10 = input.float(80,   "SCORE_PRATA_10", group=grpGate)
+rrMin10      = input.float(2.50, "RR_MIN_10 (HARD sempre)", group=grpGate)
+
+qualityFinalMin = input.float(60, "QUALITY_FINAL_MIN", group=grpGate)
+softPenaltyMax  = input.float(25, "SOFT_PENALTY_MAX", group=grpGate)
+
+stop2BufNormal = input.float(1.0, "STOP2 buffer NORMAL",         group=grpRisk)
+stop2BufSaud   = input.float(1.2, "STOP2 buffer SAUDAVEL",       group=grpRisk)
+stop2BufMuito  = input.float(1.5, "STOP2 buffer MUITO_SAUDAVEL", group=grpRisk)
+stop2BufFraco  = input.float(0.6, "STOP2 buffer FRACO",          group=grpRisk)
+
+// ════════════════════════════════════════════════════════════
+// HEIKIN ASHI sobre preco (igual K10Engine._calc_ha — NAO sobre MACD)
+// ════════════════════════════════════════════════════════════
+haClose = (open + high + low + close) / 4
+var float haOpen = na
+haOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2
+haHigh = math.max(high, math.max(haOpen, haClose))
+haLow  = math.min(low,  math.min(haOpen, haClose))
+
+// ════════════════════════════════════════════════════════════
+// INDICADORES — todos sobre velas HA, igual K10Engine._calc()
+// ════════════════════════════════════════════════════════════
+e10  = ta.ema(haClose, ema10Len)
+e21  = ta.ema(haClose, ema21Len)
+e50  = ta.ema(haClose, ema50Len)
+e200 = ta.ema(haClose, ema200Len)
+
+[macdLine, signalLine, histLine] = ta.macd(haClose, macdFast, macdSlow, macdSignal)
+macdH  = histLine
+macdH2 = histLine[1]
+macdH3 = histLine[2]
+macdH4 = histLine[3]
+
+[diPlus, diMinus, adx] = ta.dmi(adxLen, adxLen)
+atr = ta.atr(atrLen)
+rsiVal  = ta.rsi(haClose, rsiLen)
+rsiVal2 = rsiVal[1]
+
+volMa = ta.sma(volume, rvolLen)
+rvol  = volMa > 0 ? volume[1] / volMa : 0.0
+
+vwapVal = ta.vwap((haHigh + haLow + haClose) / 3)
+
+// ════════════════════════════════════════════════════════════
+// CONTEXTO SUPERIOR — H1 se chart=30m, H4 caso contrario (igual
+// ctx_label = "H1" if tf=="30m" else "H4" do K10Engine)
+// ════════════════════════════════════════════════════════════
+ctxTF = timeframe.period == "30" ? "60" : "240"
+ctxLabel = timeframe.period == "30" ? "H1" : "H4"
+
+getAdxCtx() =>
+    [_p, _m, _a] = ta.dmi(14, 14)
+    _a
+
+getMacdHistCtx() =>
+    [_m, _s, _h] = ta.macd(close, 12, 26, 9)
+    _h
+
+ema21Ctx = request.security(syminfo.tickerid, ctxTF, ta.ema(close, 21), lookahead=barmerge.lookahead_off)
+ema50Ctx = request.security(syminfo.tickerid, ctxTF, ta.ema(close, 50), lookahead=barmerge.lookahead_off)
+adxCtx   = request.security(syminfo.tickerid, ctxTF, getAdxCtx(),  lookahead=barmerge.lookahead_off)
+macdCtxHist = request.security(syminfo.tickerid, ctxTF, getMacdHistCtx(), lookahead=barmerge.lookahead_off)
+
+tendCtx    = ema21Ctx > ema50Ctx
+macdCtxOk  = macdCtxHist > 0
+tendCtxOk  = tendCtx
+
+// ════════════════════════════════════════════════════════════
+// DIRECAO PELO MACD — igual K10Engine (so LONG, SHORT bloqueado
+// "WR historico insuficiente 19%", RFC reequilibrio 22/08)
+// ════════════════════════════════════════════════════════════
+macdCruzouLong = (macdH2 <= 0 and macdH > 0) or (macdH3 <= 0 and macdH2 > 0) or (macdH4 <= 0 and macdH3 > 0)
+macdAcelLong   = macdH > 0 and macdH > macdH2 and macdH2 > macdH3
+macdDeclining  = macdH < macdH2 and macdH2 < macdH3
+
+direcaoLong = (macdCruzouLong and not macdDeclining) or macdAcelLong
+
+// ════════════════════════════════════════════════════════════
+// BLOQUEIOS INICIAIS (HARD sempre, igual K10Engine linhas ~394-430)
+// ════════════════════════════════════════════════════════════
+distEma50Atr  = math.abs(haClose - e50) / math.max(atr, syminfo.mintick)
+notExtended   = distEma50Atr <= 1.8
+
+bodyRatio  = math.abs(haClose - haOpen) / math.max(haHigh - haLow, syminfo.mintick)
+bullCandle = haClose > haOpen and bodyRatio >= 0.30
+
+hardAdx     = adx < 18
+hardRsi     = rsiVal < 25 or rsiVal > 75
+hardExtend  = not notExtended
+hardCandle  = not bullCandle and macdH > 0
+hardNoDir   = not direcaoLong
+
+hardBlockInicial = hardAdx or hardRsi or hardExtend or hardCandle or hardNoDir
+
+// ════════════════════════════════════════════════════════════
+// ESTRUTURA — swing de 20 velas, igual K10Engine linhas ~474-500
+// lookback = dfc.iloc[-20:-6] -> janela de 14 velas, 6 a 19 atras
+// ════════════════════════════════════════════════════════════
+swingLow  = ta.lowest(haLow, 14)[6]
+swingHigh = ta.highest(haHigh, 14)[6]
+
+// sweep: alguma vela das ultimas 5 (range -6:-1) rompeu abaixo do
+// swingLow com reclaim (fechou de volta acima) -- reclaim exigido
+// por construcao, igual K10Engine
+var bool sweepOk = false
+var float sweepExtremo = na
+sweepOk := false
+sweepExtremo := na
+for i = 1 to 5
+    if haLow[i] < swingLow * 1.001 and haClose[i] > swingLow
+        sweepOk := true
+        sweepExtremo := na(sweepExtremo) ? haLow[i] : math.min(sweepExtremo, haLow[i])
+
+// BOS: fechamento atual rompeu a maxima das ultimas 8 velas (2 a 9
+// atras) -- igual dfc["high"].iloc[-10:-2].max()
+bosRefHigh = ta.highest(haHigh, 8)[2]
+bosOk = haClose > bosRefHigh
+
+tendForte = e10 > e21 and e21 > e50 and macdH > 0 and adx > 22
+
+estruturaReal = sweepOk or bosOk
+
+// ════════════════════════════════════════════════════════════
+// SCORE + SOFT/HARD — replica o essencial do K10Engine._analisar_tf
+// ════════════════════════════════════════════════════════════
+var float score = 0.0
+score := 0.0
+var float softPenalty = 0.0
+softPenalty := 0.0
+var string[] motivosHard = array.new<string>()
+array.clear(motivosHard)
+var string[] motivosSoft = array.new<string>()
+array.clear(motivosSoft)
+
+if direcaoLong
+    score += 25
+
+// EMA alinhada — HARD por padrao, soft SE houver estrutura real
+// (RFC reequilibrio-reversao 23/08)
+emaContra = e10 < e21
+if emaContra
+    if softFiltersMode and estruturaReal
+        softPenalty += 15
+        array.push(motivosSoft, "EMA10<EMA21 (aceito: reversao com estrutura)")
+    else
+        array.push(motivosHard, "EMA10<EMA21 contra LONG")
+else
+    score += (e10 > e21 and e21 > e50 and e50 > e200) ? 15 : (e10 > e21 and e21 > e50) ? 10 : 5
+
+// Estrutura
+if sweepOk
+    score += 20
+else if bosOk
+    score += 15
+else if tendForte
+    score += 10
+else
+    array.push(motivosHard, "Sem BOS/CHoCH/tendencia")
+
+// RSI
+if rsiVal > rsiVal2 and rsiVal < 68
+    score += 8
+
+// VWAP
+if haClose > vwapVal
+    score += 5
+
+// RVOL — soft acima do piso hard, igual K10Engine
+if rvol >= 6.0
+    score += 20
+else if rvol >= 2.0
+    score += 18
+else if rvol >= 1.5
+    score += 14
+else if rvol >= 1.2
+    score += 8
+else if rvol >= 1.0
+    score += 4
+else if rvol >= 0.8
+    score -= 5
+else if rvol >= rvolHardMin
+    if softFiltersMode
+        softPenalty += 10
+        array.push(motivosSoft, "RVOL moderado")
+    else
+        array.push(motivosHard, "RVOL insuficiente")
+else
+    array.push(motivosHard, "Volume muito baixo (sem liquidez)")
+
+// Contexto superior — MACD H4 contra vira soft (unconditional soft,
+// igual EXIGE_MOMENTUM_10); H4 CONTRA FORTE (adx alto) continua HARD
+if not tendCtxOk and adxCtx > 28
+    array.push(motivosHard, ctxLabel + " contra tendencia forte")
+else if macdCtxOk and tendCtxOk
+    score += 18
+else if tendCtxOk
+    score += 8
+
+if modo1010 and not macdCtxOk
+    if softFiltersMode
+        softPenalty += 10
+        array.push(motivosSoft, "MACD " + ctxLabel + " contra direcao")
+
+if modo1010 and not tendCtxOk
+    if softFiltersMode and estruturaReal
+        softPenalty += 15
+        array.push(motivosSoft, ctxLabel + " sem tendencia alinhada (aceito: estrutura)")
+    else if not tendCtxOk and adxCtx <= 28
+        array.push(motivosHard, "10/10 " + ctxLabel + " sem tendencia alinhada")
+
+score := math.min(score, 100)
+
+// ════════════════════════════════════════════════════════════
+// STOP1 / STOP2 — igual RFC stop-duplo + protecao-liquidez 23/08
+// ════════════════════════════════════════════════════════════
+stop1Base = ta.lowest(haLow, 6)[1]
+stop1 = stop1Base - atr * 0.1
+if math.abs(haClose - stop1) / haClose > 0.06
+    stop1 := haClose * 0.95
+
+risco1 = haClose - stop1
+
+qualityFinal = math.max(0.0, math.round(score - math.min(softPenalty, softPenaltyMax)))
+
+tierQualidade = qualityFinal >= 90 ? "APEX" : qualityFinal >= 80 ? "PRO" : qualityFinal >= 70 ? "SETUP" : "ABAIXO"
+saudeMercado  = tierQualidade == "APEX" ? "MUITO_SAUDAVEL" : tierQualidade == "PRO" ? "SAUDAVEL" : tierQualidade == "SETUP" ? "NORMAL" : "FRACO"
+riscoPct      = tierQualidade == "APEX" ? 6.0 : tierQualidade == "PRO" ? 4.0 : tierQualidade == "SETUP" ? 3.0 : 1.0
+stop2Buffer   = tierQualidade == "APEX" ? stop2BufMuito : tierQualidade == "PRO" ? stop2BufSaud : tierQualidade == "SETUP" ? stop2BufNormal : stop2BufFraco
+
+stop2RefList = math.min(swingLow, stop1)
+stop2Ref = (sweepOk and not na(sweepExtremo)) ? math.min(stop2RefList, sweepExtremo) : stop2RefList
+stop2 = math.min(stop2Ref - atr * stop2Buffer, stop1)
+if math.abs(haClose - stop2) / haClose > 0.12
+    stop2 := haClose * 0.90
+
+riscoFinal = haClose - stop2
+tp1 = haClose + riscoFinal * 2.0
+tp2 = haClose + riscoFinal * 3.5
+be  = haClose + riscoFinal * 1.0
+
+// RFC correcao-rr 28/08 (mesmo bug corrigido no k10_engine.py) — RR real
+// usa o stop que de fato protege o trade (STOP2), nao o STOP1 tecnico.
+// Antes, rr=3.5 fixo (calculado com risco1/stop1) nao batia com o
+// stop2/riscoFinal realmente usados no TP2 — RR exibido/filtrado sempre
+// otimista. Piso 2.0 e o mesmo ja usado em todo o resto da logica (HARD
+// sempre), nao e novo threshold.
+rr = riscoFinal > 0 ? (tp2 - haClose) / riscoFinal : 0.0
+rrMinReal = 2.0  // mesmo piso HARD-sempre usado no k10_engine.py fora do modo 10/10; NAO e o rrMin10 (2.5, so do modo 10/10)
+if rr < rrMinReal
+    array.push(motivosHard, "RR real " + str.tostring(rr, "#.##") + " < " + str.tostring(rrMinReal) + " (com stop final)")
+if modo1010 and rr < rrMin10
+    array.push(motivosHard, "10/10 RR " + str.tostring(rr, "#.##") + " < " + str.tostring(rrMin10))
+
+if softFiltersMode and qualityFinal < qualityFinalMin
+    array.push(motivosHard, "Quality Final " + str.tostring(qualityFinal) + " < " + str.tostring(qualityFinalMin))
+
+// ════════════════════════════════════════════════════════════
+// APROVACAO FINAL — hard bloqueio inicial OU qualquer motivo hard
+// ════════════════════════════════════════════════════════════
+aprovado = not hardBlockInicial and array.size(motivosHard) == 0
+
+newLong = aprovado and not aprovado[1]
+
+// ════════════════════════════════════════════════════════════
+// VISUAL
+// ════════════════════════════════════════════════════════════
+plot(e10,  "EMA10",  color=color.new(color.green,  0), linewidth=1)
+plot(e21,  "EMA21",  color=color.new(color.red,    0), linewidth=1)
+plot(e50,  "EMA50",  color=color.new(color.yellow, 0), linewidth=2)
+plot(e200, "EMA200", color=color.new(color.white,  0), linewidth=2)
+
+plotshape(newLong, title="LONG (K12)", style=shape.labelup, location=location.belowbar,
+     color=color.new(color.teal, 0), text="LONG", textcolor=color.white, size=size.small)
+
+var line stop1Line = na
+var line stop2Line = na
+var line tp1Line = na
+var line tp2Line = na
+var label infoLabel = na
+
+if newLong
+    line.delete(stop1Line)
+    line.delete(stop2Line)
+    line.delete(tp1Line)
+    line.delete(tp2Line)
+    label.delete(infoLabel)
+
+    stop1Line := line.new(bar_index, stop1, bar_index + 20, stop1, color=color.orange, style=line.style_dashed, width=1)
+    stop2Line := line.new(bar_index, stop2, bar_index + 20, stop2, color=color.red, style=line.style_solid, width=2)
+    tp1Line   := line.new(bar_index, tp1, bar_index + 20, tp1, color=color.new(color.teal, 0), style=line.style_dashed, width=1)
+    tp2Line   := line.new(bar_index, tp2, bar_index + 20, tp2, color=color.new(color.teal, 0), style=line.style_solid, width=2)
+
+    tierEmoji = tierQualidade == "APEX" ? "\u{1F525}" : tierQualidade == "PRO" ? "\u{1F7E2}" : tierQualidade == "SETUP" ? "\u{1F7E1}" : "\u{1F534}"
+    infoTxt = tierEmoji + " " + tierQualidade + " | Score " + str.tostring(score, "#") + " | QF " + str.tostring(qualityFinal, "#") +
+         "\nRisco " + str.tostring(riscoPct, "#.#") + "% | RR " + str.tostring(rr, "#.#") +
+         "\nSTOP1 " + str.tostring(stop1) + " | STOP2 " + str.tostring(stop2)
+    infoLabel := label.new(bar_index, high, infoTxt, style=label.style_label_down,
+         color=color.new(color.blue, 20), textcolor=color.white, size=size.small)
+
+bgcolor(hardBlockInicial ? na : (estruturaReal ? color.new(color.teal, 92) : na))
+
+// ════════════════════════════════════════════════════════════
+// DEBUG TEMPORARIO — remover depois de diagnosticar
+// ════════════════════════════════════════════════════════════
+var int cntTotal = 0
+var int cntAdx = 0
+var int cntRsi = 0
+var int cntExt = 0
+var int cntCdl = 0
+var int cntNoDir = 0
+var int cntComDir = 0
+var int cntEstrutura = 0
+var int cntMotivosHard = 0
+var int cntAprovado = 0
+
+cntTotal += 1
+if hardAdx
+    cntAdx += 1
+if hardRsi
+    cntRsi += 1
+if hardExtend
+    cntExt += 1
+if hardCandle
+    cntCdl += 1
+if not direcaoLong
+    cntNoDir += 1
+if direcaoLong
+    cntComDir += 1
+    if estruturaReal
+        cntEstrutura += 1
+    if array.size(motivosHard) > 0
+        cntMotivosHard += 1
+if aprovado
+    cntAprovado += 1
+
+// Label de debug (total/hardAdx/semDir/etc) removido do grafico -- pedido
+// do usuario 29/08 ("nao quero nada em cima dos candles"). Os contadores
+// (cntTotal, cntAdx, etc acima) continuam calculados internamente, so
+// pararam de ser desenhados por cima dos candles.
+
+// ════════════════════════════════════════════════════════════
+// TABELA LATERAL — score/tier/RVOL/RR/stop do candidato mais
+// recente + EMA/MACD/ADX do candle atual. Pedido do usuario 29/08.
+// ════════════════════════════════════════════════════════════
+var table infoTable = table.new(position.bottom_right, 2, 14,
+     bgcolor=color.new(color.black, 20), border_width=1, border_color=color.gray, force_overlay=true)
+
+if barstate.islast
+    table.cell(infoTable, 0, 0, "K12 SMC", text_color=color.white, bgcolor=color.new(color.blue, 40), text_size=size.small)
+    table.cell(infoTable, 1, 0, direcaoLong ? "LONG" : "—", text_color=color.white, bgcolor=color.new(color.blue, 40), text_size=size.small)
+
+    table.cell(infoTable, 0, 1, "Score", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 1, str.tostring(score, "#"), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 2, "Tier", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 2, tierQualidade, text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 3, "RVOL", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 3, str.tostring(rvol, "#.##"), text_color=rvol >= 1.8 ? color.lime : color.orange, text_size=size.small)
+
+    table.cell(infoTable, 0, 4, "RR real", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 4, str.tostring(rr, "#.##"), text_color=rr >= 2.0 ? color.lime : color.red, text_size=size.small)
+
+    table.cell(infoTable, 0, 5, "Stop1/Stop2", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 5, str.tostring(stop1, "#.####") + " / " + str.tostring(stop2, "#.####"), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 6, "EMA 10/21/50/200", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 6, str.tostring(e10, "#.####") + " / " + str.tostring(e21, "#.####") + " / " + str.tostring(e50, "#.####") + " / " + str.tostring(e200, "#.####"), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 7, "MACD hist", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 7, str.tostring(histLine, "#.######"), text_color=histLine >= 0 ? color.teal : color.red, text_size=size.small)
+
+    table.cell(infoTable, 0, 8, "MACD/Signal", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 8, str.tostring(macdLine, "#.######") + " / " + str.tostring(signalLine, "#.######"), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 9, "ADX", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 9, str.tostring(adx, "#.#"), text_color=adx >= 18 ? color.lime : color.orange, text_size=size.small)
+
+    table.cell(infoTable, 0, 10, "Aprovado", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 10, aprovado ? "SIM" : "NAO", text_color=aprovado ? color.lime : color.red, text_size=size.small)
+
+// ════════════════════════════════════════════════════════════
+// MODO OPERAVEL REAL — RFC 29/08, espelha modo_operavel.py.
+// Modulo FINAL de liberacao: roda so quando `aprovado` (motor) e true.
+// Score alto nao substitui EQ/estrutura/contexto/RR/risco. Simplificacoes
+// documentadas: zona institucional aqui usa distEma21Atr<=0.5 como proxy
+// (o script nao replica OB/FVG completo); "esticada" usa o mesmo limiar
+// 1.5 ATR da EMA21 que o k10_engine.py usa em _entry_quality.
+// ════════════════════════════════════════════════════════════
+// EQ (Entry Quality) simplificado — o script nunca replicou o EQ V3
+// completo do k10_engine.py (falta OB/FVG e idade do BOS). Versao
+// honesta com os componentes que ja existem aqui: distancia EMA21
+// (ate 10pts), timing MACD (ate 10pts), RSI em zona ideal (10pts),
+// base 50 -- mesma escala 0-100 do original, mas nao identica.
+distEma21Atr    = math.abs(haClose - e21) / math.max(atr, syminfo.mintick)
+eqDistPts  = distEma21Atr <= 0.5 ? 10 : distEma21Atr <= 1.0 ? 5 : distEma21Atr <= 1.5 ? 0 : -50
+eqTimingPts = (macdH2 <= 0 and macdH > 0) ? 10 : macdAcelLong ? 5 : 0
+eqRsiPts   = (rsiVal >= 40 and rsiVal <= 68) ? 10 : 0
+eq = 50 + eqDistPts + eqTimingPts + eqRsiPts
+
+esticadaOp      = distEma21Atr > 1.5
+zonaInstOp      = distEma21Atr <= 0.5
+estruturaCompletaOp = bosOk and sweepOk
+pullbackOp      = distEma21Atr <= 1.0
+ctxFavoravelOp  = tendCtxOk and macdCtxOk
+ctxForteContraOp = (not tendCtxOk and adxCtx > 28) or (not tendCtxOk and not macdCtxOk)
+riscoPctOp      = tierQualidade == "APEX" ? 6.0 : tierQualidade == "PRO" ? 4.0 : tierQualidade == "SETUP" ? 3.0 : 1.0
+riscoOkOp       = riscoPctOp <= 3.0
+
+var string motivoOp = ""
+motivoOp := ""
+if eq < 70
+    motivoOp := "EQ " + str.tostring(eq, "#") + " < 70"
+else if not estruturaReal
+    motivoOp := "sem BOS/CHoCH nem sweep confirmado"
+else if esticadaOp
+    motivoOp := "entrada esticada (>1.5 ATR da EMA21)"
+else if rvol < 0.80
+    motivoOp := "RVOL " + str.tostring(rvol, "#.##") + " < 0.80"
+else if ctxForteContraOp
+    motivoOp := "contexto HTF fortemente contrario"
+else if rr < 2.0
+    motivoOp := "RR real " + str.tostring(rr, "#.##") + " < 2.0"
+else if not riscoOkOp
+    motivoOp := "risco " + str.tostring(riscoPctOp, "#.#") + "% > 3%"
+else if sweepOk and (not estruturaCompletaOp or not pullbackOp)
+    // reversao (sweepOk=true) exige BOS+sweep juntos + pullback
+    motivoOp := "REVERSAO exige BOS+liquidez+pullback juntos"
+
+operavelOp = aprovado and motivoOp == ""
+premiumOp  = operavelOp and eq >= 85 and estruturaCompletaOp and zonaInstOp and pullbackOp and rvol >= 1.8 and ctxFavoravelOp and rr >= 2.2
+bomOp      = operavelOp and not premiumOp and eq >= 80 and estruturaCompletaOp and pullbackOp and rvol >= 1.5 and ctxFavoravelOp and rr >= 2.2
+classeOp   = not operavelOp ? "NAO OPERAVEL" : premiumOp ? "PREMIUM" : bomOp ? "BOM" : "ACEITAVEL"
+riscoFinalOp = premiumOp ? 3.0 : bomOp ? 1.5 : operavelOp ? 0.75 : 0.0
+
+if barstate.islast
+    table.cell(infoTable, 0, 11, "MODO OPERAVEL", text_color=color.white, bgcolor=color.new(color.purple, 40), text_size=size.small)
+    table.cell(infoTable, 1, 11, classeOp, text_color=operavelOp ? color.lime : color.red, bgcolor=color.new(color.purple, 40), text_size=size.small)
+    table.cell(infoTable, 0, 12, operavelOp ? "Risco final" : "Motivo", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 12, operavelOp ? str.tostring(riscoFinalOp, "#.##") + "%" : motivoOp, text_color=color.white, text_size=size.small)
+
+// ════════════════════════════════════════════════════════════
+// SHORT (EXPERIMENTAL) — espelha short_shadow_engine.py: SHORT
+// continua 100% bloqueado em producao real (WR historico
+// insuficiente, RFC reequilibrio 22/08); isto e so visual, pra
+// acompanhar setups bearish candidatos, igual o shadow mode do bot
+// so registra e nunca envia/opera. Desligado por padrao.
+// ════════════════════════════════════════════════════════════
+mostrarShort = input.bool(false, "Mostrar setups SHORT (experimental, nao operado em producao)", group=grpGate)
+
+macdCruzouShort = (macdH2 >= 0 and macdH < 0) or (macdH3 >= 0 and macdH2 < 0) or (macdH4 >= 0 and macdH3 < 0)
+macdAcelShort   = macdH < 0 and macdH < macdH2 and macdH2 < macdH3
+macdRisingBear  = macdH > macdH2 and macdH2 > macdH3
+direcaoShort    = (macdCruzouShort and not macdRisingBear) or macdAcelShort
+
+bodyRatioShort = math.abs(haClose - haOpen) / math.max(haHigh - haLow, syminfo.mintick)
+bearCandle     = haClose < haOpen and bodyRatioShort >= 0.30
+
+hardAdxS    = adx < 18
+hardRsiS    = rsiVal < 25 or rsiVal > 75
+hardExtendS = distEma50Atr > 1.8
+hardCandleS = not bearCandle and macdH < 0
+hardNoDirS  = not direcaoShort
+hardBlockShort = hardAdxS or hardRsiS or hardExtendS or hardCandleS or hardNoDirS
+
+// estrutura bearish: sweep do swingHigh com reclaim pra baixo, ou BOS
+// pra baixo rompendo a minima das ultimas 8 velas (2 a 9 atras)
+var bool sweepOkS = false
+sweepOkS := false
+for i = 1 to 5
+    if haHigh[i] > swingHigh * 0.999 and haClose[i] < swingHigh
+        sweepOkS := true
+
+bosRefLow = ta.lowest(haLow, 8)[2]
+bosOkS = haClose < bosRefLow
+estruturaRealS = sweepOkS or bosOkS
+
+emaContraS = e10 > e21   // contra SHORT = EMAs ainda em vies de alta
+
+rvolOkS = rvol >= rvolHardMin
+
+aprovadoShort = not hardBlockShort and estruturaRealS and not emaContraS and rvolOkS
+newShort = mostrarShort and aprovadoShort and not aprovadoShort[1]
+
+plotshape(newShort, title="SHORT (K12 experimental)", style=shape.labeldown, location=location.abovebar,
+     color=color.new(color.maroon, 0), text="SHORT", textcolor=color.white, size=size.small)
+
+var line stop1LineS = na
+var line stop2LineS = na
+var line tp1LineS = na
+var line tp2LineS = na
+
+if newShort
+    line.delete(stop1LineS)
+    line.delete(stop2LineS)
+    line.delete(tp1LineS)
+    line.delete(tp2LineS)
+
+    stop1S = ta.highest(haHigh, 6)[1] + atr * 0.1
+    risco1S = stop1S - haClose
+    stop2RefS = math.max(swingHigh, stop1S)
+    stop2S = math.max(stop2RefS + atr * stop2Buffer, stop1S)
+    riscoFinalS = stop2S - haClose
+    tp1S = haClose - riscoFinalS * 2.0
+    tp2S = haClose - riscoFinalS * 3.5
+
+    stop1LineS := line.new(bar_index, stop1S, bar_index + 20, stop1S, color=color.orange, style=line.style_dashed, width=1)
+    stop2LineS := line.new(bar_index, stop2S, bar_index + 20, stop2S, color=color.red, style=line.style_solid, width=2)
+    tp1LineS   := line.new(bar_index, tp1S, bar_index + 20, tp1S, color=color.new(color.maroon, 0), style=line.style_dashed, width=1)
+    tp2LineS   := line.new(bar_index, tp2S, bar_index + 20, tp2S, color=color.new(color.maroon, 0), style=line.style_solid, width=2)
+
+if barstate.islast and mostrarShort
+    table.cell(infoTable, 0, 13, "SHORT (exper.)", text_color=color.white, bgcolor=color.new(color.maroon, 40), text_size=size.small)
+    table.cell(infoTable, 1, 13, aprovadoShort ? "candidato" : "sem setup", text_color=aprovadoShort ? color.lime : color.gray, bgcolor=color.new(color.maroon, 40), text_size=size.small)
