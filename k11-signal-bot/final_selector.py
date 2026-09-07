@@ -31,11 +31,13 @@ CFG = {
     "STRUCTURE_SCORE_MIN":       45,
     "ENTRY_TIMING_MIN":          40,
     "RR_MIN":                    1.5,
+    "RR_MAX":                    3.0,    # ETAPA 3: Hard cap em RR após diagnóstico
     "COOLDOWN_AFTER_LOSS_MIN":   30,     # minutos de cooldown após loss
     "MAX_CORRELATED_SIGNALS":    1,
     "REVERSAL_CHURN_PENALTY":    15,
     "ENTRY_LATE_PENALTY":        10,
     "WATCHING_ENABLED":          True,
+    "BLOCK_SHORT_SIGNALS":       True,  # ETAPA 3: Bloquear SHORT após diagnóstico
 }
 
 STATE_FILE = "/tmp/k11_selector_state.json"
@@ -280,8 +282,18 @@ def selecionar(candidatos: list, state: dict = None) -> tuple:
         direcao = item["direcao"]
         motivo_rejeicao = None
 
+        # Gate 0A: ETAPA 3 — Bloquear SHORT (diagnóstico mostrou -0.2790R)
+        if CFG["BLOCK_SHORT_SIGNALS"] and direcao == "SHORT":
+            motivo_rejeicao = "SHORT bloqueado por diagnóstico (expectativa -0.2790R)"
+            contadores["structure_rejected"] += 1  # reutilizar contador
+
+        # Gate 0B: ETAPA 3 — RR máximo ≤ 3.0 (diagnóstico mostrou RR>3.0 = -0.0341R)
+        elif CFG["RR_MAX"] and s.get("rr_alvo", 0) > CFG["RR_MAX"]:
+            motivo_rejeicao = f"RR {s.get('rr_alvo', 0):.1f} > máximo {CFG['RR_MAX']}"
+            contadores["timing_rejected"] += 1  # reutilizar contador
+
         # Gate 1: Structure Score mínimo
-        if item["structure"] < CFG["STRUCTURE_SCORE_MIN"]:
+        elif item["structure"] < CFG["STRUCTURE_SCORE_MIN"]:
             motivo_rejeicao = f"Structure {item['structure']} < {CFG['STRUCTURE_SCORE_MIN']}"
             contadores["structure_rejected"] += 1
 
