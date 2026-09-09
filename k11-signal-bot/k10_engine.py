@@ -418,30 +418,80 @@ class K10Engine:
             else:
                 motivos.append(texto)
 
-        # BLOQUEIO 1: ADX
+        # ESTRUTURA PRÉVIA (RFC prompt-mestre 30/08) — calculada ANTES dos
+        # bloqueios de RSI extremo / extensão / corpo do candle, porque esses
+        # 3 bloqueios matavam candidatos de reversao real (sweep+BOS) so por
+        # rodarem antes de qualquer checagem de estrutura. RSI extremo e
+        # extensao da EMA50 sao exatamente o que se espera perto de um sweep
+        # de liquidez -- nao evidencia de que o setup e invalido. Bidirecional
+        # e nao depende de `direcao` (que so e decidida mais abaixo pelo
+        # MACD) -- reaproveita a MESMA janela de swing que a estrutura
+        # definitiva (calculada depois, ja com direcao) usa, so que aplicada
+        # nos dois sentidos pra servir de evidencia precoce.
+        if tf == "15m":
+            _lb_hi, _lb_lo, _sw_hi, _sw_lo, _bos_hi_pre, _bos_lo_pre = 10, 3, 3, 1, 5, 1
+        else:
+            _lb_hi, _lb_lo, _sw_hi, _sw_lo, _bos_hi_pre, _bos_lo_pre = 20, 6, 6, 1, 10, 2
+        _lookback_pre = dfc.iloc[-_lb_hi:-_lb_lo]
+        _swing_high_pre = float(_lookback_pre["high"].max())
+        _swing_low_pre  = float(_lookback_pre["low"].min())
+        sweep_pre = False
+        for _i in range(-_sw_hi, -_sw_lo):
+            _v = dfc.iloc[_i]
+            _hv, _lv, _cv = float(_v["high"]), float(_v["low"]), float(_v["close"])
+            if _lv < _swing_low_pre*1.001 and _cv > _swing_low_pre:
+                sweep_pre = True
+            if _hv > _swing_high_pre*0.999 and _cv < _swing_high_pre:
+                sweep_pre = True
+        _highs_pre = float(dfc["high"].iloc[-_bos_hi_pre:-_bos_lo_pre].max())
+        _lows_pre  = float(dfc["low"].iloc[-_bos_hi_pre:-_bos_lo_pre].min())
+        bos_pre = (c > _highs_pre) or (c < _lows_pre)
+        estrutura_pre = sweep_pre or bos_pre
+
+        # BLOQUEIO 1: ADX (sempre HARD — mercado lateral nao gera trade,
+        # nao tem relacao com estrutura de reversao)
         if adx < 18:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":[f"Mercado lateral ADX {adx:.1f}"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
-        # BLOQUEIO 2: RSI extremo
+        # BLOQUEIO 2: RSI extremo — SOFT se houver estrutura previa (RSI
+        # extremo e literalmente o setup classico de sweep+reversao, bloquear
+        # aqui matava a deteccao pela raiz)
         if rsi < 25:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"RSI {rsi:.0f} sobrevendido — bounce iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            if SOFT_FILTERS_MODE and estrutura_pre:
+                _bloqueio(f"RSI {rsi:.0f} sobrevendido (aceito: estrutura previa confirmada)", 15, soft=True)
+            else:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":[f"RSI {rsi:.0f} sobrevendido — bounce iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
         if rsi > 75:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"RSI {rsi:.0f} sobrecomprado — pullback iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            if SOFT_FILTERS_MODE and estrutura_pre:
+                _bloqueio(f"RSI {rsi:.0f} sobrecomprado (aceito: estrutura previa confirmada)", 15, soft=True)
+            else:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":[f"RSI {rsi:.0f} sobrecomprado — pullback iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
-        # BLOQUEIO 3: Preço esticado da EMA50
+        # BLOQUEIO 3: Preço esticado da EMA50 — SOFT se houver estrutura
+        # previa (reversao real tende a estar naturalmente longe da EMA50 no
+        # extremo do movimento; exigir "nao esticado" ANTES de checar
+        # estrutura matava reversoes pela propria natureza do setup)
         if not not_extended:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (max 1.8x)"],
-                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            if SOFT_FILTERS_MODE and estrutura_pre:
+                _bloqueio(f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (aceito: estrutura previa confirmada)", 15, soft=True)
+            else:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":[f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (max 1.8x)"],
+                        "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
-        # BLOQUEIO 4: Candle sem corpo
+        # BLOQUEIO 4: Candle sem corpo — SOFT se houver estrutura previa (um
+        # candle de reclaim pos-sweep costuma ter corpo pequeno, e o pavio
+        # que fez o trabalho, nao o corpo)
         if not bull_candle and macd_h > 0:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Candle sem confirmacao (body ratio {body_ratio:.2f} < 0.30)"],
-                    "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            if SOFT_FILTERS_MODE and estrutura_pre:
+                _bloqueio(f"Candle sem confirmacao (body ratio {body_ratio:.2f}) (aceito: estrutura previa confirmada)", 10, soft=True)
+            else:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":[f"Candle sem confirmacao (body ratio {body_ratio:.2f} < 0.30)"],
+                        "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # DIREÇÃO PELO MACD
         macd_cruzou_long  = any([macd_h2<=0 and macd_h>0, macd_h3<=0 and macd_h2>0, macd_h4<=0 and macd_h3>0])
@@ -459,10 +509,13 @@ class K10Engine:
                         "timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol, **diag_snapshot}
             direcao = "LONG";  confirmacoes.append("🎯 MACD cruzou para cima"); score += 25
         elif macd_cruzou_short:
-            # SHORT bloqueado — WR histórico 19-22% vs LONG 38-39% (confirmado em 486 trades, 05-13/08)
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
-                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol, **diag_snapshot}
+            # SHORT LIGADO (pedido explicito do usuario 01/09, ciente do risco:
+            # WR historico 19-22% em 486 trades 05-13/08, SEM reavaliacao desde
+            # entao). Passa pelos MESMOS gates de qualidade que o LONG (score,
+            # EQ, estrutura, RR, modo_operavel) -- nao e um bypass, e a barra
+            # de qualidade nunca foi validada pra SHORT com a arquitetura
+            # atual. Observar de perto os primeiros resultados.
+            direcao = "SHORT"; confirmacoes.append("🎯 MACD cruzou para baixo"); score += 25
         elif macd_acel_long:
             ratio = abs(macd_h/macd_h4) if macd_h4!=0 else 99
             if ratio > 6.0:
@@ -470,10 +523,13 @@ class K10Engine:
                         "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"LONG","rr":0,"rvol":rvol, **diag_snapshot}
             direcao = "LONG";  confirmacoes.append("MACD acelerando ↑"); score += 15
         elif macd_acel_short:
-            # SHORT bloqueado — WR histórico insuficiente (confirmado em 486 trades, 05-13/08)
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":["SHORT bloqueado — WR histórico insuficiente (19%)"],
-                    "timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol, **diag_snapshot}
+            # SHORT LIGADO (mesmo motivo do bloco acima) — mesma checagem de
+            # aceleracao excessiva que o LONG ja tem.
+            ratio = abs(macd_h/macd_h4) if macd_h4!=0 else 99
+            if ratio > 6.0:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol, **diag_snapshot}
+            direcao = "SHORT"; confirmacoes.append("MACD acelerando ↓"); score += 15
         else:
             return {"symbol":symbol,"aprovado":False,"score":0,
                     "motivos_rejeicao":["MACD sem direção"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
@@ -806,6 +862,25 @@ class K10Engine:
 
         if SOFT_FILTERS_MODE and quality_final < QUALITY_FINAL_MIN:
             motivos.append(f"Quality Final {quality_final} < {QUALITY_FINAL_MIN}")
+
+        # ===== FINAL_DECISION_GATE V1 (RFC K12 Consistência) =====
+        # Validação hierárquica: HARD GATES sempre bloqueiam
+        # Score é critério de qualidade, nunca autorização para ignora HARD GATE
+
+        # HARD GATE 1: RR deve estar em [2.0, 3.0]
+        if rr < 2.0:
+            motivos.append(f"[HARD_GATE] RR {rr:.2f} < 2.0")
+        elif rr > 3.0:
+            motivos.append(f"[HARD_GATE] RR {rr:.2f} > 3.0")
+
+        # HARD GATE 2: APEX exige EQ >= 80 (Score não compra isenção)
+        if tier_qualidade == "APEX" and eq < 80:
+            motivos.append(f"[HARD_GATE_APEX] EQ {eq} < 80 (APEX exige EQ >= 80)")
+
+        # HARD GATE 3: Estrutura obrigatória para APEX
+        if tier_qualidade == "APEX":
+            if not (bos_ok or sweep_ok):
+                motivos.append("[HARD_GATE_APEX] Sem BOS/CHoCH/Sweep (estrutura obrigatória)")
 
         aprovado = len(motivos) == 0
 
