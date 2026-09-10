@@ -13,6 +13,15 @@ confirmação HTF + volume, e sinalizar no máximo 1 por ciclo.
 RFC "K11 APEX — Reconstrução Controlada" (2026-08-20).
 """
 
+# RR_MIN/RR_MAX: fonte central unica (final_selector.CFG). RFC
+# correcao-rr-apex 09/09 -- caso MET (RR=3.50, APEX_score=96, EQ=80,
+# RVOL=3.14) virou "APEX -- AGUARDAR EXECUCAO" porque avaliar_apex() nunca
+# checava RR: nem o motor (k10_engine.py, so tinha piso) nem o Final
+# Selector (que TEM RR_MAX=3.0, mas roda so no fluxo LONG normal, depois
+# do ponto em que o APEX ja capturou aprovados_engine_full) protegiam
+# esse caminho.
+from final_selector import CFG as _FS_CFG
+
 CFG = {
     "APEX_MIN_SCORE": 80,     # nota mínima 0-100 pra virar candidato APEX
     "APEX_RVOL_MIN":  1.5,    # requisito duro de volume (secao 8.5 da RFC)
@@ -125,11 +134,13 @@ def avaliar_apex(sinal: dict) -> dict:
 
     # Requisitos duros — nenhum componente isolado (nem RVOL alto, nem score
     # alto) pode "comprar" a ausência de um ingrediente essencial (secao 10).
+    rr_val = sinal.get("rr", 0)
     requisitos = {
         "estrutura":     estrutura_ok,
         "rvol_minimo":   rvol_val >= CFG["APEX_RVOL_MIN"],
         "htf":           htf_ok,
         "tipo_definido": apex_tipo is not None,
+        "rr_valido":     _FS_CFG["RR_MIN"] <= rr_val <= _FS_CFG["RR_MAX"],
     }
     todos_requisitos_ok = all(requisitos.values())
     is_apex = todos_requisitos_ok and apex_score >= CFG["APEX_MIN_SCORE"]
@@ -142,6 +153,7 @@ def avaliar_apex(sinal: dict) -> dict:
         "RVOL":            f"{'✅' if rvol_val >= CFG['APEX_RVOL_MIN'] else '❌'} ({rvol_val:.2f})",
         "Tendência/EMA":   "✅" if s_tendencia >= PESOS["tendencia"] * 0.6 else "❌",
         "Momentum (MACD)": "✅" if s_momentum > 0 else "❌",
+        "RR":              f"{'✅' if requisitos['rr_valido'] else '❌'} ({rr_val:.2f})",
     }
 
     if not todos_requisitos_ok:

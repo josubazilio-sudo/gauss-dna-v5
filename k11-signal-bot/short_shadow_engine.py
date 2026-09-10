@@ -397,6 +397,14 @@ def resolver_pendentes(limite: int = 30) -> int:
         estado[cid].update(ev)
 
     pendentes = [c for c in estado.values() if (c.get("shadow") or {}).get("status") == "PENDING"]
+    # RFC prompt-mestre 01/09: mesmo bug ja achado/corrigido no shadow_tracker
+    # do LONG (632ec6d, 26/08) -- resolvia em ordem cronologica bruta, e os
+    # candidatos aprovados (aqui 164, vs dezenas de milhares de bloqueados)
+    # nunca chegavam a vez dentro do limite/ciclo. Resultado real observado:
+    # 0 de 164 aprovados resolvidos em 5 dias (mais antigo pendente desde
+    # 27/08). Sort estavel, so muda ORDEM de resolucao -- nenhuma logica de
+    # aprovacao/estrategia alterada.
+    pendentes.sort(key=lambda c: not c.get("aprovado_shadow"))
     resolvidos = 0
     for cand in pendentes[:limite]:
         resultado = _resolver_um(cand, exchange)

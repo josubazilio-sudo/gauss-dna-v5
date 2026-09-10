@@ -122,7 +122,7 @@ def _exposicao_ok(sinal: dict) -> tuple:
     return True, ""
 
 
-def avaliar(sinal: dict) -> dict:
+def avaliar(sinal: dict, contexto_mercado: dict = None) -> dict:
     """Avalia um sinal JA aprovado pelo motor + Final Selector. Retorna:
     {
       "operar": bool,
@@ -132,8 +132,16 @@ def avaliar(sinal: dict) -> dict:
       "estrutura": {...}, "contexto": {...},  # para o card
     }
     Nunca modifica `sinal` in-place.
+
+    contexto_mercado: dict opcional de filtro_mercado.calcular_contexto_mercado(),
+    calculado 1x por ciclo em runner.py (Secao 11 da RFC). Se None ou ausente,
+    o filtro fica inerte -- comportamento identico a antes desta adicao.
     """
     motivos = []
+
+    # ── FILTRO DE MERCADO (Secao 11) ─────────────────────────────────
+    if contexto_mercado and not contexto_mercado.get("ok", True):
+        motivos.append(contexto_mercado.get("motivo", "filtro de mercado bloqueou este ciclo"))
 
     eq = sinal.get("entry_quality") or 0
     rvol = sinal.get("rvol") or 0

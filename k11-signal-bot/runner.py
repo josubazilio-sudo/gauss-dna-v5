@@ -18,6 +18,56 @@ async def enviar(texto: str):
         r = await client.post(url, json={"chat_id": CHAT_ID, "text": texto[:4096]})
         logger.info(f"TG: {r.status_code}")
 
+def _rodar_short_shadow(wl):
+    """
+    SHORT SHADOW — RFC short-shadow 26/08. Experiencia isolada, nunca
+    aprova/envia/registra trade real, so captura em
+    short_shadow_candidates.jsonl. Falha isolada nunca derruba o ciclo.
+    RFC pipeline-stale-signal 09/09: movido para rodar DEPOIS do envio
+    real do sinal LONG (chamado no fim de main(), nao mais no meio do
+    scan principal) -- antes, os ~150 pares extras + 2 timeframes deste
+    bloco atrasavam o ciclo o suficiente para o sinal LONG real chegar
+    no SIGNAL_VALIDATOR com candle_age > STALE_SIGNAL (90min) e ser
+    descartado. Conteudo do bloco inalterado, so a posicao de execucao.
+    """
+    try:
+        from short_shadow_engine import ShortShadowEngine, capturar_lote as capturar_short, resolver_pendentes as resolver_short
+        resolvidos_short = resolver_short()
+        if resolvidos_short:
+            logger.info(f"K12 SHORT_SHADOW: {resolvidos_short} candidato(s) resolvido(s)")
+
+        short_engine = ShortShadowEngine()
+        wl_short = wl[:150]  # subconjunto — nao pesa o ciclo principal
+        def analisar_short(sym):
+            candidatos_sym = []
+            for tf_s in ("30m", "1h"):
+                try:
+                    r = short_engine.analisar_tf(sym, tf_s)
+                    if r:
+                        candidatos_sym.append(r)
+                except Exception:
+                    pass
+            return candidatos_sym
+
+        todos_short = []
+        with ThreadPoolExecutor(max_workers=4) as ex_short:
+            futures_short = {ex_short.submit(analisar_short, sym): sym for sym in wl_short}
+            for f_short in as_completed(futures_short):
+                todos_short.extend(f_short.result())
+
+        novos_short = capturar_short(todos_short)
+        aprovados_short = [c for c in todos_short if c.get("aprovado_shadow")]
+        if aprovados_short:
+            logger.info(
+                f"K12 SHORT_SHADOW: {len(aprovados_short)} regime(s) bearish forte "
+                f"({', '.join(c['symbol'] for c in aprovados_short)}) | "
+                f"{novos_short} novo(s) capturado(s) no total"
+            )
+        elif novos_short:
+            logger.info(f"K12 SHORT_SHADOW: {novos_short} candidato(s) novo(s) capturado(s), nenhum atingiu a barra")
+    except Exception as e:
+        logger.warning(f"SHORT_SHADOW: {e}")
+
 async def main():
     logger.info("K12 SMC iniciado")
     try:
@@ -58,6 +108,17 @@ async def main():
             logger.warning(f"Gestao de posicao avancada: {e}")
 
         engine = K10Engine()
+
+        # ── FILTRO DE MERCADO (RFC 29/08, Secao 11) ──────────────────────
+        # Calculado 1x por ciclo (BTC 1h), reaproveitado por modo_operavel
+        # para todos os sinais deste ciclo -- nao refaz por symbol.
+        try:
+            from filtro_mercado import calcular_contexto_mercado
+            contexto_mercado = calcular_contexto_mercado(engine)
+        except Exception as e:
+            logger.warning(f"FILTRO_MERCADO: erro ao calcular ({e}) -- filtro inerte neste ciclo")
+            contexto_mercado = None
+
         wl_geral = get_watchlist(min_volume_usdt=100_000) or WATCHLIST_FALLBACK
         wl_sem_dup = [p for p in wl_geral if p not in WATCHLIST_PRIORITY]
         wl = WATCHLIST_PRIORITY + wl_sem_dup[:490]  # 500 pares total
@@ -138,47 +199,8 @@ async def main():
             logger.warning(f"APEX: {e}")
             apex_resultado = None
 
-        # SHORT SHADOW — RFC short-shadow 26/08. Experiencia isolada,
-        # roda DEPOIS do fluxo LONG (nunca atrasa o envio real). So
-        # captura em short_shadow_candidates.jsonl, nunca aprova/envia/
-        # registra trade real. Falha isolada nunca derruba o ciclo.
-        try:
-            from short_shadow_engine import ShortShadowEngine, capturar_lote as capturar_short, resolver_pendentes as resolver_short
-            resolvidos_short = resolver_short()
-            if resolvidos_short:
-                logger.info(f"K12 SHORT_SHADOW: {resolvidos_short} candidato(s) resolvido(s)")
-
-            short_engine = ShortShadowEngine()
-            wl_short = wl[:150]  # subconjunto — nao pesa o ciclo principal
-            def analisar_short(sym):
-                candidatos_sym = []
-                for tf_s in ("30m", "1h"):
-                    try:
-                        r = short_engine.analisar_tf(sym, tf_s)
-                        if r:
-                            candidatos_sym.append(r)
-                    except Exception:
-                        pass
-                return candidatos_sym
-
-            todos_short = []
-            with ThreadPoolExecutor(max_workers=4) as ex_short:
-                futures_short = {ex_short.submit(analisar_short, sym): sym for sym in wl_short}
-                for f_short in as_completed(futures_short):
-                    todos_short.extend(f_short.result())
-
-            novos_short = capturar_short(todos_short)
-            aprovados_short = [c for c in todos_short if c.get("aprovado_shadow")]
-            if aprovados_short:
-                logger.info(
-                    f"K12 SHORT_SHADOW: {len(aprovados_short)} regime(s) bearish forte "
-                    f"({', '.join(c['symbol'] for c in aprovados_short)}) | "
-                    f"{novos_short} novo(s) capturado(s) no total"
-                )
-            elif novos_short:
-                logger.info(f"K12 SHORT_SHADOW: {novos_short} candidato(s) novo(s) capturado(s), nenhum atingiu a barra")
-        except Exception as e:
-            logger.warning(f"SHORT_SHADOW: {e}")
+        # SHORT SHADOW movido para depois do envio real -- ver _rodar_short_shadow(wl)
+        # chamada no final de main() (RFC pipeline-stale-signal 09/09).
 
     except Exception:
         logger.error(traceback.format_exc())
@@ -353,6 +375,7 @@ async def main():
         except Exception as e:
             logger.warning(f"Diag automático: {e}")
 
+        _rodar_short_shadow(wl)
         return
 
     # Anti-repetição 2h + limite diário + anti-correlação
@@ -459,7 +482,7 @@ async def main():
         avaliacao = None
         try:
             import modo_operavel
-            avaliacao = modo_operavel.avaliar(sinal)
+            avaliacao = modo_operavel.avaliar(sinal, contexto_mercado=contexto_mercado)
             if not avaliacao["operar"]:
                 logger.info(
                     f"MODO_OPERAVEL: {sinal['symbol']} {sinal['direcao']} NAO OPERAVEL — "
@@ -573,6 +596,8 @@ async def main():
     # imediatamente apos cada envio (ver comentario acima da funcao).
 
     logger.info(f"K12: {enviados} sinais enviados")
+
+    _rodar_short_shadow(wl)
 
 async def verificar_relatorios():
     """Envia relatório 2h e resumo diário às 23:30 BRT."""

@@ -17,6 +17,11 @@ from config import (BANCA, RISCO_PCT, ENTRY_QUALITY_BLOCK, ENTRY_QUALITY_MIN, K1
                       RISCO_MUITO_SAUDAVEL, RISCO_SAUDAVEL, RISCO_NORMAL, RISCO_FRACO,
                       STOP2_BUFFER_MUITO_SAUDAVEL, STOP2_BUFFER_SAUDAVEL,
                       STOP2_BUFFER_NORMAL, STOP2_BUFFER_FRACO)
+# RR_MIN/RR_MAX: fonte central unica (final_selector.CFG), reaproveitada aqui
+# para o motor nao ter um teto de RR divergente do resto do pipeline (RFC
+# correcao-rr-apex 09/09 -- caso MET RR=3.50 chegou a APEX porque o motor
+# nunca teve teto de RR, so piso).
+from final_selector import CFG as _FS_CFG
 
 
 def sessao_atual():
@@ -867,11 +872,14 @@ class K10Engine:
         # Validação hierárquica: HARD GATES sempre bloqueiam
         # Score é critério de qualidade, nunca autorização para ignora HARD GATE
 
-        # HARD GATE 1: RR deve estar em [2.0, 3.0]
-        if rr < 2.0:
-            motivos.append(f"[HARD_GATE] RR {rr:.2f} < 2.0")
-        elif rr > 3.0:
-            motivos.append(f"[HARD_GATE] RR {rr:.2f} > 3.0")
+        # HARD GATE 1: RR deve estar em [RR_MIN, RR_MAX] (config central,
+        # final_selector.CFG -- unica fonte, evita teto divergente entre
+        # motor/selector/APEX). Substitui o check antigo (so piso) da linha
+        # ~807 acima, que nunca teve teto -- causa raiz do caso MET RR=3.50.
+        if rr < _FS_CFG["RR_MIN"]:
+            motivos.append(f"[HARD_GATE] RR {rr:.2f} < {_FS_CFG['RR_MIN']}")
+        elif rr > _FS_CFG["RR_MAX"]:
+            motivos.append(f"[HARD_GATE] RR {rr:.2f} > {_FS_CFG['RR_MAX']}")
 
         # HARD GATE 2: APEX exige EQ >= 80 (Score não compra isenção)
         if tier_qualidade == "APEX" and eq < 80:
