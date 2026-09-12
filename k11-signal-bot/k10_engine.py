@@ -469,34 +469,19 @@ class K10Engine:
                 return {"symbol":symbol,"aprovado":False,"score":0,
                         "motivos_rejeicao":[f"RSI {rsi:.0f} sobrevendido — bounce iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
         if rsi > 75:
-            if SOFT_FILTERS_MODE and estrutura_pre:
-                _bloqueio(f"RSI {rsi:.0f} sobrecomprado (aceito: estrutura previa confirmada)", 15, soft=True)
-            else:
-                return {"symbol":symbol,"aprovado":False,"score":0,
-                        "motivos_rejeicao":[f"RSI {rsi:.0f} sobrecomprado — pullback iminente"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            # RFC: Converter bloqueio RSI sobrecomprado em SOFT
+            # Motivo: mercado atual (consolidação/lateral) tem RSI alto frequente; rejeição hard matava 30%+ dos sinais
+            _bloqueio(f"RSI {rsi:.0f} sobrecomprado (soft: pullback é risco, não bloqueio hard)", 15, soft=True)
 
-        # BLOQUEIO 3: Preço esticado da EMA50 — SOFT se houver estrutura
-        # previa (reversao real tende a estar naturalmente longe da EMA50 no
-        # extremo do movimento; exigir "nao esticado" ANTES de checar
-        # estrutura matava reversoes pela propria natureza do setup)
+        # BLOQUEIO 3: Preço esticado da EMA50 — SOFT sempre
+        # RFC: Relaxar bloqueio de price extension (reversão real está longe da EMA50 por natureza)
         if not not_extended:
-            if SOFT_FILTERS_MODE and estrutura_pre:
-                _bloqueio(f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (aceito: estrutura previa confirmada)", 15, soft=True)
-            else:
-                return {"symbol":symbol,"aprovado":False,"score":0,
-                        "motivos_rejeicao":[f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (max 1.8x)"],
-                        "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            _bloqueio(f"Preco esticado {dist_ema50_atr:.1f}x ATR da EMA50 (soft: movimento forte é confirmação)", 10, soft=True)
 
-        # BLOQUEIO 4: Candle sem corpo — SOFT se houver estrutura previa (um
-        # candle de reclaim pos-sweep costuma ter corpo pequeno, e o pavio
-        # que fez o trabalho, nao o corpo)
+        # BLOQUEIO 4: Candle sem corpo — SOFT sempre
+        # RFC: Candle pequeno (pavio) em reclaim após sweep é válido; não bloquear hard
         if not bull_candle and macd_h > 0:
-            if SOFT_FILTERS_MODE and estrutura_pre:
-                _bloqueio(f"Candle sem confirmacao (body ratio {body_ratio:.2f}) (aceito: estrutura previa confirmada)", 10, soft=True)
-            else:
-                return {"symbol":symbol,"aprovado":False,"score":0,
-                        "motivos_rejeicao":[f"Candle sem confirmacao (body ratio {body_ratio:.2f} < 0.30)"],
-                        "timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            _bloqueio(f"Candle sem confirmacao (body ratio {body_ratio:.2f}) (soft: pavio é válido)", 8, soft=True)
 
         # DIREÇÃO PELO MACD
         macd_cruzou_long  = any([macd_h2<=0 and macd_h>0, macd_h3<=0 and macd_h2>0, macd_h4<=0 and macd_h3>0])
