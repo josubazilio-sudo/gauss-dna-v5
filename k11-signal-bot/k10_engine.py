@@ -862,6 +862,17 @@ class K10Engine:
         if SOFT_FILTERS_MODE and quality_final < QUALITY_FINAL_MIN:
             motivos.append(f"Quality Final {quality_final} < {QUALITY_FINAL_MIN}")
 
+        # Nova classificação de qualidade (RFC reequilibrio 22/08) — SEMPRE
+        # calculada, mas só passa a determinar aprovação em SOFT_FILTERS_MODE.
+        # Coexiste com o tier OURO/PRATA/ABAIXO existente (não o substitui —
+        # final_selector.py, apex_engine.py e o formatter continuam lendo
+        # `tier` normalmente).
+        # NOTA: Definido ANTES dos HARD GATES para evitar UnboundLocalError
+        if quality_final >= 90:   tier_qualidade = "APEX"
+        elif quality_final >= 80: tier_qualidade = "PRO"
+        elif quality_final >= 70: tier_qualidade = "SETUP"
+        else:                     tier_qualidade = "ABAIXO"
+
         # ===== FINAL_DECISION_GATE V1 (RFC K12 Consistência) =====
         # Validação hierárquica: HARD GATES sempre bloqueiam
         # Score é critério de qualidade, nunca autorização para ignora HARD GATE
@@ -885,16 +896,6 @@ class K10Engine:
                 motivos.append("[HARD_GATE_APEX] Sem BOS/CHoCH/Sweep (estrutura obrigatória)")
 
         aprovado = len(motivos) == 0
-
-        # Nova classificação de qualidade (RFC reequilibrio 22/08) — SEMPRE
-        # calculada, mas só passa a determinar aprovação em SOFT_FILTERS_MODE.
-        # Coexiste com o tier OURO/PRATA/ABAIXO existente (não o substitui —
-        # final_selector.py, apex_engine.py e o formatter continuam lendo
-        # `tier` normalmente).
-        if quality_final >= 90:   tier_qualidade = "APEX"
-        elif quality_final >= 80: tier_qualidade = "PRO"
-        elif quality_final >= 70: tier_qualidade = "SETUP"
-        else:                     tier_qualidade = "ABAIXO"
 
         if ouro_ok and aprovado:    tier = "OURO"
         elif prata_ok and aprovado: tier = "PRATA"
