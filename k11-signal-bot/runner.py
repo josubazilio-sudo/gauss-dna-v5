@@ -5,6 +5,7 @@ import asyncio, logging, os, httpx, traceback, json, time as t
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from formatter import formatar_cartao, formatar_cartao_operavel
 from config import BOT_TOKEN, ALLOWED_CHAT_IDS
+from tradingview_webhook import enviar_multiplos_tradingview
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -445,6 +446,15 @@ async def main():
 
     enviados = 0
     chaves_enviadas_normal = set()  # p/ dedupe do envio APEX logo abaixo
+
+    # ── ENVIO TradingView (Melhores Sinais) ──────────────────────────────
+    try:
+        tv_enviados = await enviar_multiplos_tradingview(aprovados)
+        if tv_enviados > 0:
+            logger.info(f"K12 TradingView: {tv_enviados} sinal(is) premium enviado(s)")
+    except Exception as e:
+        logger.warning(f"TradingView webhook: {e}")
+
     for sinal in aprovados[:3]:
         # Limite diário
         if dia_data["count"] >= MAX_DIA:
