@@ -453,11 +453,11 @@ class K10Engine:
         bos_pre = (c > _highs_pre) or (c < _lows_pre)
         estrutura_pre = sweep_pre or bos_pre
 
-        # BLOQUEIO 1: ADX (sempre HARD — mercado lateral nao gera trade,
-        # nao tem relacao com estrutura de reversao)
+        # BLOQUEIO 1: ADX baixo — SOFT agora
+        # RFC: Mercado lateral com ADX <18 pode gerar reversões válidas em zona de liquidez
+        # Converter de HARD para SOFT (penalizar mas permitir entrada)
         if adx < 18:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":[f"Mercado lateral ADX {adx:.1f}"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            _bloqueio(f"Mercado lateral ADX {adx:.1f} (soft: reversão em zona de liquidez é válida)", 20, soft=True)
 
         # BLOQUEIO 2: RSI extremo — SOFT se houver estrutura previa (RSI
         # extremo e literalmente o setup classico de sweep+reversao, bloquear
