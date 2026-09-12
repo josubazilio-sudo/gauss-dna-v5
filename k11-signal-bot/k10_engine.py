@@ -536,8 +536,17 @@ class K10Engine:
                         "motivos_rejeicao":["MACD acelerou demais — atrasado"],"timeframe":tf,"direcao":"SHORT","rr":0,"rvol":rvol, **diag_snapshot}
             direcao = "SHORT"; confirmacoes.append("MACD acelerando ↓"); score += 15
         else:
-            return {"symbol":symbol,"aprovado":False,"score":0,
-                    "motivos_rejeicao":["MACD sem direção"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+            # RFC: Quando MACD não tem direção clara, usar EMA como fallback
+            # Permite entrada em consolidação/lateral com outras confirmações
+            e10 = float(r["ema10"])
+            e21 = float(r["ema21"])
+            if e10 > e21:
+                direcao = "LONG"; confirmacoes.append("EMA alinhada (sem MACD)"); score += 5
+            elif e10 < e21:
+                direcao = "SHORT"; confirmacoes.append("EMA alinhada (sem MACD)"); score += 5
+            else:
+                return {"symbol":symbol,"aprovado":False,"score":0,
+                        "motivos_rejeicao":["MACD e EMA sem direção"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
 
         # EMA alinhada com direção
         # RFC reequilibrio-reversao 23/08: a decisao soft/hard so pode ser
