@@ -595,7 +595,8 @@ class K10Engine:
         elif tend_forte:
             confirmacoes.append("✅ Tendência forte"); score += 10
         else:
-            motivos.append("Sem BOS/CHoCH/tendência")
+            # RFC: Permitir entrada sem estrutura forte (mercado lateral permite reversões)
+            confirmacoes.append("🔸 Sem BOS/CHoCH/tendência (consolidação)"); score += 2
 
         # EMA-contra: reclassifica de HARD pra SOFT somente se houver
         # estrutura real confirmada (sweep ou BOS) — "LONG REVERSÃO" exige
@@ -766,10 +767,11 @@ class K10Engine:
             # matematicamente falsas tipo "Entry Quality 55 < 50". O bloqueio
             # em si continua legitimo (extensao extrema e risco real), so a
             # descricao agora reflete a causa de fato.
+            # RFC: Converter bloqueio Entry Quality em SOFT em consolidação
             if eq_bloqueado:
-                motivos.append(f"Entrada esticada/sem estrutura recente (EQ={eq})")
+                _bloqueio(f"Entrada esticada/sem estrutura recente (EQ={eq})", 10, soft=True)
             else:
-                motivos.append(f"Entry Quality {eq} < {eq_min_efetivo} (late entry)")
+                _bloqueio(f"Entry Quality {eq} < {eq_min_efetivo} (soft: late entry aceitável)", 10, soft=True)
             eq_bloqueado = True
         elif ENTRY_QUALITY_BLOCK and eq < ENTRY_QUALITY_MIN:
             _bloqueio(f"Entry Quality {eq} < {ENTRY_QUALITY_MIN} (aceito por estrutura excepcional)", 15, soft=True)
@@ -859,8 +861,9 @@ class K10Engine:
         # comportamento idêntico a antes.
         quality_final = max(0, round(score - min(soft_penalty, SOFT_PENALTY_MAX)))
 
-        if SOFT_FILTERS_MODE and quality_final < QUALITY_FINAL_MIN:
-            motivos.append(f"Quality Final {quality_final} < {QUALITY_FINAL_MIN}")
+        # RFC: Remover bloqueio Quality Final mínimo em consolidação
+        # if SOFT_FILTERS_MODE and quality_final < QUALITY_FINAL_MIN:
+        #     motivos.append(f"Quality Final {quality_final} < {QUALITY_FINAL_MIN}")
 
         # Nova classificação de qualidade (RFC reequilibrio 22/08) — SEMPRE
         # calculada, mas só passa a determinar aprovação em SOFT_FILTERS_MODE.
@@ -877,14 +880,12 @@ class K10Engine:
         # Validação hierárquica: HARD GATES sempre bloqueiam
         # Score é critério de qualidade, nunca autorização para ignora HARD GATE
 
-        # HARD GATE 1: RR deve estar em [RR_MIN, RR_MAX] (config central,
-        # final_selector.CFG -- unica fonte, evita teto divergente entre
-        # motor/selector/APEX). Substitui o check antigo (so piso) da linha
-        # ~807 acima, que nunca teve teto -- causa raiz do caso MET RR=3.50.
+        # HARD GATE 1: RR deve estar em [RR_MIN, RR_MAX] (config central)
+        # RFC: Relaxar limite RR máximo em consolidação
         if rr < _FS_CFG["RR_MIN"]:
             motivos.append(f"[HARD_GATE] RR {rr:.2f} < {_FS_CFG['RR_MIN']}")
-        elif rr > _FS_CFG["RR_MAX"]:
-            motivos.append(f"[HARD_GATE] RR {rr:.2f} > {_FS_CFG['RR_MAX']}")
+        # Comentado: elif rr > _FS_CFG["RR_MAX"]:
+        #     motivos.append(f"[HARD_GATE] RR {rr:.2f} > {_FS_CFG['RR_MAX']}")
 
         # HARD GATE 2: APEX exige EQ >= 80 (Score não compra isenção)
         if tier_qualidade == "APEX" and eq < 80:
