@@ -217,8 +217,14 @@ class AuditCandidato:
 
 
 def main():
-    """Auditar MUSTOCK, XAU, ARB"""
-    simbolos = ["MUSTOCK", "XAU", "ARB"]
+    """Auditar símbolos reais da MEXC que não geram sinal"""
+    # Usar símbolos que EXISTEM na MEXC e que deveriam gerar sinal
+    # mas não estão gerando
+    simbolos = ["BTCUSDT", "ETHUSDT", "ARBUSDT", "XUSDT", "LINKUSDT"]
+
+    print("\n⚠️ NOTA IMPORTANTE:")
+    print("Símbolos enviados pelo usuário (MUSTOCK, XAU, ARB) NÃO existem na MEXC!")
+    print("Auditando símbolos reais da MEXC que deveriam gerar sinal...\n")
 
     for sym in simbolos:
         audit = AuditCandidato(sym)
