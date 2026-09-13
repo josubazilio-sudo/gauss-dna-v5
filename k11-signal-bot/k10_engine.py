@@ -881,11 +881,10 @@ class K10Engine:
         # Score é critério de qualidade, nunca autorização para ignora HARD GATE
 
         # HARD GATE 1: RR deve estar em [RR_MIN, RR_MAX] (config central)
-        # RFC: Relaxar limite RR máximo em consolidação
         if rr < _FS_CFG["RR_MIN"]:
             motivos.append(f"[HARD_GATE] RR {rr:.2f} < {_FS_CFG['RR_MIN']}")
-        # Comentado: elif rr > _FS_CFG["RR_MAX"]:
-        #     motivos.append(f"[HARD_GATE] RR {rr:.2f} > {_FS_CFG['RR_MAX']}")
+        elif rr > _FS_CFG["RR_MAX"]:
+            motivos.append(f"[HARD_GATE] RR {rr:.2f} > {_FS_CFG['RR_MAX']}")
 
         # HARD GATE 2: APEX exige EQ >= 80 (Score não compra isenção)
         if tier_qualidade == "APEX" and eq < 80:

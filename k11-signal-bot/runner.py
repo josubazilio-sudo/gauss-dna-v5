@@ -256,6 +256,16 @@ async def main():
                 wl2_sem_dup = [p for p in wl2_geral if p not in WATCHLIST_PRIORITY]
                 wl2 = (WATCHLIST_PRIORITY + wl2_sem_dup)[:50]
 
+                # CORREÇÃO: Filtrar apenas símbolos válidos na MEXC Futures
+                try:
+                    import ccxt
+                    _exch_val = ccxt.mexc({"enableRateLimit": True, "options": {"defaultType": "swap"}})
+                    mexc_symbols_valid = set(_exch_val.symbols)
+                    wl2 = [s for s in wl2 if s in mexc_symbols_valid]
+                except Exception as e:
+                    logger.warning(f"Validação MEXC símbolos diagnóstico: {e} — usando lista original")
+                    pass
+
                 todos = []
                 def analisar2(sym):
                     try: return engine2.analisar(sym)
