@@ -537,6 +537,16 @@ class K10Engine:
         # RFC reequilibrio-reversao 23/08: a decisao soft/hard so pode ser
         # tomada DEPOIS de saber se ha estrutura real (sweep/BOS) — por isso
         # aqui sempre bloqueia (hard) por enquanto; logo abaixo, apos a
+        # RFC REGIME MA200: Filtro de direção baseado em média 200
+        # Acima MA200 (bullish) → apenas LONG permitido
+        # Abaixo MA200 (bearish) → apenas SHORT permitido
+        if direcao=="LONG" and c < e200:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":["[REGIME] Preço abaixo MA200 — regime bearish, LONG bloqueado"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+        elif direcao=="SHORT" and c > e200:
+            return {"symbol":symbol,"aprovado":False,"score":0,
+                    "motivos_rejeicao":["[REGIME] Preço acima MA200 — regime bullish, SHORT bloqueado"],"timeframe":tf,"direcao":"—","rr":0,"rvol":rvol, **diag_snapshot}
+
         # estrutura ser calculada, reclassifica pra soft SE houver evidencia
         # de reversao confirmada. Dado real (3337 candidatos historicos):
         # EMA-contra COM estrutura Exp -0.28R vs SEM estrutura Exp -0.64R —
